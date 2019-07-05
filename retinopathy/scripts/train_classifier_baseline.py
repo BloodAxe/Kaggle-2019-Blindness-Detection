@@ -24,7 +24,7 @@ import pandas as pd
 from pytorch_toolbelt.utils.catalyst.visualization import draw_binary_segmentation_predictions
 
 from retinopathy.lib.callbacks import CappaScoreCallback
-from retinopathy.lib.dataset import RetinopatyDataset, CLASS_NAMES
+from retinopathy.lib.dataset import RetinopathyDataset, CLASS_NAMES
 from retinopathy.lib.factory import get_model, get_loss, get_optimizer, get_optimizable_parameters, get_train_aug, get_test_aug
 from retinopathy.lib.visualization import draw_classification_predictions
 
@@ -37,8 +37,8 @@ def get_dataloaders(data_dir, batch_size, num_workers,
     train_set = dataset[dataset['fold'] != fold]
     valid_set = dataset[dataset['fold'] == fold]
 
-    train_ds = RetinopatyDataset(train_set['id_code'], train_set['diagnosis'], transform=get_train_aug(image_size, augmentation))
-    valid_ds = RetinopatyDataset(valid_set['id_code'], valid_set['diagnosis'], transform=get_test_aug(image_size, augmentation))
+    train_ds = RetinopathyDataset(train_set['id_code'], train_set['diagnosis'], transform=get_train_aug(image_size, augmentation))
+    valid_ds = RetinopathyDataset(valid_set['id_code'], valid_set['diagnosis'], transform=get_test_aug(image_size, augmentation))
 
     train_dl = DataLoader(train_ds, batch_size=batch_size, shuffle=True, pin_memory=True, drop_last=True, num_workers=num_workers)
     valid_dl = DataLoader(valid_ds, batch_size=batch_size, shuffle=False, pin_memory=True, drop_last=False, num_workers=num_workers)
@@ -230,7 +230,7 @@ def main():
 
         train_csv = pd.read_csv(os.path.join(data_dir, 'train.csv'))
         train_images = train_csv['id_code'].apply(lambda x: os.path.join(data_dir, f'{x}.png'))
-        test_ds = RetinopatyDataset(train_images, None, get_test_aug(image_size, augmentations))
+        test_ds = RetinopathyDataset(train_images, None, get_test_aug(image_size, augmentations))
         test_dl = DataLoader(test_ds, batch_size)
 
         test_ids = []

@@ -22,7 +22,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 import pandas as pd
 from pytorch_toolbelt.utils.catalyst.visualization import draw_binary_segmentation_predictions
-from retinopathy.lib.dataset import RetinopatyDataset
+from retinopathy.lib.dataset import RetinopathyDataset
 from retinopathy.lib.factory import get_model, get_loss, get_optimizer, get_optimizable_parameters, get_train_aug, get_test_aug
 from retinopathy.lib.visualization import draw_classification_predictions
 
@@ -50,8 +50,8 @@ def get_dataloaders(data_dir, batch_size, num_workers,
         valid_x = valid_x[:32]
         valid_y = valid_y[:32]
 
-    train_ds = RetinopatyDataset(train_x, train_y, transform=get_train_aug(image_size, augmentation))
-    valid_ds = RetinopatyDataset(valid_x, valid_y, transform=get_test_aug(image_size, augmentation))
+    train_ds = RetinopathyDataset(train_x, train_y, transform=get_train_aug(image_size, augmentation))
+    valid_ds = RetinopathyDataset(valid_x, valid_y, transform=get_test_aug(image_size, augmentation))
 
     train_dl = DataLoader(train_ds, batch_size=batch_size, shuffle=True, pin_memory=True, drop_last=True, num_workers=num_workers)
     valid_dl = DataLoader(valid_ds, batch_size=batch_size, shuffle=False, pin_memory=True, drop_last=False, num_workers=num_workers)
@@ -235,7 +235,7 @@ def main():
 
         train_csv = pd.read_csv(os.path.join(data_dir, 'train.csv'))
         train_images = train_csv['id_code'].apply(lambda x: os.path.join(data_dir, f'{x}.png'))
-        test_ds = RetinopatyDataset(train_images, None, get_test_aug(image_size, augmentations))
+        test_ds = RetinopathyDataset(train_images, None, get_test_aug(image_size, augmentations))
         test_dl = DataLoader(test_ds, batch_size)
 
         test_ids = []
