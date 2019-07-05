@@ -116,11 +116,11 @@ def main():
         print('Loaded model weights from:', args.checkpoint)
         print('Epoch                    :', checkpoint_epoch)
         print('Metrics (Train):',
-              'cappa:', checkpoint['epoch_metrics']['train']['cappa_score'],
+              'cappa:', checkpoint['epoch_metrics']['train']['kappa_score'],
               'f1:', checkpoint['epoch_metrics']['train']['f1_score'],
               'loss:', checkpoint['epoch_metrics']['train']['loss'])
         print('Metrics (Valid):',
-              'cappa:', checkpoint['epoch_metrics']['valid']['cappa_score'],
+              'cappa:', checkpoint['epoch_metrics']['valid']['kappa_score'],
               'f1:', checkpoint['epoch_metrics']['valid']['f1_score'],
               'loss:', checkpoint['epoch_metrics']['valid']['loss'])
 
@@ -205,7 +205,7 @@ def main():
         ]
 
         if early_stopping:
-            callbacks += [EarlyStoppingCallback(early_stopping, metric='cappa_score', minimize=False)]
+            callbacks += [EarlyStoppingCallback(early_stopping, metric='kappa_score', minimize=False)]
 
         runner.train(
             fp16=fp16,
@@ -218,7 +218,7 @@ def main():
             logdir=log_dir,
             num_epochs=num_epochs,
             verbose=True,
-            main_metric='cappa_score',
+            main_metric='kappa_score',
             minimize_metric=False,
             state_kwargs={"cmd_args": vars(args)}
         )
