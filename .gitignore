@@ -14,7 +14,7 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
+retinopathy/lib/
 lib64/
 parts/
 sdist/
