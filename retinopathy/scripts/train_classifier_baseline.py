@@ -2,6 +2,7 @@ from __future__ import absolute_import
 
 import argparse
 import collections
+import multiprocessing
 import os
 from datetime import datetime
 from functools import partial
@@ -13,7 +14,7 @@ from catalyst.dl import SupervisedRunner, EarlyStoppingCallback
 from catalyst.dl.callbacks import F1ScoreCallback, AccuracyCallback
 from catalyst.utils import load_checkpoint, unpack_checkpoint
 from pytorch_toolbelt.utils import fs
-from pytorch_toolbelt.utils.catalyst_utils import ShowPolarBatchesCallback, ConfusionMatrixCallback
+from pytorch_toolbelt.utils.catalyst import ShowPolarBatchesCallback, ConfusionMatrixCallback
 from pytorch_toolbelt.utils.random import set_manual_seed
 from pytorch_toolbelt.utils.torch_utils import maybe_cuda, count_parameters, to_numpy, rgb_image_from_tensor, set_trainable
 from sklearn.model_selection import train_test_split
@@ -31,14 +32,34 @@ from retinopathy.lib.visualization import draw_classification_predictions
 
 def get_dataloaders(data_dir, batch_size, num_workers,
                     image_size, augmentation, fast, fold):
-    dataset = pd.read_csv(os.path.join(data_dir, 'train_folds.csv'))
-    dataset['id_code'] = dataset['id_code'].apply(lambda x: os.path.join(data_dir, f'{x}.png'))
+    dataset = pd.read_csv(os.path.join(data_dir, 'train.csv'))
+    dataset['id_code'] = dataset['id_code'].apply(lambda x: os.path.join(data_dir, 'train_images', f'{x}.png'))
 
-    train_set = dataset[dataset['fold'] != fold]
-    valid_set = dataset[dataset['fold'] == fold]
+    if fold is not None:
+        train_set = dataset[dataset['fold'] != fold]
+        valid_set = dataset[dataset['fold'] == fold]
 
-    train_ds = RetinopathyDataset(train_set['id_code'], train_set['diagnosis'], transform=get_train_aug(image_size, augmentation))
-    valid_ds = RetinopathyDataset(valid_set['id_code'], valid_set['diagnosis'], transform=get_test_aug(image_size, augmentation))
+        train_x = train_set['id_code']
+        train_y = train_set['diagnosis']
+
+        valid_x = valid_set['id_code']
+        valid_y = valid_set['diagnosis']
+    else:
+        x = dataset['id_code']
+        y = dataset['diagnosis']
+        train_x, valid_x, train_y, valid_y = train_test_split(x, y, random_state=42, test_size=0.1, shuffle=True, stratify=y)
+
+    if fast:
+        train_x = train_x[:32]
+        train_y = train_y[:32]
+
+        valid_x = valid_x[:32]
+        valid_y = valid_y[:32]
+
+        num_workers = 0
+
+    train_ds = RetinopathyDataset(train_x, train_y, transform=get_train_aug(image_size, augmentation))
+    valid_ds = RetinopathyDataset(valid_x, valid_y, transform=get_test_aug(image_size, augmentation))
 
     train_dl = DataLoader(train_ds, batch_size=batch_size, shuffle=True, pin_memory=True, drop_last=True, num_workers=num_workers)
     valid_dl = DataLoader(valid_ds, batch_size=batch_size, shuffle=False, pin_memory=True, drop_last=False, num_workers=num_workers)
@@ -50,18 +71,18 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--seed', type=int, default=42, help='Random seed')
     parser.add_argument('--fast', action='store_true')
-    parser.add_argument('-dd', '--data-dir', type=str, required=True, help='Data directory for INRIA sattelite dataset')
-    parser.add_argument('-m', '--model', type=str, default='unet', help='')
+    parser.add_argument('-dd', '--data-dir', type=str, default='data', help='Data directory for INRIA sattelite dataset')
+    parser.add_argument('-m', '--model', type=str, default='cls_resnet18', help='')
     parser.add_argument('-b', '--batch-size', type=int, default=8, help='Batch Size during training, e.g. -b 64')
     parser.add_argument('-e', '--epochs', type=int, default=100, help='Epoch to run')
     parser.add_argument('-es', '--early-stopping', type=int, default=None, help='Maximum number of epochs without improvement')
-    parser.add_argument('-f', '--fold', type=int, default=0)
+    parser.add_argument('-f', '--fold', type=int, default=None)
     parser.add_argument('-fe', '--freeze-encoder', action='store_true')
-    parser.add_argument('-lr', '--learning-rate', type=float, default=1e-3, help='Initial learning rate')
-    parser.add_argument('-l', '--criterion', type=str, default='bce', help='Criterion')
+    parser.add_argument('-lr', '--learning-rate', type=float, default=1e-4, help='Initial learning rate')
+    parser.add_argument('-l', '--criterion', type=str, default='ce', help='Criterion')
     parser.add_argument('-o', '--optimizer', default='Adam', help='Name of the optimizer')
     parser.add_argument('-c', '--checkpoint', type=str, default=None, help='Checkpoint filename to use as initial model weights')
-    parser.add_argument('-w', '--workers', default=8, type=int, help='Num workers')
+    parser.add_argument('-w', '--workers', default=multiprocessing.cpu_count(), type=int, help='Num workers')
     parser.add_argument('-a', '--augmentations', default='hard', type=str, help='')
     parser.add_argument('-tta', '--tta', default=None, type=str, help='Type of TTA to use [fliplr, d4]')
     parser.add_argument('-tm', '--train-mode', default='random', type=str, help='')
@@ -93,7 +114,7 @@ def main():
     run_train = run_mode == 'fit_predict' or run_mode == 'fit'
     run_predict = run_mode == 'fit_predict' or run_mode == 'predict'
 
-    model = maybe_cuda(get_model(model_name, num_classes=1))
+    model = maybe_cuda(get_model(model_name, num_classes=len(CLASS_NAMES)))
 
     if args.transfer:
         transfer_checkpoint = fs.auto_file(args.transfer)
@@ -169,8 +190,6 @@ def main():
         scheduler = MultiStepLR(optimizer,
                                 milestones=[10, 30, 50, 70, 90], gamma=0.5)
 
-        # model runner
-
         print('Train session    :', prefix)
         print('\tFP16 mode      :', fp16)
         print('\tFast mode      :', args.fast)
@@ -197,10 +216,11 @@ def main():
         visualization_fn = partial(draw_classification_predictions, class_names=CLASS_NAMES)
 
         callbacks = [
-            F1ScoreCallback(),
+            AccuracyCallback(),
             CappaScoreCallback(),
             ConfusionMatrixCallback(class_names=CLASS_NAMES),
-            ShowPolarBatchesCallback(visualization_fn, metric='f1_score', minimize=False),
+            # ShowPolarBatchesCallback(visualization_fn, metric='f1_score', minimize=False),
+            ShowPolarBatchesCallback(visualization_fn, metric='accuracy01', minimize=False),
         ]
 
         if early_stopping:
@@ -228,21 +248,24 @@ def main():
         best_checkpoint = load_checkpoint(fs.auto_file('best.pth', where=log_dir))
         unpack_checkpoint(best_checkpoint, model=model)
 
-        train_csv = pd.read_csv(os.path.join(data_dir, 'train.csv'))
-        train_images = train_csv['id_code'].apply(lambda x: os.path.join(data_dir, f'{x}.png'))
-        test_ds = RetinopathyDataset(train_images, None, get_test_aug(image_size, augmentations))
+        model.eval()
+        torch.no_grad()
+
+        train_csv = pd.read_csv(os.path.join(data_dir, 'test.csv'))
+        train_csv['id_code'] = train_csv['id_code'].apply(lambda x: os.path.join(data_dir, 'test_images', f'{x}.png'))
+        test_ds = RetinopathyDataset(train_csv['id_code'], None, get_test_aug(image_size, augmentations))
         test_dl = DataLoader(test_ds, batch_size)
 
         test_ids = []
         test_preds = []
 
         for batch in tqdm(test_dl):
-            predictions = to_numpy(model(batch['features'].cuda()))
+            predictions = to_numpy(model(batch['image'].cuda()))
             test_ids.extend(batch['image_id'])
             test_preds.extend(predictions)
 
-        df = pd.DataFrame.from_dict({'id_code': test_ids, 'is_test': test_preds})
-        df.to_csv(os.path.join(log_dir, 'test_in_train.csv'), index=None)
+        df = pd.DataFrame.from_dict({'id_code': test_ids, 'diagnosis': test_preds})
+        df.to_csv(os.path.join(log_dir, 'submission.csv'), index=None)
 
 
 if __name__ == '__main__':

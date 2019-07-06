@@ -2,6 +2,7 @@ from __future__ import absolute_import
 
 import argparse
 import collections
+import multiprocessing
 import os
 from datetime import datetime
 from functools import partial
@@ -13,7 +14,7 @@ from catalyst.dl import SupervisedRunner, EarlyStoppingCallback
 from catalyst.dl.callbacks import F1ScoreCallback, AccuracyCallback
 from catalyst.utils import load_checkpoint, unpack_checkpoint
 from pytorch_toolbelt.utils import fs
-from pytorch_toolbelt.utils.catalyst_utils import ShowPolarBatchesCallback
+from pytorch_toolbelt.utils.catalyst import ShowPolarBatchesCallback
 from pytorch_toolbelt.utils.random import set_manual_seed
 from pytorch_toolbelt.utils.torch_utils import maybe_cuda, count_parameters, to_numpy, rgb_image_from_tensor, set_trainable
 from sklearn.model_selection import train_test_split
@@ -21,7 +22,6 @@ from torch.optim.lr_scheduler import MultiStepLR
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 import pandas as pd
-from pytorch_toolbelt.utils.catalyst.visualization import draw_binary_segmentation_predictions
 from retinopathy.lib.dataset import RetinopathyDataset
 from retinopathy.lib.factory import get_model, get_loss, get_optimizer, get_optimizable_parameters, get_train_aug, get_test_aug
 from retinopathy.lib.visualization import draw_classification_predictions
@@ -30,19 +30,18 @@ from retinopathy.lib.visualization import draw_classification_predictions
 def get_dataloaders(data_dir, batch_size, num_workers,
                     image_size, augmentation, fast):
     train_csv = pd.read_csv(os.path.join(data_dir, 'train.csv'))
-    train_csv['id_code'] = train_csv['id_code'].apply(lambda x: os.path.join(data_dir, f'{x}.png'))
+    train_csv['id_code'] = train_csv['id_code'].apply(lambda x: os.path.join(data_dir, 'train_images', f'{x}.png'))
     train_csv['is_test'] = 0
 
     test_csv = pd.read_csv(os.path.join(data_dir, 'test.csv'))
-    test_csv['id_code'] = test_csv['id_code'].apply(lambda x: os.path.join(data_dir, f'{x}.png'))
+    test_csv['id_code'] = test_csv['id_code'].apply(lambda x: os.path.join(data_dir, 'test_images', f'{x}.png'))
     test_csv['is_test'] = 1
 
-    dataset = pd.concat(train_csv[['id_code', 'is_test']],
-                        test_csv[['id_code', 'is_test']])
+    dataset = pd.concat((train_csv[['id_code', 'is_test']], test_csv[['id_code', 'is_test']]))
     x = dataset['id_code']
     y = dataset['is_test']
 
-    train_x, train_y, valid_x, valid_y = train_test_split(x, y, random_state=42, test_size=0.1, shuffle=True, stratify=y)
+    train_x, valid_x, train_y, valid_y = train_test_split(x, y, random_state=42, test_size=0.1, shuffle=True, stratify=y)
     if fast:
         train_x = train_x[:32]
         train_y = train_y[:32]
@@ -50,8 +49,10 @@ def get_dataloaders(data_dir, batch_size, num_workers,
         valid_x = valid_x[:32]
         valid_y = valid_y[:32]
 
-    train_ds = RetinopathyDataset(train_x, train_y, transform=get_train_aug(image_size, augmentation))
-    valid_ds = RetinopathyDataset(valid_x, valid_y, transform=get_test_aug(image_size, augmentation))
+        num_workers = 0
+
+    train_ds = RetinopathyDataset(train_x, train_y, transform=get_train_aug(image_size, augmentation), target_as_array=True)
+    valid_ds = RetinopathyDataset(valid_x, valid_y, transform=get_test_aug(image_size, augmentation), target_as_array=True)
 
     train_dl = DataLoader(train_ds, batch_size=batch_size, shuffle=True, pin_memory=True, drop_last=True, num_workers=num_workers)
     valid_dl = DataLoader(valid_ds, batch_size=batch_size, shuffle=False, pin_memory=True, drop_last=False, num_workers=num_workers)
@@ -63,21 +64,21 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--seed', type=int, default=42, help='Random seed')
     parser.add_argument('--fast', action='store_true')
-    parser.add_argument('-dd', '--data-dir', type=str, required=True, help='Data directory for INRIA sattelite dataset')
-    parser.add_argument('-m', '--model', type=str, default='unet', help='')
+    parser.add_argument('-dd', '--data-dir', type=str, default='data', help='Data directory for INRIA sattelite dataset')
+    parser.add_argument('-m', '--model', type=str, default='cls_resnet18', help='')
     parser.add_argument('-b', '--batch-size', type=int, default=8, help='Batch Size during training, e.g. -b 64')
     parser.add_argument('-e', '--epochs', type=int, default=100, help='Epoch to run')
     parser.add_argument('-es', '--early-stopping', type=int, default=None, help='Maximum number of epochs without improvement')
     parser.add_argument('-fe', '--freeze-encoder', action='store_true')
-    parser.add_argument('-lr', '--learning-rate', type=float, default=1e-3, help='Initial learning rate')
+    parser.add_argument('-lr', '--learning-rate', type=float, default=1e-4, help='Initial learning rate')
     parser.add_argument('-l', '--criterion', type=str, default='bce', help='Criterion')
     parser.add_argument('-o', '--optimizer', default='Adam', help='Name of the optimizer')
     parser.add_argument('-c', '--checkpoint', type=str, default=None, help='Checkpoint filename to use as initial model weights')
-    parser.add_argument('-w', '--workers', default=8, type=int, help='Num workers')
+    parser.add_argument('-w', '--workers', default=multiprocessing.cpu_count(), type=int, help='Num workers')
     parser.add_argument('-a', '--augmentations', default='hard', type=str, help='')
     parser.add_argument('-tta', '--tta', default=None, type=str, help='Type of TTA to use [fliplr, d4]')
     parser.add_argument('-tm', '--train-mode', default='random', type=str, help='')
-    parser.add_argument('--run-mode', default='fit_predict', type=str, help='')
+    parser.add_argument('-rm', '--run-mode', default='fit_predict', type=str, help='')
     parser.add_argument('--transfer', default=None, type=str, help='')
     parser.add_argument('--fp16', action='store_true')
 
@@ -177,9 +178,6 @@ def main():
         scheduler = MultiStepLR(optimizer,
                                 milestones=[10, 30, 50, 70, 90], gamma=0.5)
 
-        # model runner
-        runner = SupervisedRunner()
-
         print('Train session    :', prefix)
         print('\tFP16 mode      :', fp16)
         print('\tFast mode      :', args.fast)
@@ -212,6 +210,7 @@ def main():
         if early_stopping:
             callbacks += [EarlyStoppingCallback(early_stopping, metric='f1_score', minimize=False)]
 
+        runner = SupervisedRunner(input_key='image')
         runner.train(
             fp16=fp16,
             model=model,
@@ -233,16 +232,21 @@ def main():
         best_checkpoint = load_checkpoint(fs.auto_file('best.pth', where=log_dir))
         unpack_checkpoint(best_checkpoint, model=model)
 
+        model.eval()
+        torch.no_grad()
+
         train_csv = pd.read_csv(os.path.join(data_dir, 'train.csv'))
-        train_images = train_csv['id_code'].apply(lambda x: os.path.join(data_dir, f'{x}.png'))
-        test_ds = RetinopathyDataset(train_images, None, get_test_aug(image_size, augmentations))
-        test_dl = DataLoader(test_ds, batch_size)
+        train_csv['id_code'] = train_csv['id_code'].apply(lambda x: os.path.join(data_dir, 'train_images', f'{x}.png'))
+        test_ds = RetinopathyDataset(train_csv['id_code'], None, get_test_aug(image_size, augmentations), target_as_array=True)
+        test_dl = DataLoader(test_ds, batch_size, pin_memory=True, num_workers=num_workers)
 
         test_ids = []
         test_preds = []
 
-        for batch in tqdm(test_dl):
-            predictions = to_numpy(model(batch['features'].cuda()))
+        for batch in tqdm(test_dl, desc='Inference'):
+            input = batch['image'].cuda()
+            outputs = model(input)
+            predictions = to_numpy(outputs['logits'].sigmoid().squeeze(1))
             test_ids.extend(batch['image_id'])
             test_preds.extend(predictions)
 
