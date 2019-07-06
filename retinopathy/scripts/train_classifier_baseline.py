@@ -170,7 +170,6 @@ def main():
                                 milestones=[10, 30, 50, 70, 90], gamma=0.5)
 
         # model runner
-        runner = SupervisedRunner()
 
         print('Train session    :', prefix)
         print('\tFP16 mode      :', fp16)
@@ -207,6 +206,7 @@ def main():
         if early_stopping:
             callbacks += [EarlyStoppingCallback(early_stopping, metric='kappa_score', minimize=False)]
 
+        runner = SupervisedRunner(input_key='image')
         runner.train(
             fp16=fp16,
             model=model,
