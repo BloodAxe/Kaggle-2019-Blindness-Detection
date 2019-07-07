@@ -31,7 +31,8 @@ from retinopathy.lib.visualization import draw_classification_predictions
 
 
 def get_dataloaders(data_dir, batch_size, num_workers,
-                    image_size, augmentation, fast, fold):
+                    image_size, augmentation, fast, fold,
+                    adversarial=False):
     dataset_fname = os.path.join(data_dir, 'train.csv') if fold is None else os.path.join(data_dir, 'train_with_folds.csv')
     dataset = pd.read_csv(dataset_fname)
     dataset['id_code'] = dataset['id_code'].apply(lambda x: os.path.join(data_dir, 'train_images', f'{x}.png'))
@@ -45,9 +46,33 @@ def get_dataloaders(data_dir, batch_size, num_workers,
 
         valid_x = valid_set['id_code']
         valid_y = valid_set['diagnosis']
+    elif adversarial:
+        adv_df = pd.read_csv(os.path.join(data_dir, 'test_in_train.csv'))
+        dataset = dataset.merge(adv_df, on='id_code')
+        dataset = dataset.sort_values(by='is_test', ascending=False)
+
+        train_x = []
+        valid_x = []
+        train_y = []
+        valid_y = []
+
+        for diagnosis in range(len(CLASS_NAMES)):
+            df = dataset[dataset['diagnosis'] == diagnosis]
+            num = len(df)
+            valid_size = int(0.1 * num)
+
+            x = df['id_code']
+            y = df['diagnosis']
+
+            valid_x.extend(x[:valid_size])
+            valid_y.extend(y[:valid_size])
+
+            train_x.extend(x[valid_size:])
+            train_y.extend(y[valid_size:])
     else:
         x = dataset['id_code']
         y = dataset['diagnosis']
+
         train_x, valid_x, train_y, valid_y = train_test_split(x, y, random_state=42, test_size=0.1, shuffle=True, stratify=y)
 
     if fast:
