@@ -87,7 +87,7 @@ def main():
     parser.add_argument('-a', '--augmentations', default='hard', type=str, help='')
     parser.add_argument('-tta', '--tta', default=None, type=str, help='Type of TTA to use [fliplr, d4]')
     parser.add_argument('-tm', '--train-mode', default='random', type=str, help='')
-    parser.add_argument('--run-mode', default='fit_predict', type=str, help='')
+    parser.add_argument('-rm', '--run-mode', default='fit_predict', type=str, help='')
     parser.add_argument('--transfer', default=None, type=str, help='')
     parser.add_argument('--fp16', action='store_true')
 
@@ -139,11 +139,11 @@ def main():
         print('Epoch                    :', checkpoint_epoch)
         print('Metrics (Train):',
               'cappa:', checkpoint['epoch_metrics']['train']['kappa_score'],
-              'f1:', checkpoint['epoch_metrics']['train']['f1_score'],
+              'accuracy01:', checkpoint['epoch_metrics']['train']['accuracy01'],
               'loss:', checkpoint['epoch_metrics']['train']['loss'])
         print('Metrics (Valid):',
               'cappa:', checkpoint['epoch_metrics']['valid']['kappa_score'],
-              'f1:', checkpoint['epoch_metrics']['valid']['f1_score'],
+              'accuracy01:', checkpoint['epoch_metrics']['valid']['accuracy01'],
               'loss:', checkpoint['epoch_metrics']['valid']['loss'])
 
         log_dir = os.path.dirname(os.path.dirname(fs.auto_file(args.checkpoint)))
@@ -261,7 +261,10 @@ def main():
         test_preds = []
 
         for batch in tqdm(test_dl):
-            predictions = to_numpy(model(batch['image'].cuda()))
+            input = batch['image'].cuda()
+            outputs = model(input)
+            predictions = np.argmax(to_numpy(outputs['logits']), axis=1)
+
             test_ids.extend(batch['image_id'])
             test_preds.extend(predictions)
 
