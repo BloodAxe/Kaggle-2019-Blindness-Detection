@@ -18,8 +18,9 @@ from pytorch_toolbelt.utils.catalyst import ShowPolarBatchesCallback, ConfusionM
 from pytorch_toolbelt.utils.random import set_manual_seed
 from pytorch_toolbelt.utils.torch_utils import maybe_cuda, count_parameters, to_numpy, rgb_image_from_tensor, set_trainable
 from sklearn.model_selection import train_test_split
+from sklearn.utils import compute_sample_weight
 from torch.optim.lr_scheduler import MultiStepLR
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, WeightedRandomSampler
 from tqdm import tqdm
 import pandas as pd
 from pytorch_toolbelt.utils.catalyst.visualization import draw_binary_segmentation_predictions
@@ -32,7 +33,8 @@ from retinopathy.lib.visualization import draw_classification_predictions
 
 def get_dataloaders(data_dir, batch_size, num_workers,
                     image_size, augmentation, fast, fold,
-                    adversarial=False):
+                    adversarial=False,
+                    balance=False):
     dataset_fname = os.path.join(data_dir, 'train.csv') if fold is None else os.path.join(data_dir, 'train_with_folds.csv')
     dataset = pd.read_csv(dataset_fname)
     dataset['id_code'] = dataset['id_code'].apply(lambda x: os.path.join(data_dir, 'train_images', f'{x}.png'))
@@ -87,8 +89,15 @@ def get_dataloaders(data_dir, batch_size, num_workers,
     train_ds = RetinopathyDataset(train_x, train_y, transform=get_train_aug(image_size, augmentation))
     valid_ds = RetinopathyDataset(valid_x, valid_y, transform=get_test_aug(image_size, augmentation))
 
-    train_dl = DataLoader(train_ds, batch_size=batch_size, shuffle=True, pin_memory=True, drop_last=True, num_workers=num_workers)
-    valid_dl = DataLoader(valid_ds, batch_size=batch_size, shuffle=False, pin_memory=True, drop_last=False, num_workers=num_workers)
+    sampler = None
+    if balance:
+        weights = compute_sample_weight('balanced', train_y)
+        sampler = WeightedRandomSampler(weights, len(train_ds))
+
+    train_dl = DataLoader(train_ds, batch_size=batch_size, shuffle=sampler is None, sampler=sampler,
+                          pin_memory=True, drop_last=True, num_workers=num_workers)
+    valid_dl = DataLoader(valid_ds, batch_size=batch_size, shuffle=False,
+                          pin_memory=True, drop_last=False, num_workers=num_workers)
 
     return train_dl, valid_dl
 
