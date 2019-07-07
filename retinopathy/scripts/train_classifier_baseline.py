@@ -32,7 +32,8 @@ from retinopathy.lib.visualization import draw_classification_predictions
 
 def get_dataloaders(data_dir, batch_size, num_workers,
                     image_size, augmentation, fast, fold):
-    dataset = pd.read_csv(os.path.join(data_dir, 'train.csv'))
+    dataset_fname = os.path.join(data_dir, 'train.csv') if fold is None else os.path.join(data_dir, 'train_with_folds.csv')
+    dataset = pd.read_csv(dataset_fname)
     dataset['id_code'] = dataset['id_code'].apply(lambda x: os.path.join(data_dir, 'train_images', f'{x}.png'))
 
     if fold is not None:
