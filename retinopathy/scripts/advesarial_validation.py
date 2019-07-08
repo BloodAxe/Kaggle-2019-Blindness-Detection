@@ -10,7 +10,7 @@ from functools import partial
 import cv2
 import numpy as np
 import torch
-from catalyst.dl import SupervisedRunner, EarlyStoppingCallback
+from catalyst.dl import SupervisedRunner, EarlyStoppingCallback, AUCCallback
 from catalyst.dl.callbacks import F1ScoreCallback, AccuracyCallback
 from catalyst.utils import load_checkpoint, unpack_checkpoint
 from pytorch_toolbelt.utils import fs
@@ -52,7 +52,7 @@ def get_dataloaders(data_dir, batch_size, num_workers,
         num_workers = 0
 
     train_ds = RetinopathyDataset(train_x, train_y, transform=get_train_aug(image_size, augmentation), target_as_array=True)
-    valid_ds = RetinopathyDataset(valid_x, valid_y, transform=get_test_aug(image_size, augmentation), target_as_array=True)
+    valid_ds = RetinopathyDataset(valid_x, valid_y, transform=get_test_aug(image_size), target_as_array=True)
 
     train_dl = DataLoader(train_ds, batch_size=batch_size, shuffle=True, pin_memory=True, drop_last=True, num_workers=num_workers)
     valid_dl = DataLoader(valid_ds, batch_size=batch_size, shuffle=False, pin_memory=True, drop_last=False, num_workers=num_workers)
@@ -204,11 +204,12 @@ def main():
 
         callbacks = [
             F1ScoreCallback(),
+            AUCCallback(),
             ShowPolarBatchesCallback(visualization_fn, metric='f1_score', minimize=False),
         ]
 
         if early_stopping:
-            callbacks += [EarlyStoppingCallback(early_stopping, metric='f1_score', minimize=False)]
+            callbacks += [EarlyStoppingCallback(early_stopping, metric='auc', minimize=False)]
 
         runner = SupervisedRunner(input_key='image')
         runner.train(
@@ -222,7 +223,7 @@ def main():
             logdir=log_dir,
             num_epochs=num_epochs,
             verbose=True,
-            main_metric='f1_score',
+            main_metric='auc',
             minimize_metric=False,
             state_kwargs={"cmd_args": vars(args)}
         )
@@ -237,7 +238,7 @@ def main():
 
         train_csv = pd.read_csv(os.path.join(data_dir, 'train.csv'))
         train_csv['id_code'] = train_csv['id_code'].apply(lambda x: os.path.join(data_dir, 'train_images', f'{x}.png'))
-        test_ds = RetinopathyDataset(train_csv['id_code'], None, get_test_aug(image_size, augmentations), target_as_array=True)
+        test_ds = RetinopathyDataset(train_csv['id_code'], None, get_test_aug(image_size), target_as_array=True)
         test_dl = DataLoader(test_ds, batch_size, pin_memory=True, num_workers=num_workers)
 
         test_ids = []

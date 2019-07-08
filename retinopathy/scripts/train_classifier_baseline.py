@@ -26,27 +26,32 @@ import pandas as pd
 from pytorch_toolbelt.utils.catalyst.visualization import draw_binary_segmentation_predictions
 
 from retinopathy.lib.callbacks import CappaScoreCallback
-from retinopathy.lib.dataset import RetinopathyDataset, CLASS_NAMES
+from retinopathy.lib.dataset import RetinopathyDataset, get_class_names
 from retinopathy.lib.factory import get_model, get_loss, get_optimizer, get_optimizable_parameters, get_train_aug, get_test_aug
 from retinopathy.lib.visualization import draw_classification_predictions
 
 
-def get_dataloaders(data_dir, batch_size, num_workers,
-                    image_size, augmentation, fast, fold,
+def get_dataloaders(data_dir,
+                    batch_size,
+                    num_workers,
+                    image_size,
+                    augmentation,
+                    fast,
+                    fold=None,
                     adversarial=False,
                     balance=False):
     dataset_fname = os.path.join(data_dir, 'train.csv') if fold is None else os.path.join(data_dir, 'train_with_folds.csv')
     dataset = pd.read_csv(dataset_fname)
-    dataset['id_code'] = dataset['id_code'].apply(lambda x: os.path.join(data_dir, 'train_images', f'{x}.png'))
+    dataset['image_path'] = dataset['id_code'].apply(lambda x: os.path.join(data_dir, 'train_images', f'{x}.png'))
 
     if fold is not None:
         train_set = dataset[dataset['fold'] != fold]
         valid_set = dataset[dataset['fold'] == fold]
 
-        train_x = train_set['id_code']
+        train_x = train_set['image_path']
         train_y = train_set['diagnosis']
 
-        valid_x = valid_set['id_code']
+        valid_x = valid_set['image_path']
         valid_y = valid_set['diagnosis']
     elif adversarial:
         adv_df = pd.read_csv(os.path.join(data_dir, 'test_in_train.csv'))
@@ -58,12 +63,12 @@ def get_dataloaders(data_dir, batch_size, num_workers,
         train_y = []
         valid_y = []
 
-        for diagnosis in range(len(CLASS_NAMES)):
+        for diagnosis in range(len(get_class_names())):
             df = dataset[dataset['diagnosis'] == diagnosis]
             num = len(df)
             valid_size = int(0.1 * num)
 
-            x = df['id_code']
+            x = df['image_path']
             y = df['diagnosis']
 
             valid_x.extend(x[:valid_size])
@@ -72,7 +77,7 @@ def get_dataloaders(data_dir, batch_size, num_workers,
             train_x.extend(x[valid_size:])
             train_y.extend(y[valid_size:])
     else:
-        x = dataset['id_code']
+        x = dataset['image_path']
         y = dataset['diagnosis']
 
         train_x, valid_x, train_y, valid_y = train_test_split(x, y, random_state=42, test_size=0.1, shuffle=True, stratify=y)
@@ -87,7 +92,7 @@ def get_dataloaders(data_dir, batch_size, num_workers,
         num_workers = 0
 
     train_ds = RetinopathyDataset(train_x, train_y, transform=get_train_aug(image_size, augmentation))
-    valid_ds = RetinopathyDataset(valid_x, valid_y, transform=get_test_aug(image_size, augmentation))
+    valid_ds = RetinopathyDataset(valid_x, valid_y, transform=get_test_aug(image_size))
 
     sampler = None
     if balance:
@@ -118,10 +123,9 @@ def main():
     parser.add_argument('-o', '--optimizer', default='Adam', help='Name of the optimizer')
     parser.add_argument('-c', '--checkpoint', type=str, default=None, help='Checkpoint filename to use as initial model weights')
     parser.add_argument('-w', '--workers', default=multiprocessing.cpu_count(), type=int, help='Num workers')
-    parser.add_argument('-a', '--augmentations', default='hard', type=str, help='')
+    parser.add_argument('-a', '--augmentations', default='medium', type=str, help='')
     parser.add_argument('-tta', '--tta', default=None, type=str, help='Type of TTA to use [fliplr, d4]')
-    parser.add_argument('-tm', '--train-mode', default='random', type=str, help='')
-    parser.add_argument('-rm', '--run-mode', default='fit_predict', type=str, help='')
+    parser.add_argument('-tm', '--train-mode', default=None, type=str, help='None, balanced')
     parser.add_argument('--transfer', default=None, type=str, help='')
     parser.add_argument('--fp16', action='store_true')
 
@@ -140,16 +144,13 @@ def main():
     fast = args.fast
     augmentations = args.augmentations
     train_mode = args.train_mode
-    run_mode = args.run_mode
     log_dir = None
     fp16 = args.fp16
     freeze_encoder = args.freeze_encoder
     fold = args.fold
+    criterion_name = args.criterion
 
-    run_train = run_mode == 'fit_predict' or run_mode == 'fit'
-    run_predict = run_mode == 'fit_predict' or run_mode == 'predict'
-
-    model = maybe_cuda(get_model(model_name, num_classes=len(CLASS_NAMES)))
+    model = maybe_cuda(get_model(model_name, num_classes=len(get_class_names())))
 
     if args.transfer:
         transfer_checkpoint = fs.auto_file(args.transfer)
@@ -182,12 +183,11 @@ def main():
 
         log_dir = os.path.dirname(os.path.dirname(fs.auto_file(args.checkpoint)))
 
-    if run_train:
-
+    if True:
         if freeze_encoder:
             set_trainable(model.encoder, trainable=False, freeze_bn=True)
 
-        criterion = get_loss(args.criterion)
+        criterion = get_loss(criterion_name)
         parameters = get_optimizable_parameters(model)
         optimizer = get_optimizer(optimizer_name, parameters, learning_rate)
 
@@ -203,6 +203,8 @@ def main():
                                                      num_workers=num_workers,
                                                      image_size=image_size,
                                                      augmentation=augmentations,
+                                                     balance=train_mode == 'balance',
+                                                     adversarial=fold is None,
                                                      fast=fast,
                                                      fold=fold)
 
@@ -211,7 +213,7 @@ def main():
         loaders["valid"] = valid_loader
 
         current_time = datetime.now().strftime('%b%d_%H_%M')
-        prefix = f'classification/{args.model}/fold_{fold}/{current_time}_{args.criterion}'
+        prefix = f'classification/{model_name}/fold_{fold}/{current_time}_{criterion_name}'
 
         if fp16:
             prefix += '_fp16'
@@ -227,7 +229,7 @@ def main():
 
         print('Train session    :', prefix)
         print('\tFP16 mode      :', fp16)
-        print('\tFast mode      :', args.fast)
+        print('\tFast mode      :', fast)
         print('\tTrain mode     :', train_mode)
         print('\tEpochs         :', num_epochs)
         print('\tEarly stopping :', early_stopping)
@@ -245,15 +247,15 @@ def main():
         print('Optimizer        :', optimizer_name)
         print('\tLearning rate  :', learning_rate)
         print('\tBatch size     :', batch_size)
-        print('\tCriterion      :', args.criterion)
+        print('\tCriterion      :', criterion_name)
 
         # model training
-        visualization_fn = partial(draw_classification_predictions, class_names=CLASS_NAMES)
+        visualization_fn = partial(draw_classification_predictions, class_names=get_class_names())
 
         callbacks = [
             AccuracyCallback(),
             CappaScoreCallback(),
-            ConfusionMatrixCallback(class_names=CLASS_NAMES),
+            ConfusionMatrixCallback(class_names=get_class_names()),
             # ShowPolarBatchesCallback(visualization_fn, metric='f1_score', minimize=False),
             ShowPolarBatchesCallback(visualization_fn, metric='accuracy01', minimize=False),
         ]
@@ -275,35 +277,8 @@ def main():
             verbose=True,
             main_metric='kappa_score',
             minimize_metric=False,
-            state_kwargs={"cmd_args": vars(args)}
+            checkpoint_data={"cmd_args": vars(args)}
         )
-
-    if run_predict and not fast:
-        # Training is finished. Let's run predictions using best checkpoint weights
-        best_checkpoint = load_checkpoint(fs.auto_file('best.pth', where=log_dir))
-        unpack_checkpoint(best_checkpoint, model=model)
-
-        model.eval()
-        torch.no_grad()
-
-        train_csv = pd.read_csv(os.path.join(data_dir, 'test.csv'))
-        train_csv['id_code'] = train_csv['id_code'].apply(lambda x: os.path.join(data_dir, 'test_images', f'{x}.png'))
-        test_ds = RetinopathyDataset(train_csv['id_code'], None, get_test_aug(image_size, augmentations))
-        test_dl = DataLoader(test_ds, batch_size)
-
-        test_ids = []
-        test_preds = []
-
-        for batch in tqdm(test_dl):
-            input = batch['image'].cuda()
-            outputs = model(input)
-            predictions = np.argmax(to_numpy(outputs['logits']), axis=1)
-
-            test_ids.extend(batch['image_id'])
-            test_preds.extend(predictions)
-
-        df = pd.DataFrame.from_dict({'id_code': test_ids, 'diagnosis': test_preds})
-        df.to_csv(os.path.join(log_dir, 'submission.csv'), index=None)
 
 
 if __name__ == '__main__':
