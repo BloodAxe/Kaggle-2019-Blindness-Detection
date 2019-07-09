@@ -7,7 +7,7 @@ from pytorch_toolbelt.utils.torch_utils import tensor_from_rgb_image
 
 from retinopathy.lib.dataset import RetinopathyDataset, get_class_names
 from retinopathy.lib.factory import get_model, get_test_aug
-from retinopathy.lib.inference import PickModelOutput, run_model_inference, predictions_to_submission
+from retinopathy.lib.inference import PickModelOutput, run_model_inference, predictions_to_submission, average_predictions
 from retinopathy.lib.models.classification import BaselineClassificationModel, ClassifierModule
 
 
@@ -45,6 +45,7 @@ def main():
     # Main dependencies
     imports = [
         'import os',
+        'import math',
         'import cv2',
         'import torch',
         'import pandas as pd',
@@ -77,6 +78,7 @@ def main():
         get_test_aug,
         PickModelOutput,
         run_model_inference,
+        average_predictions,
         predictions_to_submission
     ]
 

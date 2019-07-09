@@ -116,7 +116,7 @@ def main():
     parser.add_argument('-b', '--batch-size', type=int, default=8, help='Batch Size during training, e.g. -b 64')
     parser.add_argument('-e', '--epochs', type=int, default=100, help='Epoch to run')
     parser.add_argument('-es', '--early-stopping', type=int, default=None, help='Maximum number of epochs without improvement')
-    parser.add_argument('-f', '--fold', type=int, default=None)
+    parser.add_argument('-f', '--fold', action='append', type=int, default=None)
     parser.add_argument('-fe', '--freeze-encoder', action='store_true')
     parser.add_argument('-lr', '--learning-rate', type=float, default=1e-4, help='Initial learning rate')
     parser.add_argument('-l', '--criterion', type=str, default='ce', help='Criterion')
@@ -130,7 +130,6 @@ def main():
     parser.add_argument('--fp16', action='store_true')
 
     args = parser.parse_args()
-    set_manual_seed(args.seed)
 
     data_dir = args.data_dir
     num_workers = args.workers
@@ -144,46 +143,48 @@ def main():
     fast = args.fast
     augmentations = args.augmentations
     train_mode = args.train_mode
-    log_dir = None
     fp16 = args.fp16
     freeze_encoder = args.freeze_encoder
-    fold = args.fold
     criterion_name = args.criterion
+    folds = args.fold
 
-    model = maybe_cuda(get_model(model_name, num_classes=len(get_class_names())))
+    if folds is None or len(folds) == 0:
+        folds = [None]
 
-    if args.transfer:
-        transfer_checkpoint = fs.auto_file(args.transfer)
-        print("Transfering weights from model checkpoint", transfer_checkpoint)
-        checkpoint = load_checkpoint(transfer_checkpoint)
-        pretrained_dict = checkpoint['model_state_dict']
+    for fold in folds:
 
-        for name, value in pretrained_dict.items():
-            try:
-                model.load_state_dict(collections.OrderedDict([(name, value)]), strict=False)
-            except Exception as e:
-                print(e)
+        set_manual_seed(args.seed)
+        model = maybe_cuda(get_model(model_name, num_classes=len(get_class_names())))
 
-    checkpoint = None
-    if args.checkpoint:
-        checkpoint = load_checkpoint(fs.auto_file(args.checkpoint))
-        unpack_checkpoint(checkpoint, model=model)
+        if args.transfer:
+            transfer_checkpoint = fs.auto_file(args.transfer)
+            print("Transfering weights from model checkpoint", transfer_checkpoint)
+            checkpoint = load_checkpoint(transfer_checkpoint)
+            pretrained_dict = checkpoint['model_state_dict']
 
-        checkpoint_epoch = checkpoint['epoch']
-        print('Loaded model weights from:', args.checkpoint)
-        print('Epoch                    :', checkpoint_epoch)
-        print('Metrics (Train):',
-              'cappa:', checkpoint['epoch_metrics']['train']['kappa_score'],
-              'accuracy01:', checkpoint['epoch_metrics']['train']['accuracy01'],
-              'loss:', checkpoint['epoch_metrics']['train']['loss'])
-        print('Metrics (Valid):',
-              'cappa:', checkpoint['epoch_metrics']['valid']['kappa_score'],
-              'accuracy01:', checkpoint['epoch_metrics']['valid']['accuracy01'],
-              'loss:', checkpoint['epoch_metrics']['valid']['loss'])
+            for name, value in pretrained_dict.items():
+                try:
+                    model.load_state_dict(collections.OrderedDict([(name, value)]), strict=False)
+                except Exception as e:
+                    print(e)
 
-        log_dir = os.path.dirname(os.path.dirname(fs.auto_file(args.checkpoint)))
+        checkpoint = None
+        if args.checkpoint:
+            checkpoint = load_checkpoint(fs.auto_file(args.checkpoint))
+            unpack_checkpoint(checkpoint, model=model)
 
-    if True:
+            checkpoint_epoch = checkpoint['epoch']
+            print('Loaded model weights from:', args.checkpoint)
+            print('Epoch                    :', checkpoint_epoch)
+            print('Metrics (Train):',
+                  'cappa:', checkpoint['epoch_metrics']['train']['kappa_score'],
+                  'accuracy01:', checkpoint['epoch_metrics']['train']['accuracy01'],
+                  'loss:', checkpoint['epoch_metrics']['train']['loss'])
+            print('Metrics (Valid):',
+                  'cappa:', checkpoint['epoch_metrics']['valid']['kappa_score'],
+                  'accuracy01:', checkpoint['epoch_metrics']['valid']['accuracy01'],
+                  'loss:', checkpoint['epoch_metrics']['valid']['loss'])
+
         if freeze_encoder:
             set_trainable(model.encoder, trainable=False, freeze_bn=True)
 
@@ -257,7 +258,7 @@ def main():
             CappaScoreCallback(),
             ConfusionMatrixCallback(class_names=get_class_names()),
             # ShowPolarBatchesCallback(visualization_fn, metric='f1_score', minimize=False),
-            ShowPolarBatchesCallback(visualization_fn, metric='accuracy01', minimize=False),
+            # ShowPolarBatchesCallback(visualization_fn, metric='accuracy01', minimize=False),
         ]
 
         if early_stopping:
@@ -279,6 +280,8 @@ def main():
             minimize_metric=False,
             checkpoint_data={"cmd_args": vars(args)}
         )
+
+        del runner, callbacks, loaders, optimizer, model, criterion, scheduler
 
 
 if __name__ == '__main__':
