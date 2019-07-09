@@ -49,6 +49,7 @@ Using only one model **seresnext50**.
 
 ## Results
 
-| Experiment name | CV score | LB score | Comments |
+| Experiment name | CV score | LB score | Encoder |
 |-----------------|----------|----------|----------|
-| Baseline ||||
+| Baseline classification |0.9077 ± 0.0045|0.625| Resnet18|
+| Baseline regression | | | |
