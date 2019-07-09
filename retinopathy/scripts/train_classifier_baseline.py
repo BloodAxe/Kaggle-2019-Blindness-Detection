@@ -11,7 +11,7 @@ import cv2
 import numpy as np
 import torch
 from catalyst.dl import SupervisedRunner, EarlyStoppingCallback
-from catalyst.dl.callbacks import F1ScoreCallback, AccuracyCallback
+from catalyst.dl.callbacks import F1ScoreCallback, AccuracyCallback, MixupCallback
 from catalyst.utils import load_checkpoint, unpack_checkpoint
 from pytorch_toolbelt.utils import fs
 from pytorch_toolbelt.utils.catalyst import ShowPolarBatchesCallback, ConfusionMatrixCallback
@@ -111,6 +111,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--seed', type=int, default=42, help='Random seed')
     parser.add_argument('--fast', action='store_true')
+    parser.add_argument('--mixup', action='store_true')
+
     parser.add_argument('-dd', '--data-dir', type=str, default='data', help='Data directory for INRIA sattelite dataset')
     parser.add_argument('-m', '--model', type=str, default='cls_resnet18', help='')
     parser.add_argument('-b', '--batch-size', type=int, default=8, help='Batch Size during training, e.g. -b 64')
@@ -147,6 +149,7 @@ def main():
     freeze_encoder = args.freeze_encoder
     criterion_name = args.criterion
     folds = args.fold
+    mixup = args.mixup
 
     if folds is None or len(folds) == 0:
         folds = [None]
@@ -231,6 +234,7 @@ def main():
         print('Train session    :', prefix)
         print('\tFP16 mode      :', fp16)
         print('\tFast mode      :', fast)
+        print('\tMixup          :', mixup)
         print('\tTrain mode     :', train_mode)
         print('\tEpochs         :', num_epochs)
         print('\tEarly stopping :', early_stopping)
@@ -258,8 +262,11 @@ def main():
             CappaScoreCallback(),
             ConfusionMatrixCallback(class_names=get_class_names()),
             # ShowPolarBatchesCallback(visualization_fn, metric='f1_score', minimize=False),
-            # ShowPolarBatchesCallback(visualization_fn, metric='accuracy01', minimize=False),
+            ShowPolarBatchesCallback(visualization_fn, metric='accuracy01', minimize=False),
         ]
+
+        if mixup:
+            callbacks += [MixupCallback(fields=['image'])]
 
         if early_stopping:
             callbacks += [EarlyStoppingCallback(early_stopping, metric='kappa_score', minimize=False)]
