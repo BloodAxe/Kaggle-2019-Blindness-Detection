@@ -107,6 +107,7 @@ def main():
     parser.add_argument('--seed', type=int, default=42, help='Random seed')
     parser.add_argument('--fast', action='store_true')
     parser.add_argument('--mixup', action='store_true')
+    parser.add_argument('--balance', action='store_true')
     parser.add_argument('-dd', '--data-dir', type=str, default='data', help='Data directory for INRIA sattelite dataset')
     parser.add_argument('-m', '--model', type=str, default='reg_resnet18', help='')
     parser.add_argument('-b', '--batch-size', type=int, default=8, help='Batch Size during training, e.g. -b 64')
@@ -121,7 +122,6 @@ def main():
     parser.add_argument('-w', '--workers', default=multiprocessing.cpu_count(), type=int, help='Num workers')
     parser.add_argument('-a', '--augmentations', default='medium', type=str, help='')
     parser.add_argument('-tta', '--tta', default=None, type=str, help='Type of TTA to use [fliplr, d4]')
-    parser.add_argument('-tm', '--train-mode', default=None, type=str, help='None, balanced')
     parser.add_argument('--transfer', default=None, type=str, help='')
     parser.add_argument('--fp16', action='store_true')
 
@@ -138,12 +138,12 @@ def main():
     image_size = (512, 512)
     fast = args.fast
     augmentations = args.augmentations
-    train_mode = args.train_mode
     fp16 = args.fp16
     freeze_encoder = args.freeze_encoder
     criterion_name = args.criterion
     folds = args.fold
     mixup = args.mixup
+    balance = args.balance
 
     if folds is None or len(folds) == 0:
         folds = [None]
@@ -201,7 +201,7 @@ def main():
                                                      num_workers=num_workers,
                                                      image_size=image_size,
                                                      augmentation=augmentations,
-                                                     balance=train_mode == 'balance',
+                                                     balance=balance,
                                                      adversarial=fold is None,
                                                      fast=fast,
                                                      fold=fold)
@@ -229,7 +229,7 @@ def main():
         print('\tFP16 mode      :', fp16)
         print('\tFast mode      :', fast)
         print('\tMixup          :', mixup)
-        print('\tTrain mode     :', train_mode)
+        print('\tBalance        :', balance)
         print('\tEpochs         :', num_epochs)
         print('\tEarly stopping :', early_stopping)
         print('\tWorkers        :', num_workers)

@@ -76,12 +76,14 @@ class BaselineRegressionModel(nn.Module):
 class STNRegressionModel(nn.Module):
     def __init__(self, encoder: EncoderModule, num_dimensions=1, dropout=0.2, pretrained=True):
         super().__init__()
-        self.stn = STN(pretrained=pretrained)
+        features = encoder.output_filters[-1]
+        self.stn = STN(features)
         self.encoder = encoder
-        self.regressor = RegressionModule(encoder.output_filters[-1], num_dimensions, dropout=dropout)
+        self.regressor = RegressionModule(features, num_dimensions, dropout=dropout)
 
     def forward(self, input):
-        input_transformed = self.stn(input)
+        features = self.encoder(input)[-1]
+        input_transformed = self.stn(input, features)
         features = self.encoder(input_transformed)[-1]
         logits, features = self.regressor(features)
         return {'logits': logits, 'features': features, 'stn': input_transformed}

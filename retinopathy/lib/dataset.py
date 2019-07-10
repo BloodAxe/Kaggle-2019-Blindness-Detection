@@ -32,7 +32,7 @@ class RetinopathyDataset(Dataset):
     def __getitem__(self, item):
         image = cv2.imread(self.images[item])  # Read with OpenCV instead PIL. It's faster
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        
+
         height, width = image.shape[:2]
 
         log_height = math.log(height)

@@ -1,7 +1,7 @@
 import torch
-from pytorch_toolbelt.modules.pooling import GlobalMaxPool2d
+from pytorch_toolbelt.modules.pooling import GlobalMaxPool2d, GlobalAvgPool2d
 from torch import nn
-from pytorch_toolbelt.modules.encoders import Resnet18Encoder
+from pytorch_toolbelt.modules.encoders import Resnet18Encoder, MobilenetV2Encoder
 import torch.nn.functional as F
 
 
@@ -14,17 +14,13 @@ class Flatten(nn.Module):
 
 
 class STN(nn.Module):
-    def __init__(self, pretrained=True):
+    def __init__(self, features):
         super(STN, self).__init__()
-        encoder = Resnet18Encoder(pretrained=pretrained, layers=[0, 1])
-
-        self.features = encoder.output_filters[1]
+        self.features = features
 
         # Spatial transformer localization-network
         self.localization = nn.Sequential(
-            encoder.layer0,
-            encoder.layer1,
-            GlobalMaxPool2d(),
+            GlobalAvgPool2d(),
             Flatten()
         )
 
@@ -40,13 +36,10 @@ class STN(nn.Module):
         self.fc_loc[2].bias.data.copy_(torch.tensor([1, 0, 0,
                                                      0, 1, 0], dtype=torch.float))
 
-    def forward(self, x):
-        xs = self.localization(x)
-        xs = xs.view(-1, self.features)
+    def forward(self, image, features):
+        xs = self.localization(features)
         theta = self.fc_loc(xs)
         theta = theta.view(-1, 2, 3)
 
-        grid = F.affine_grid(theta, x.size())
-        x = F.grid_sample(x, grid)
-
-        return x
+        grid = F.affine_grid(theta, image.size())
+        return F.grid_sample(image, grid)

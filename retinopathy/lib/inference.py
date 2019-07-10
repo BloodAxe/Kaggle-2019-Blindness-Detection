@@ -9,6 +9,7 @@ import pandas as pd
 import numpy as np
 from pytorch_toolbelt.utils.torch_utils import to_numpy
 from pytorch_toolbelt.inference.tta import *
+from sklearn.metrics import cohen_kappa_score
 from torch import nn
 from tqdm import tqdm
 from torch.utils.data import DataLoader
@@ -33,6 +34,7 @@ def run_model_inference(model_checkpoint: str,
                         model_name=None,
                         batch_size=None,
                         image_size=(512, 512),
+                        images_dir='test_images',
                         tta=None,
                         apply_softmax=True) -> pd.DataFrame:
     checkpoint = torch.load(model_checkpoint)
@@ -63,7 +65,7 @@ def run_model_inference(model_checkpoint: str,
     with torch.no_grad():
         model = model.eval().cuda()
 
-        test_csv['image_fname'] = test_csv['id_code'].apply(lambda x: os.path.join(data_dir, 'test_images', f'{x}.png'))
+        test_csv['image_fname'] = test_csv['id_code'].apply(lambda x: os.path.join(data_dir, images_dir, f'{x}.png'))
         test_ds = RetinopathyDataset(test_csv['image_fname'], None, get_test_aug(image_size))
         data_loader = DataLoader(test_ds, batch_size,
                                  pin_memory=True,
@@ -87,11 +89,13 @@ def run_model_inference(model_checkpoint: str,
 
 
 def cls_predictions_to_submission(predictions) -> pd.DataFrame:
+    predictions = predictions.copy()
     predictions['diagnosis'] = predictions['diagnosis'].apply(lambda x: np.argmax(x))
     return predictions
 
 
 def reg_predictions_to_submission(predictions) -> pd.DataFrame:
+    predictions = predictions.copy()
     x = torch.from_numpy(predictions['diagnosis'].values)
     x = regression_to_class(x)
     predictions['diagnosis'] = to_numpy(x)
@@ -109,8 +113,9 @@ def average_predictions(predictions):
 
 
 def main():
-    test_csv = pd.read_csv('data/test.csv')
-    test_csv = test_csv[:100]
+    train_csv = pd.read_csv('data/train.csv')
+    # train_csv = train_csv[:100]
+
     checkpoints = [
         'runs/classification/cls_resnet18/fold_0/Jul08_14_51_ce/checkpoints/fold0_best.pth',
         'runs/classification/cls_resnet18/fold_1/Jul08_16_13_ce/checkpoints/fold1_best.pth',
@@ -121,18 +126,28 @@ def main():
     predictions = []
     for checkpoint in checkpoints:
         df0 = run_model_inference(model_checkpoint=fs.auto_file(checkpoint),
-                                  test_csv=test_csv,
+                                  test_csv=train_csv,
+                                  images_dir='train_images',
                                   data_dir='data',
                                   batch_size=4,
-                                  tta='flip')
-        print(df0.head())
+                                  tta=None)
         predictions.append(df0)
+
+        fold_predictions = cls_predictions_to_submission(df0)
+
+        score = cohen_kappa_score(fold_predictions['diagnosis'],
+                                  train_csv['diagnosis'], weights='quadratic')
+        print(df0.head())
+        print(checkpoint, score)
 
     pred = average_predictions(predictions)
     print(pred.head())
 
     submit = cls_predictions_to_submission(pred)
     print(submit.head())
+
+    score = cohen_kappa_score(submit['diagnosis'], train_csv['diagnosis'], weights='quadratic')
+    print(score)
 
 
 if __name__ == '__main__':
