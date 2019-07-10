@@ -54,14 +54,18 @@ def draw_regression_predictions(input: dict,
                                 std=(0.229, 0.224, 0.225)):
     images = []
 
-    for image, target, image_id, diagnosis in zip(input[image_key],
-                                               input[targets_key],
-                                               input[image_id_key],
-                                               output[outputs_key]):
+    for i, (image, target, image_id) in enumerate(zip(input[image_key],
+                                                      input[targets_key],
+                                                      input[image_id_key])):
+        diagnosis = output[outputs_key][i]
         image = rgb_image_from_tensor(image, mean, std)
         target = int(to_numpy(target).squeeze(0))
         predicted_target = int(regression_to_class(diagnosis))
         overlay = image.copy()
+
+        if 'stn' in output:
+            stn = rgb_image_from_tensor(output['stn'][i], mean, std)
+            overlay = np.hstack((overlay, stn))
 
         cv2.putText(overlay, str(image_id), (10, 15), cv2.FONT_HERSHEY_PLAIN, 1, (250, 250, 250))
         cv2.putText(overlay, f'{class_names[target]} ({target})', (10, 30), cv2.FONT_HERSHEY_PLAIN, 1, (0, 250, 0))

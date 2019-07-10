@@ -7,8 +7,10 @@ from pytorch_toolbelt.utils.torch_utils import tensor_from_rgb_image
 
 from retinopathy.lib.dataset import RetinopathyDataset, get_class_names
 from retinopathy.lib.factory import get_model, get_test_aug
-from retinopathy.lib.inference import PickModelOutput, run_model_inference, predictions_to_submission, average_predictions
+from retinopathy.lib.inference import PickModelOutput, run_model_inference, cls_predictions_to_submission, average_predictions, reg_predictions_to_submission
 from retinopathy.lib.models.classification import BaselineClassificationModel, ClassifierModule
+from retinopathy.lib.models.regression import regression_to_class, STNRegressionModel, BaselineRegressionModel, RMSPool2d, RegressionModule
+from retinopathy.lib.models.stn import STN, Flatten
 
 
 def encode_archive(archive_name):
@@ -64,7 +66,7 @@ def main():
         'from pytorch_toolbelt.modules.activations import swish',
         'from pytorch_toolbelt.modules.pooling import *',
         'from pytorch_toolbelt.modules.scse import *',
-        'import torch.nn.functional as F',
+        'import torch.nn.functional as F'
     ]
     functions = [
         tensor_from_rgb_image,
@@ -73,13 +75,21 @@ def main():
         get_class_names,
         RetinopathyDataset,
         BaselineClassificationModel,
+        RMSPool2d,
+        Flatten,
+        BaselineRegressionModel,
+        RegressionModule,
+        STN,
+        STNRegressionModel,
         ClassifierModule,
         get_model,
         get_test_aug,
         PickModelOutput,
         run_model_inference,
         average_predictions,
-        predictions_to_submission
+        cls_predictions_to_submission,
+        reg_predictions_to_submission,
+        regression_to_class,
     ]
 
     lines.append('# Imports\n')

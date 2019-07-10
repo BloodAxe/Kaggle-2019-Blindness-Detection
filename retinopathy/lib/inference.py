@@ -15,6 +15,7 @@ from torch.utils.data import DataLoader
 
 from retinopathy.lib.dataset import get_class_names, RetinopathyDataset
 from retinopathy.lib.factory import get_model, get_test_aug
+from retinopathy.lib.models.regression import regression_to_class
 
 
 class PickModelOutput(nn.Module):
@@ -41,7 +42,11 @@ def run_model_inference(model_checkpoint: str,
     if batch_size is None:
         batch_size = checkpoint['checkpoint_data']['cmd_args']['batch_size']
 
-    model = get_model(model_name, pretrained=False, num_classes=len(get_class_names()))
+    num_classes = len(get_class_names())
+    if str.startswith(model_name, 'reg_'):
+        num_classes = 1
+
+    model = get_model(model_name, pretrained=False, num_classes=num_classes)
     model.load_state_dict(checkpoint['model_state_dict'])
 
     model = nn.Sequential(model, PickModelOutput('logits'))
@@ -81,8 +86,15 @@ def run_model_inference(model_checkpoint: str,
     return predictions
 
 
-def predictions_to_submission(predictions) -> pd.DataFrame:
+def cls_predictions_to_submission(predictions) -> pd.DataFrame:
     predictions['diagnosis'] = predictions['diagnosis'].apply(lambda x: np.argmax(x))
+    return predictions
+
+
+def reg_predictions_to_submission(predictions) -> pd.DataFrame:
+    x = torch.from_numpy(predictions['diagnosis'].values)
+    x = regression_to_class(x)
+    predictions['diagnosis'] = to_numpy(x)
     return predictions
 
 
@@ -119,7 +131,7 @@ def main():
     pred = average_predictions(predictions)
     print(pred.head())
 
-    submit = predictions_to_submission(pred)
+    submit = cls_predictions_to_submission(pred)
     print(submit.head())
 
 

@@ -16,7 +16,7 @@ class Flatten(nn.Module):
 class STN(nn.Module):
     def __init__(self, pretrained=True):
         super(STN, self).__init__()
-        encoder = Resnet18Encoder(pretrained=pretrained)
+        encoder = Resnet18Encoder(pretrained=pretrained, layers=[0, 1])
 
         self.features = encoder.output_filters[1]
 
