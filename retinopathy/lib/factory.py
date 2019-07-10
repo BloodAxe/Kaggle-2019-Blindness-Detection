@@ -87,11 +87,32 @@ def get_loss(loss_name: str, **kwargs):
 
 
 def get_train_aug(image_size, augmentation=None):
+    if augmentation is None:
+        augmentation = 'none'
+
+    NONE = 0
+    LIGHT = 1
+    MEDIUM = 2
+    HARD = 3
+
+    LEVELS = {
+        'none': NONE,
+        'light': LIGHT,
+        'medium': MEDIUM,
+        'hard': HARD
+    }
+    assert augmentation in LEVELS.keys()
+    augmentation = LEVELS[augmentation]
+
     longest_size = max(image_size[0], image_size[1])
     return A.Compose([
         CropBlackRegions(),
         A.LongestMaxSize(longest_size, interpolation=cv2.INTER_CUBIC),
-        A.CoarseDropout(),
+
+        A.Compose([
+            A.CoarseDropout(),
+        ], p=float(augmentation > LIGHT)),
+
         A.PadIfNeeded(image_size[0], image_size[1], border_mode=cv2.BORDER_CONSTANT, value=0),
 
         A.OneOf([
@@ -100,13 +121,13 @@ def get_train_aug(image_size, augmentation=None):
             A.GaussianBlur(),
             A.IAASharpen(),
             A.NoOp()
-        ]),
+        ], p=float(augmentation > LIGHT)),
 
         A.Compose([
             A.ShiftScaleRotate(shift_limit=0, scale_limit=0.05, rotate_limit=45, border_mode=cv2.BORDER_CONSTANT, value=0),
             A.ElasticTransform(alpha_affine=5, border_mode=cv2.BORDER_CONSTANT, value=0),
             A.OpticalDistortion(border_mode=cv2.BORDER_CONSTANT, value=0),
-        ], p=float(augmentation in {'hard'})),
+        ], p=float(augmentation == HARD)),
 
         A.OneOf([
             A.RandomBrightnessContrast(),
@@ -114,19 +135,19 @@ def get_train_aug(image_size, augmentation=None):
             A.HueSaturationValue(hue_shift_limit=5),
             A.CLAHE(),
             A.RGBShift()
-        ]),
+        ], p=float(augmentation >= MEDIUM)),
 
         # D4
         A.Compose([
             A.RandomRotate90(),
             A.Transpose()
-        ], p=float(augmentation in {'hard'})),
+        ], p=float(augmentation == HARD)),
 
         # Horizontal/Vertical flips
         A.Compose([
             A.HorizontalFlip(),
             A.VerticalFlip()
-        ], p=float(augmentation in {'medium'})),
+        ], p=float(augmentation >= LIGHT)),
 
         A.Normalize()
     ])

@@ -59,6 +59,9 @@ def run_model_inference(model_checkpoint: str,
     if tta == '10crop':
         model = TTAWrapper(model, tencrop_image2label, crop_size=(384, 384))
 
+    if tta == 'd4':
+        model = TTAWrapper(model, d4_image2label)
+
     if tta == 'flip':
         model = TTAWrapper(model, fliplr_image2label)
 
@@ -123,6 +126,7 @@ def main():
         'runs/classification/cls_resnet18/fold_3/Jul09_01_29_ce/checkpoints/fold3_best.pth'
     ]
 
+    per_fold_scores = []
     predictions = []
     for checkpoint in checkpoints:
         df0 = run_model_inference(model_checkpoint=fs.auto_file(checkpoint),
@@ -130,13 +134,15 @@ def main():
                                   images_dir='train_images',
                                   data_dir='data',
                                   batch_size=4,
-                                  tta=None)
+                                  tta='d4')
         predictions.append(df0)
 
         fold_predictions = cls_predictions_to_submission(df0)
 
         score = cohen_kappa_score(fold_predictions['diagnosis'],
                                   train_csv['diagnosis'], weights='quadratic')
+
+        per_fold_scores.append(score)
         print(df0.head())
         print(checkpoint, score)
 
@@ -146,6 +152,7 @@ def main():
     submit = cls_predictions_to_submission(pred)
     print(submit.head())
 
+    print(per_fold_scores)
     score = cohen_kappa_score(submit['diagnosis'], train_csv['diagnosis'], weights='quadratic')
     print(score)
 
