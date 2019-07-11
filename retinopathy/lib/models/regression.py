@@ -29,7 +29,7 @@ class RegressionModule(nn.Module):
         super().__init__()
         self.rms_pool = RMSPool2d()
         self.bn = nn.BatchNorm1d(input_features)
-        self.drop = nn.Dropout(dropout)
+        self.drop = nn.Dropout(dropout, inplace=True)
         self.output_classes = output_classes
 
         bottleneck = input_features // reduction

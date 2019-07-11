@@ -85,10 +85,10 @@ class AccuracyCallbackFromRegression(MetricCallback):
     """
 
     def __init__(
-        self,
-        input_key: str = "targets",
-        output_key: str = "logits",
-        prefix: str = "accuracy",
+            self,
+            input_key: str = "targets",
+            output_key: str = "logits",
+            prefix: str = "accuracy",
     ):
         """
         Args:
@@ -103,7 +103,6 @@ class AccuracyCallbackFromRegression(MetricCallback):
             input_key=input_key,
             output_key=output_key
         )
-
 
 
 class ConfusionMatrixCallbackFromRegression(Callback):
@@ -164,3 +163,18 @@ class ConfusionMatrixCallbackFromRegression(Callback):
 
         logger = get_tensorboard_logger(state)
         logger.add_image(f'{self.prefix}/epoch', fig, global_step=state.step)
+
+
+class SWACallback(Callback):
+    """
+    Callback for use :'torchcontrib.optim.SWA'
+    """
+    def __init__(self, optimizer):
+        self.optimizer = optimizer
+
+    def on_loader_end(self, state: RunnerState):
+        from torchcontrib.optim.swa import SWA
+        if state.loader_name == 'train':
+            self.optimizer.swap_swa_sgd()
+            SWA.bn_update(state.loaders, state.model, state.device)
+

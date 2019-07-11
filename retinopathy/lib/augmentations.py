@@ -18,6 +18,8 @@ class CropBlackRegions(A.ImageOnlyTransform):
     def apply(self, img, **params):
         return crop_black(img, self.tolerance)
 
+    def get_transform_init_args_names(self):
+        return ('tolerance', )
 
 def test_crop_black_regions():
     for image_fname in ['data/train_images/0a4e1a29ffff.png', 'data/train_images/0a61bddab956.png']:

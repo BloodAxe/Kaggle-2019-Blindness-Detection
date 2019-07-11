@@ -4,10 +4,12 @@ import torch
 from torch import nn
 from torch.nn.modules.loss import _Loss
 import torch.nn.functional as F
+from catalyst.contrib import registry
 
 
+@registry.Criterion
 class MagnetLoss(nn.Module):
-    def __init__(self, margin = 2):
+    def __init__(self, margin=2):
         super().__init__()
         self.margin = margin
 
@@ -37,6 +39,7 @@ class MagnetLoss(nn.Module):
         return loss / (bs * bs - bs)
 
 
+@registry.Criterion
 class ClippedMSELoss(_Loss):
     r"""Creates a criterion that measures the mean squared error (squared L2 norm) between
     each element in the input :math:`x` and target :math:`y`.

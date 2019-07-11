@@ -37,9 +37,16 @@ class RetinopathyDataset(Dataset):
 
         log_height = math.log(height)
         log_width = math.log(width)
+        aspect_ratio = log_height / log_width
+        mean = np.mean(image, axis=(0, 1))
+
         meta_features = np.array([
             log_height,
-            log_width
+            log_width,
+            aspect_ratio,
+            mean[0],
+            mean[1],
+            mean[2]
         ])
 
         image = self.transform(image=image)['image']

@@ -38,7 +38,8 @@ Using only one model **seresnext50**.
 
 1. Spatial transformer network
     > Can model automatically learn to crop image?
-    **Question**:How much boots it adds? 
+    **Q**: How much boots it adds? 
+    **A**: 
 
 1. Go for more models
     > Train resnet18, resnet34, densenet, efficientnet, senet zoo

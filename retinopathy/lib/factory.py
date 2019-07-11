@@ -1,14 +1,13 @@
 import cv2
 from torch import nn
 from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss, SmoothL1Loss
-from torchcontrib.optim import SWA
 
 from retinopathy.lib.augmentations import CropBlackRegions
 from retinopathy.lib.losses import ClippedMSELoss
 from retinopathy.lib.models.classification import BaselineClassificationModel
 from retinopathy.lib.models.regression import BaselineRegressionModel, STNRegressionModel
 from pytorch_toolbelt.modules.encoders import *
-from pytorch_toolbelt.losses import FocalLoss
+from pytorch_toolbelt.losses import FocalLoss, WingLoss
 from torch.optim import SGD, Adam
 import albumentations as A
 
@@ -22,6 +21,11 @@ def get_model(model_name, num_classes, pretrained=True, **kwargs):
         assert num_classes == 1
         encoder = Resnet18Encoder(pretrained=pretrained)
         return BaselineRegressionModel(encoder)
+
+    if model_name == 'reg_resnet50':
+        assert num_classes == 1
+        encoder = Resnet50Encoder(pretrained=pretrained)
+        return BaselineRegressionModel(encoder, dropout=0.5)
 
     if model_name == 'reg_stn_resnet18':
         assert num_classes == 1
@@ -54,10 +58,6 @@ def get_optimizer(optimizer_name: str, parameters, lr: float, weight_decay=1e-4,
     if optimizer_name.lower() == 'adam':
         return Adam(parameters, lr, **kwargs)
 
-    if optimizer_name.lower() == 'adam-swa':
-        optimizer = Adam(parameters, lr, **kwargs)
-        return SWA(optimizer)
-
     raise ValueError("Unsupported optimizer name " + optimizer_name)
 
 
@@ -76,6 +76,9 @@ def get_loss(loss_name: str, **kwargs):
 
     if loss_name.lower() == 'huber':
         return SmoothL1Loss()
+
+    if loss_name.lower() == 'wing_loss':
+        return WingLoss()
 
     if loss_name.lower() == 'clipped_huber':
         raise NotImplementedError(loss_name)
@@ -134,7 +137,7 @@ def get_train_aug(image_size, augmentation=None):
             A.RandomGamma(),
             A.HueSaturationValue(hue_shift_limit=5),
             A.CLAHE(),
-            A.RGBShift()
+            A.RGBShift(r_shift_limit=20, b_shift_limit=10, g_shift_limit=10)
         ], p=float(augmentation >= MEDIUM)),
 
         # D4
@@ -161,3 +164,12 @@ def get_test_aug(image_size):
         A.PadIfNeeded(image_size[0], image_size[1], border_mode=cv2.BORDER_CONSTANT, value=0),
         A.Normalize()
     ])
+
+
+def test_serialize_aug():
+    import yaml
+    # aug = get_train_aug(image_size=(512,512), augmentation='hard')
+    aug = get_test_aug(image_size=(512,512))
+    aug_dict = A.to_dict(aug)
+    aug_yaml = yaml.dump(aug_dict)
+    print(aug_yaml)

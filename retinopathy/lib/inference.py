@@ -133,8 +133,8 @@ def main():
                                   test_csv=train_csv,
                                   images_dir='train_images',
                                   data_dir='data',
-                                  batch_size=4,
-                                  tta='d4')
+                                  batch_size=8,
+                                  tta=None)
         predictions.append(df0)
 
         fold_predictions = cls_predictions_to_submission(df0)
