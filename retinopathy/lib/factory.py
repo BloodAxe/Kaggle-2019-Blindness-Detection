@@ -1,9 +1,11 @@
 import cv2
+import torch
+from pytorch_toolbelt.utils.torch_utils import to_numpy
 from torch import nn
 from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss, SmoothL1Loss
 
 from retinopathy.lib.augmentations import CropBlackRegions
-from retinopathy.lib.losses import ClippedMSELoss
+from retinopathy.lib.losses import ClippedMSELoss, ClippedWingLoss
 from retinopathy.lib.models.classification import BaselineClassificationModel
 from retinopathy.lib.models.regression import BaselineRegressionModel, STNRegressionModel
 from pytorch_toolbelt.modules.encoders import *
@@ -78,7 +80,7 @@ def get_loss(loss_name: str, **kwargs):
         return SmoothL1Loss()
 
     if loss_name.lower() == 'wing_loss':
-        return WingLoss()
+        return ClippedWingLoss(width=2, curvature=0.1, min=0, max=4)
 
     if loss_name.lower() == 'clipped_huber':
         raise NotImplementedError(loss_name)
@@ -169,7 +171,29 @@ def get_test_aug(image_size):
 def test_serialize_aug():
     import yaml
     # aug = get_train_aug(image_size=(512,512), augmentation='hard')
-    aug = get_test_aug(image_size=(512,512))
+    aug = get_test_aug(image_size=(512, 512))
     aug_dict = A.to_dict(aug)
     aug_yaml = yaml.dump(aug_dict)
     print(aug_yaml)
+
+
+@torch.no_grad()
+def test_wing_loss():
+    loss_fn = ClippedWingLoss(width=2, curvature=0.1, reduction=None, min=0, max=4)
+    # loss_fn = WingLoss(width=2, curvature=0.1, reduction=None)
+    x = torch.arange(-1, 5, 0.1)
+    y0 = torch.tensor(0.0).expand_as(x)
+    y1 = torch.tensor(1.0).expand_as(x)
+    y2 = torch.tensor(2.0).expand_as(x)
+    y3 = torch.tensor(3.0).expand_as(x)
+    y4 = torch.tensor(4.0).expand_as(x)
+
+    import matplotlib.pyplot as plt
+
+    plt.figure()
+    plt.plot(to_numpy(x), to_numpy(loss_fn(x, y0)))
+    plt.plot(to_numpy(x), to_numpy(loss_fn(x, y1)))
+    plt.plot(to_numpy(x), to_numpy(loss_fn(x, y2)))
+    plt.plot(to_numpy(x), to_numpy(loss_fn(x, y3)))
+    plt.plot(to_numpy(x), to_numpy(loss_fn(x, y4)))
+    plt.show()

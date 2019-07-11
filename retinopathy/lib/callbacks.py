@@ -2,6 +2,7 @@ import torch
 from catalyst.dl import MetricCallback, RunnerState, Callback, MultiMetricCallback
 from typing import Callable, List
 import numpy as np
+from catalyst.dl.callbacks import MixupCallback
 from pytorch_toolbelt.utils.catalyst import get_tensorboard_logger
 from pytorch_toolbelt.utils.torch_utils import to_numpy
 from pytorch_toolbelt.utils.visualization import plot_confusion_matrix, render_figure_to_tensor
@@ -169,6 +170,7 @@ class SWACallback(Callback):
     """
     Callback for use :'torchcontrib.optim.SWA'
     """
+
     def __init__(self, optimizer):
         self.optimizer = optimizer
 
@@ -178,3 +180,30 @@ class SWACallback(Callback):
             self.optimizer.swap_swa_sgd()
             SWA.bn_update(state.loaders, state.model, state.device)
 
+
+class MixupRegressionCallback(MixupCallback):
+    """
+    Callback to do mixup augmentation.
+    It's modification compute recompute the target according to:
+    ```
+        y = y_a * self.lam + y_b * (1 - self.lam)
+    ```
+    Paper: https://arxiv.org/abs/1710.09412
+
+    Note:
+        MixupCallback is inherited from CriterionCallback and
+        does its work.
+
+        You may not use them together.
+    """
+
+    def _compute_loss(self, state: RunnerState, criterion):
+        if not self.is_needed:
+            return super()._compute_loss(state, criterion)
+
+        pred = state.output[self.output_key]
+        y_a = state.input[self.input_key]
+        y_b = state.input[self.input_key][self.index]
+        y = y_a * self.lam + y_b * (1 - self.lam)
+        loss = criterion(pred, y)
+        return loss

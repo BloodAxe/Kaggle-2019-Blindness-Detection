@@ -20,7 +20,7 @@ from sklearn.utils import compute_sample_weight
 from torch.optim.lr_scheduler import MultiStepLR
 from torch.utils.data import DataLoader, WeightedRandomSampler
 
-from retinopathy.lib.callbacks import CappaScoreCallbackFromRegression, AccuracyCallbackFromRegression, ConfusionMatrixCallbackFromRegression
+from retinopathy.lib.callbacks import CappaScoreCallbackFromRegression, AccuracyCallbackFromRegression, ConfusionMatrixCallbackFromRegression, MixupRegressionCallback
 from retinopathy.lib.dataset import RetinopathyDataset, get_class_names
 from retinopathy.lib.factory import get_model, get_loss, get_optimizer, get_optimizable_parameters, get_train_aug, get_test_aug
 from retinopathy.lib.visualization import draw_classification_predictions, draw_regression_predictions
@@ -268,7 +268,7 @@ def main():
         ]
 
         if mixup:
-            callbacks += [MixupCallback(fields=['image'])]
+            callbacks += [MixupRegressionCallback(fields=['image'])]
 
         if early_stopping:
             callbacks += [EarlyStoppingCallback(early_stopping, metric='kappa_score', minimize=False)]
