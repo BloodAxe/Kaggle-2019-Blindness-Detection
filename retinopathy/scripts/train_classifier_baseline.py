@@ -7,27 +7,24 @@ import os
 from datetime import datetime
 from functools import partial
 
-import cv2
-import numpy as np
+import pandas as pd
 import torch
 from catalyst.dl import SupervisedRunner, EarlyStoppingCallback
-from catalyst.dl.callbacks import F1ScoreCallback, AccuracyCallback, MixupCallback
+from catalyst.dl.callbacks import AccuracyCallback, MixupCallback
 from catalyst.utils import load_checkpoint, unpack_checkpoint
 from pytorch_toolbelt.utils import fs
 from pytorch_toolbelt.utils.catalyst import ShowPolarBatchesCallback, ConfusionMatrixCallback
 from pytorch_toolbelt.utils.random import set_manual_seed
-from pytorch_toolbelt.utils.torch_utils import maybe_cuda, count_parameters, to_numpy, rgb_image_from_tensor, set_trainable
+from pytorch_toolbelt.utils.torch_utils import maybe_cuda, count_parameters, set_trainable
 from sklearn.model_selection import train_test_split
 from sklearn.utils import compute_sample_weight
 from torch.optim.lr_scheduler import MultiStepLR
 from torch.utils.data import DataLoader, WeightedRandomSampler
-from tqdm import tqdm
-import pandas as pd
-from pytorch_toolbelt.utils.catalyst.visualization import draw_binary_segmentation_predictions
 
 from retinopathy.lib.callbacks import CappaScoreCallback
 from retinopathy.lib.dataset import RetinopathyDataset, get_class_names
 from retinopathy.lib.factory import get_model, get_loss, get_optimizer, get_optimizable_parameters, get_train_aug, get_test_aug
+from retinopathy.lib.inference import run_model_inference
 from retinopathy.lib.visualization import draw_classification_predictions
 
 
@@ -288,6 +285,27 @@ def main():
         )
 
         del runner, callbacks, loaders, optimizer, model, criterion, scheduler
+
+        if fold is not None:
+            dataset_fname = os.path.join(data_dir, 'train_with_folds.csv')
+            dataset = pd.read_csv(dataset_fname)
+            oof_csv = dataset[dataset['fold'] == fold]
+
+            model_checkpoint = os.path.join(log_dir, 'checkpoints', 'best.pth')
+            oof_predictions = run_model_inference(model_checkpoint=model_checkpoint,
+                                                  test_csv=oof_csv,
+                                                  images_dir='train_images',
+                                                  data_dir=data_dir,
+                                                  batch_size=batch_size,
+                                                  tta=None,
+                                                  apply_softmax=True)
+
+            checkpoint = load_checkpoint(model_checkpoint)
+            del checkpoint['criterion_state_dict']
+            del checkpoint['optimizer_state_dict']
+            del checkpoint['scheduler_state_dict']
+            checkpoint['oof_predictions'] = oof_predictions
+            torch.save(checkpoint, os.path.join(log_dir, 'checkpoints', f'{model_name}_fold{fold}' + '.pth'))
 
 
 if __name__ == '__main__':
