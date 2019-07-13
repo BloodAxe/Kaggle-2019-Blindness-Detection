@@ -24,7 +24,6 @@ from retinopathy.lib.callbacks import CappaScoreCallbackFromRegression, Accuracy
 from retinopathy.lib.dataset import RetinopathyDataset, get_class_names
 from retinopathy.lib.factory import get_model, get_loss, get_optimizer, get_optimizable_parameters, get_train_aug, get_test_aug
 from retinopathy.lib.visualization import draw_classification_predictions, draw_regression_predictions
-from torchcontrib.optim import SWA
 
 
 def get_dataloaders(data_dir,
@@ -210,6 +209,7 @@ def main():
                                                      fast=fast,
                                                      fold=fold)
         if use_swa:
+            from torchcontrib.optim import SWA
             optimizer = SWA(optimizer,
                             swa_start=len(train_loader),
                             swa_freq=512)
