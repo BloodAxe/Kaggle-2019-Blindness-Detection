@@ -233,7 +233,7 @@ def main():
         os.makedirs(log_dir, exist_ok=False)
 
         scheduler = MultiStepLR(optimizer,
-                                milestones=[10, 30, 50, 70, 90], gamma=0.5)
+                                milestones=[10, 20, 30, 40, 50, 60, 70, 80, 90], gamma=0.5)
 
         print('Train session    :', prefix)
         print('\tFP16 mode      :', fp16)
