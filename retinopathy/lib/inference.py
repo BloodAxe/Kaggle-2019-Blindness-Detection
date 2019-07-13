@@ -68,8 +68,8 @@ def run_model_inference(model_checkpoint: str,
     with torch.no_grad():
         model = model.eval().cuda()
 
-        test_csv['image_fname'] = test_csv['id_code'].apply(lambda x: os.path.join(data_dir, images_dir, f'{x}.png'))
-        test_ds = RetinopathyDataset(test_csv['image_fname'], None, get_test_aug(image_size))
+        image_fnames = test_csv['id_code'].apply(lambda x: os.path.join(data_dir, images_dir, f'{x}.png'))
+        test_ds = RetinopathyDataset(image_fnames, None, get_test_aug(image_size))
         data_loader = DataLoader(test_ds, batch_size,
                                  pin_memory=True,
                                  num_workers=multiprocessing.cpu_count())

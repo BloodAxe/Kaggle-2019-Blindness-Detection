@@ -15,10 +15,7 @@ import albumentations as A
 
 
 def get_model(model_name, num_classes, pretrained=True, **kwargs):
-    if model_name == 'cls_resnet18':
-        encoder = Resnet18Encoder(pretrained=pretrained)
-        return BaselineClassificationModel(encoder, num_classes)
-
+    # Regression
     if model_name == 'reg_resnet18':
         assert num_classes == 1
         encoder = Resnet18Encoder(pretrained=pretrained)
@@ -33,6 +30,23 @@ def get_model(model_name, num_classes, pretrained=True, **kwargs):
         assert num_classes == 1
         encoder = Resnet18Encoder(pretrained=pretrained)
         return STNRegressionModel(encoder, pretrained=pretrained)
+
+    if model_name == 'reg_resnext50':
+        encoder = SEResNeXt50Encoder(pretrained=pretrained)
+        return BaselineRegressionModel(encoder, num_classes)
+
+    if model_name == 'reg_resnext101':
+        encoder = SEResNeXt101Encoder(pretrained=pretrained)
+        return BaselineRegressionModel(encoder, num_classes)
+
+    if model_name == 'reg_effnet_b4':
+        encoder = EfficientNetB4Encoder()
+        return BaselineRegressionModel(encoder, num_classes)
+
+    # Classification
+    if model_name == 'cls_resnet18':
+        encoder = Resnet18Encoder(pretrained=pretrained)
+        return BaselineClassificationModel(encoder, num_classes)
 
     if model_name == 'cls_resnext50':
         encoder = SEResNeXt50Encoder(pretrained=pretrained)
