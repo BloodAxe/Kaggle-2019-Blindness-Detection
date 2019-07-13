@@ -23,7 +23,8 @@ from torch.utils.data import DataLoader, WeightedRandomSampler
 
 from retinopathy.lib.callbacks import CappaScoreCallback
 from retinopathy.lib.dataset import RetinopathyDataset, get_class_names
-from retinopathy.lib.factory import get_model, get_loss, get_optimizer, get_optimizable_parameters, get_train_aug, get_test_aug
+from retinopathy.lib.factory import get_model, get_loss, get_optimizer, get_optimizable_parameters, get_train_aug, \
+    get_test_aug
 from retinopathy.lib.inference import run_model_inference
 from retinopathy.lib.visualization import draw_classification_predictions
 
@@ -110,6 +111,8 @@ def main():
     parser.add_argument('--fast', action='store_true')
     parser.add_argument('--mixup', action='store_true')
     parser.add_argument('--balance', action='store_true')
+    parser.add_argument('--swa', action='store_true')
+    parser.add_argument('-acc', '--accumulation-steps', type=int, default=1, help='Number of batches to process')
     parser.add_argument('-dd', '--data-dir', type=str, default='data', help='Data directory for INRIA sattelite dataset')
     parser.add_argument('-m', '--model', type=str, default='cls_resnet18', help='')
     parser.add_argument('-b', '--batch-size', type=int, default=8, help='Batch Size during training, e.g. -b 64')
@@ -146,6 +149,7 @@ def main():
     folds = args.fold
     mixup = args.mixup
     balance = args.balance
+    use_swa = args.swa
 
     if folds is None or len(folds) == 0:
         folds = [None]
@@ -207,6 +211,11 @@ def main():
                                                      adversarial=fold is None,
                                                      fast=fast,
                                                      fold=fold)
+        if use_swa:
+            from torchcontrib.optim import SWA
+            optimizer = SWA(optimizer,
+                            swa_start=len(train_loader),
+                            swa_freq=512)
 
         loaders = collections.OrderedDict()
         loaders["train"] = train_loader
