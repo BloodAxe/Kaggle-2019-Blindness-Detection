@@ -26,6 +26,16 @@ def get_model(model_name, num_classes, pretrained=True, **kwargs):
         encoder = Resnet50Encoder(pretrained=pretrained)
         return BaselineRegressionModel(encoder, dropout=0.5)
 
+    if model_name == 'reg_resnext50':
+        assert num_classes == 1
+        encoder = SEResNeXt50Encoder(pretrained=pretrained)
+        return BaselineRegressionModel(encoder, dropout=0.5)
+
+    if model_name == 'reg_resnext101':
+        assert num_classes == 1
+        encoder = SEResNeXt101Encoder(pretrained=pretrained)
+        return BaselineRegressionModel(encoder, dropout=0.5)
+
     if model_name == 'reg_stn_resnet18':
         assert num_classes == 1
         encoder = Resnet18Encoder(pretrained=pretrained)
@@ -58,7 +68,12 @@ def get_model(model_name, num_classes, pretrained=True, **kwargs):
 
     if model_name == 'cls_effnet_b4':
         encoder = EfficientNetB4Encoder()
-        return BaselineClassificationModel(encoder, num_classes)
+        return BaselineClassificationModel(encoder, num_classes, dropout=0.5)
+
+    if model_name == 'cls_resnext101':
+        assert num_classes == 1
+        encoder = SEResNeXt101Encoder(pretrained=pretrained)
+        return BaselineClassificationModel(encoder, num_classes, dropout=0.5)
 
     raise ValueError(model_name)
 

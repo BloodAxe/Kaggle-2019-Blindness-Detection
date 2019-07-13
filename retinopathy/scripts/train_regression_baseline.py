@@ -8,10 +8,9 @@ from datetime import datetime
 from functools import partial
 import numpy as np
 import pandas as pd
-import torch
 from catalyst.dl import SupervisedRunner, EarlyStoppingCallback, OptimizerCallback
 from catalyst.dl.callbacks import MixupCallback
-from catalyst.utils import load_checkpoint, unpack_checkpoint, save_checkpoint
+from catalyst.utils import load_checkpoint, unpack_checkpoint
 from pytorch_toolbelt.utils import fs
 from pytorch_toolbelt.utils.catalyst import ShowPolarBatchesCallback, ConfusionMatrixCallback
 from pytorch_toolbelt.utils.random import set_manual_seed
@@ -24,9 +23,7 @@ from torch.utils.data import DataLoader, WeightedRandomSampler
 from retinopathy.lib.callbacks import CappaScoreCallbackFromRegression, AccuracyCallbackFromRegression, ConfusionMatrixCallbackFromRegression, MixupRegressionCallback
 from retinopathy.lib.dataset import RetinopathyDataset, get_class_names
 from retinopathy.lib.factory import get_model, get_loss, get_optimizer, get_optimizable_parameters, get_train_aug, get_test_aug
-from retinopathy.lib.inference import run_model_inference
 from retinopathy.lib.visualization import draw_classification_predictions, draw_regression_predictions
-from torchcontrib.optim import SWA
 
 
 def get_dataloaders(data_dir,
@@ -212,6 +209,7 @@ def main():
                                                      fast=fast,
                                                      fold=fold)
         if use_swa:
+            from torchcontrib.optim import SWA
             optimizer = SWA(optimizer,
                             swa_start=len(train_loader),
                             swa_freq=512)
