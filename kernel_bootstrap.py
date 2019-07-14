@@ -68,7 +68,8 @@ def get_class_names():
 
 
 class RetinopathyDataset(Dataset):
-    def __init__(self, images, targets, transform: A.Compose, target_as_array=False, dtype=int):
+    def __init__(self, images, targets, transform: A.Compose,
+                 target_as_array=False, dtype=int):
         self.images = np.array(images)
         self.targets = np.array(targets) if targets is not None else None
         self.transform = transform
@@ -79,16 +80,24 @@ class RetinopathyDataset(Dataset):
         return len(self.images)
 
     def __getitem__(self, item):
-        image = cv2.imread(self.images[item])  # Read with OpenCV instead PIL. It's faster
+        image = cv2.imread(
+            self.images[item])  # Read with OpenCV instead PIL. It's faster
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        
+
         height, width = image.shape[:2]
 
         log_height = math.log(height)
         log_width = math.log(width)
+        aspect_ratio = log_height / log_width
+        mean = np.mean(image, axis=(0, 1))
+
         meta_features = np.array([
             log_height,
-            log_width
+            log_width,
+            aspect_ratio,
+            mean[0],
+            mean[1],
+            mean[2]
         ])
 
         image = self.transform(image=image)['image']
@@ -158,7 +167,7 @@ class RegressionModule(nn.Module):
         super().__init__()
         self.rms_pool = RMSPool2d()
         self.bn = nn.BatchNorm1d(input_features)
-        self.drop = nn.Dropout(dropout)
+        self.drop = nn.Dropout(dropout, inplace=True)
         self.output_classes = output_classes
 
         bottleneck = input_features // reduction
@@ -191,17 +200,13 @@ class RegressionModule(nn.Module):
 
 
 class STN(nn.Module):
-    def __init__(self, pretrained=True):
+    def __init__(self, features):
         super(STN, self).__init__()
-        encoder = Resnet18Encoder(pretrained=pretrained)
-
-        self.features = encoder.output_filters[1]
+        self.features = features
 
         # Spatial transformer localization-network
         self.localization = nn.Sequential(
-            encoder.layer0,
-            encoder.layer1,
-            GlobalMaxPool2d(),
+            GlobalAvgPool2d(),
             Flatten()
         )
 
@@ -217,27 +222,26 @@ class STN(nn.Module):
         self.fc_loc[2].bias.data.copy_(torch.tensor([1, 0, 0,
                                                      0, 1, 0], dtype=torch.float))
 
-    def forward(self, x):
-        xs = self.localization(x)
-        xs = xs.view(-1, self.features)
+    def forward(self, image, features):
+        xs = self.localization(features)
         theta = self.fc_loc(xs)
         theta = theta.view(-1, 2, 3)
 
-        grid = F.affine_grid(theta, x.size())
-        x = F.grid_sample(x, grid)
-
-        return x
+        grid = F.affine_grid(theta, image.size())
+        return F.grid_sample(image, grid)
 
 
 class STNRegressionModel(nn.Module):
     def __init__(self, encoder: EncoderModule, num_dimensions=1, dropout=0.2, pretrained=True):
         super().__init__()
-        self.stn = STN(pretrained=pretrained)
+        features = encoder.output_filters[-1]
+        self.stn = STN(features)
         self.encoder = encoder
-        self.regressor = RegressionModule(encoder.output_filters[-1], num_dimensions, dropout=dropout)
+        self.regressor = RegressionModule(features, num_dimensions, dropout=dropout)
 
     def forward(self, input):
-        input_transformed = self.stn(input)
+        features = self.encoder(input)[-1]
+        input_transformed = self.stn(input, features)
         features = self.encoder(input_transformed)[-1]
         logits, features = self.regressor(features)
         return {'logits': logits, 'features': features, 'stn': input_transformed}
@@ -271,19 +275,48 @@ class ClassifierModule(nn.Module):
 
 
 def get_model(model_name, num_classes, pretrained=True, **kwargs):
-    if model_name == 'cls_resnet18':
-        encoder = Resnet18Encoder(pretrained=pretrained)
-        return BaselineClassificationModel(encoder, num_classes)
-
+    # Regression
     if model_name == 'reg_resnet18':
         assert num_classes == 1
         encoder = Resnet18Encoder(pretrained=pretrained)
         return BaselineRegressionModel(encoder)
 
+    if model_name == 'reg_resnet50':
+        assert num_classes == 1
+        encoder = Resnet50Encoder(pretrained=pretrained)
+        return BaselineRegressionModel(encoder, dropout=0.5)
+
+    if model_name == 'reg_resnext50':
+        assert num_classes == 1
+        encoder = SEResNeXt50Encoder(pretrained=pretrained)
+        return BaselineRegressionModel(encoder, dropout=0.5)
+
+    if model_name == 'reg_resnext101':
+        assert num_classes == 1
+        encoder = SEResNeXt101Encoder(pretrained=pretrained)
+        return BaselineRegressionModel(encoder, dropout=0.5)
+
     if model_name == 'reg_stn_resnet18':
         assert num_classes == 1
         encoder = Resnet18Encoder(pretrained=pretrained)
         return STNRegressionModel(encoder, pretrained=pretrained)
+
+    if model_name == 'reg_resnext50':
+        encoder = SEResNeXt50Encoder(pretrained=pretrained)
+        return BaselineRegressionModel(encoder, num_classes)
+
+    if model_name == 'reg_resnext101':
+        encoder = SEResNeXt101Encoder(pretrained=pretrained)
+        return BaselineRegressionModel(encoder, num_classes)
+
+    if model_name == 'reg_effnet_b4':
+        encoder = EfficientNetB4Encoder()
+        return BaselineRegressionModel(encoder, num_classes)
+
+    # Classification
+    if model_name == 'cls_resnet18':
+        encoder = Resnet18Encoder(pretrained=pretrained)
+        return BaselineClassificationModel(encoder, num_classes)
 
     if model_name == 'cls_resnext50':
         encoder = SEResNeXt50Encoder(pretrained=pretrained)
@@ -295,7 +328,12 @@ def get_model(model_name, num_classes, pretrained=True, **kwargs):
 
     if model_name == 'cls_effnet_b4':
         encoder = EfficientNetB4Encoder()
-        return BaselineClassificationModel(encoder, num_classes)
+        return BaselineClassificationModel(encoder, num_classes, dropout=0.5)
+
+    if model_name == 'cls_resnext101':
+        assert num_classes == 1
+        encoder = SEResNeXt101Encoder(pretrained=pretrained)
+        return BaselineClassificationModel(encoder, num_classes, dropout=0.5)
 
     raise ValueError(model_name)
 
@@ -303,6 +341,7 @@ def get_model(model_name, num_classes, pretrained=True, **kwargs):
 def get_test_aug(image_size):
     longest_size = max(image_size[0], image_size[1])
     return A.Compose([
+        CropBlackRegions(),
         A.LongestMaxSize(longest_size, interpolation=cv2.INTER_CUBIC),
         A.PadIfNeeded(image_size[0], image_size[1], border_mode=cv2.BORDER_CONSTANT, value=0),
         A.Normalize()
@@ -324,6 +363,7 @@ def run_model_inference(model_checkpoint: str,
                         model_name=None,
                         batch_size=None,
                         image_size=(512, 512),
+                        images_dir='test_images',
                         tta=None,
                         apply_softmax=True) -> pd.DataFrame:
     checkpoint = torch.load(model_checkpoint)
@@ -348,14 +388,17 @@ def run_model_inference(model_checkpoint: str,
     if tta == '10crop':
         model = TTAWrapper(model, tencrop_image2label, crop_size=(384, 384))
 
+    if tta == 'd4':
+        model = TTAWrapper(model, d4_image2label)
+
     if tta == 'flip':
         model = TTAWrapper(model, fliplr_image2label)
 
     with torch.no_grad():
         model = model.eval().cuda()
 
-        test_csv['image_fname'] = test_csv['id_code'].apply(lambda x: os.path.join(data_dir, 'test_images', f'{x}.png'))
-        test_ds = RetinopathyDataset(test_csv['image_fname'], None, get_test_aug(image_size))
+        image_fnames = test_csv['id_code'].apply(lambda x: os.path.join(data_dir, images_dir, f'{x}.png'))
+        test_ds = RetinopathyDataset(image_fnames, None, get_test_aug(image_size))
         data_loader = DataLoader(test_ds, batch_size,
                                  pin_memory=True,
                                  num_workers=multiprocessing.cpu_count())
@@ -388,12 +431,16 @@ def average_predictions(predictions):
 
 
 def cls_predictions_to_submission(predictions) -> pd.DataFrame:
+    predictions = predictions.copy()
     predictions['diagnosis'] = predictions['diagnosis'].apply(lambda x: np.argmax(x))
     return predictions
 
 
 def reg_predictions_to_submission(predictions) -> pd.DataFrame:
-    predictions['diagnosis'] = predictions['diagnosis'].apply(regression_to_class)
+    predictions = predictions.copy()
+    x = torch.from_numpy(predictions['diagnosis'].values)
+    x = regression_to_class(x)
+    predictions['diagnosis'] = to_numpy(x)
     return predictions
 
 
