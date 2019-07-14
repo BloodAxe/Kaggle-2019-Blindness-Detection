@@ -112,6 +112,7 @@ def main():
     parser.add_argument('--mixup', action='store_true')
     parser.add_argument('--balance', action='store_true')
     parser.add_argument('--swa', action='store_true')
+    parser.add_argument('--show', action='store_true')
     parser.add_argument('-acc', '--accumulation-steps', type=int, default=1, help='Number of batches to process')
     parser.add_argument('-dd', '--data-dir', type=str, default='data', help='Data directory for INRIA sattelite dataset')
     parser.add_argument('-m', '--model', type=str, default='cls_resnet18', help='')
@@ -150,6 +151,7 @@ def main():
     mixup = args.mixup
     balance = args.balance
     use_swa = args.swa
+    show_batches = args.show
 
     if folds is None or len(folds) == 0:
         folds = [None]
@@ -265,9 +267,7 @@ def main():
         callbacks = [
             AccuracyCallback(),
             CappaScoreCallback(),
-            ConfusionMatrixCallback(class_names=get_class_names()),
-            # ShowPolarBatchesCallback(visualization_fn, metric='f1_score', minimize=False),
-            ShowPolarBatchesCallback(visualization_fn, metric='accuracy01', minimize=False),
+            ConfusionMatrixCallback(class_names=get_class_names())
         ]
 
         if mixup:
@@ -275,6 +275,9 @@ def main():
 
         if early_stopping:
             callbacks += [EarlyStoppingCallback(early_stopping, metric='kappa_score', minimize=False)]
+
+        if show_batches:
+            callbacks += [ShowPolarBatchesCallback(visualization_fn, metric='accuracy01', minimize=False)]
 
         runner = SupervisedRunner(input_key='image')
         runner.train(
