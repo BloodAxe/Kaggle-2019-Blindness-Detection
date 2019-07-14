@@ -5,8 +5,9 @@ import inspect
 from pytorch_toolbelt.utils.fs import read_rgb_image, id_from_fname
 from pytorch_toolbelt.utils.torch_utils import tensor_from_rgb_image
 
+from retinopathy.lib.augmentations import CropBlackRegions, get_test_aug, crop_black
 from retinopathy.lib.dataset import RetinopathyDataset, get_class_names
-from retinopathy.lib.factory import get_model, get_test_aug
+from retinopathy.lib.factory import get_model
 from retinopathy.lib.inference import PickModelOutput, run_model_inference, cls_predictions_to_submission, average_predictions, reg_predictions_to_submission
 from retinopathy.lib.models.classification import BaselineClassificationModel, ClassifierModule
 from retinopathy.lib.models.regression import regression_to_class, STNRegressionModel, BaselineRegressionModel, RMSPool2d, RegressionModule
@@ -82,6 +83,8 @@ def main():
         STN,
         STNRegressionModel,
         ClassifierModule,
+        crop_black,
+        CropBlackRegions,
         get_model,
         get_test_aug,
         PickModelOutput,

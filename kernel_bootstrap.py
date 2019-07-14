@@ -274,6 +274,36 @@ class ClassifierModule(nn.Module):
         return logits, features
 
 
+def crop_black(image, tolerance=10):
+    gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+    mask = gray > tolerance
+    x, y, w, h = cv2.boundingRect(mask.astype(np.uint8))
+
+    # Sanity check for very dark images
+    non_black_area = w * h
+    image_area = image.shape[0] * image.shape[1]
+    fg_ratio = non_black_area / image_area
+
+    # If area of black region is more than half of the whole image area,
+    # we do not crop it.
+    if fg_ratio < 0.5:
+        return image
+
+    return image[y:y + h, x:x + w]
+
+
+class CropBlackRegions(A.ImageOnlyTransform):
+    def __init__(self, tolerance=15):
+        super().__init__(always_apply=True, p=1)
+        self.tolerance = tolerance
+
+    def apply(self, img, **params):
+        return crop_black(img, self.tolerance)
+
+    def get_transform_init_args_names(self):
+        return ('tolerance',)
+
+
 def get_model(model_name, num_classes, pretrained=True, **kwargs):
     # Regression
     if model_name == 'reg_resnet18':
@@ -343,7 +373,8 @@ def get_test_aug(image_size):
     return A.Compose([
         CropBlackRegions(),
         A.LongestMaxSize(longest_size, interpolation=cv2.INTER_CUBIC),
-        A.PadIfNeeded(image_size[0], image_size[1], border_mode=cv2.BORDER_CONSTANT, value=0),
+        A.PadIfNeeded(image_size[0], image_size[1],
+                      border_mode=cv2.BORDER_CONSTANT, value=0),
         A.Normalize()
     ])
 
