@@ -43,13 +43,15 @@ def main():
     parser.add_argument('-m', '--model', type=str, default='reg_resnet18', help='')
     parser.add_argument('-b', '--batch-size', type=int, default=8, help='Batch Size during training, e.g. -b 64')
     parser.add_argument('-e', '--epochs', type=int, default=100, help='Epoch to run')
-    parser.add_argument('-es', '--early-stopping', type=int, default=None, help='Maximum number of epochs without improvement')
+    parser.add_argument('-es', '--early-stopping', type=int, default=None,
+                        help='Maximum number of epochs without improvement')
     parser.add_argument('-f', '--fold', action='append', type=int, default=None)
     parser.add_argument('-fe', '--freeze-encoder', action='store_true')
     parser.add_argument('-lr', '--learning-rate', type=float, default=1e-4, help='Initial learning rate')
     parser.add_argument('-l', '--criterion', type=str, default='mse', help='Criterion')
     parser.add_argument('-o', '--optimizer', default='Adam', help='Name of the optimizer')
-    parser.add_argument('-c', '--checkpoint', type=str, default=None, help='Checkpoint filename to use as initial model weights')
+    parser.add_argument('-c', '--checkpoint', type=str, default=None,
+                        help='Checkpoint filename to use as initial model weights')
     parser.add_argument('-w', '--workers', default=multiprocessing.cpu_count(), type=int, help='Num workers')
     parser.add_argument('-a', '--augmentations', default='medium', type=str, help='')
     parser.add_argument('-tta', '--tta', default=None, type=str, help='Type of TTA to use [fliplr, d4]')
@@ -136,6 +138,10 @@ def main():
                 print('Failed to restore optimizer state from checkpoint', e)
 
         train_ds, valid_ds = get_datasets(data_dir=data_dir,
+                                          use_idrid=True,
+                                          use_messidor=True,
+                                          use_aptos2019=True,
+                                          use_aptos2015=True,
                                           image_size=image_size,
                                           augmentation=augmentations,
                                           target_dtype=np.float32,

@@ -16,8 +16,8 @@ def test_aptos2019():
     for i in range(num_train_samples):
         data = train_ds[i]
         assert data['image'].size(0) == 3
-        assert data['image'].size(0) == 512
-        assert data['image'].size(0) == 512
+        assert data['image'].size(1) == 512
+        assert data['image'].size(2) == 512
 
     num_valid_samples = len(valid_ds)
     for i in range(num_valid_samples):
@@ -42,8 +42,8 @@ def test_aptos2015():
     for i in range(num_train_samples):
         data = train_ds[i]
         assert data['image'].size(0) == 3
-        assert data['image'].size(0) == 512
-        assert data['image'].size(0) == 512
+        assert data['image'].size(1) == 512
+        assert data['image'].size(2) == 512
 
     num_valid_samples = len(valid_ds)
     for i in range(num_valid_samples):

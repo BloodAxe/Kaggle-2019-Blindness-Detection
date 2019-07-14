@@ -118,11 +118,17 @@ def get_datasets(
         aptos2015_test['image_path'] = aptos2015_test['id_code'].apply(
             lambda x: os.path.join(dataset_dir, 'test_images', f'{x}.jpeg'))
 
-        train_x.extend(aptos2015_train['image_path'])
-        train_y.extend(aptos2015_train['diagnosis'])
+        aptos2015 = aptos2015_train.append(aptos2015_test)
 
-        valid_x.extend(aptos2015_test['image_path'])
-        valid_y.extend(aptos2015_test['diagnosis'])
+        aptos2015_train_x, aptos2015_valid_x, aptos2015_train_y, aptos2015_valid_y = train_test_split(
+            aptos2015['image_path'], aptos2015['diagnosis'],
+            random_state=42, test_size=0.1, shuffle=True,
+            stratify=aptos2015['diagnosis'])
+
+        train_x.extend(aptos2015_train_x)
+        train_y.extend(aptos2015_train_y)
+        valid_x.extend(aptos2015_valid_x)
+        valid_y.extend(aptos2015_valid_y)
 
     if use_idrid:
         dataset_dir = os.path.join(data_dir, 'idrid')
