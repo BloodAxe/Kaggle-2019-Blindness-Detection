@@ -102,7 +102,5 @@ venv.bak/
 # mypy
 .mypy_cache/
 .idea/
-data/test_images/0005cfc8afb6.png
-data/test_images/
-data/train_images/
+data/
 runs/
