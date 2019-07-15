@@ -287,8 +287,10 @@ class ClassifierModule(nn.Module):
 
 def crop_black(image, tolerance=10):
     gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
-    mask = gray > tolerance
-    x, y, w, h = cv2.boundingRect(mask.astype(np.uint8))
+    cv2.threshold(gray, tolerance, 255, type=cv2.THRESH_BINARY, dst=gray)
+    cv2.medianBlur(gray, 7, gray)
+
+    x, y, w, h = cv2.boundingRect(gray)
 
     # Sanity check for very dark images
     non_black_area = w * h
