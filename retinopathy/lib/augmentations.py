@@ -39,7 +39,7 @@ class CropBlackRegions(A.ImageOnlyTransform):
         return ('tolerance',)
 
 
-def get_train_aug(image_size, augmentation=None):
+def get_train_aug(image_size, augmentation=None, crop_black=True):
     if augmentation is None:
         augmentation = 'none'
 
@@ -59,7 +59,7 @@ def get_train_aug(image_size, augmentation=None):
 
     longest_size = max(image_size[0], image_size[1])
     return A.Compose([
-        CropBlackRegions(),
+        CropBlackRegions() if crop_black else A.NoOp(always_apply=True),
         A.LongestMaxSize(longest_size, interpolation=cv2.INTER_CUBIC),
 
         A.Compose([
@@ -110,10 +110,10 @@ def get_train_aug(image_size, augmentation=None):
     ])
 
 
-def get_test_aug(image_size):
+def get_test_aug(image_size, crop_black=True):
     longest_size = max(image_size[0], image_size[1])
     return A.Compose([
-        CropBlackRegions(),
+        CropBlackRegions() if crop_black else A.NoOp(always_apply=True),
         A.LongestMaxSize(longest_size, interpolation=cv2.INTER_CUBIC),
         A.PadIfNeeded(image_size[0], image_size[1],
                       border_mode=cv2.BORDER_CONSTANT, value=0),
