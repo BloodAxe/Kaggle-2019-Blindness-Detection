@@ -1,12 +1,13 @@
 import albumentations as A
 import cv2
-import numpy as np
 
 
 def crop_black(image, tolerance=10):
     gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
-    mask = gray > tolerance
-    x, y, w, h = cv2.boundingRect(mask.astype(np.uint8))
+    cv2.threshold(gray, tolerance, 255, type=cv2.THRESH_BINARY, dst=gray)
+    cv2.medianBlur(gray, 7, gray)
+
+    x, y, w, h = cv2.boundingRect(gray)
 
     # Sanity check for very dark images
     non_black_area = w * h
@@ -19,6 +20,11 @@ def crop_black(image, tolerance=10):
         return image
 
     return image[y:y + h, x:x + w]
+
+
+def contrast_enchance(image, sigmaX=10):
+    image = cv2.addWeighted(image, 4, cv2.GaussianBlur(image, (0, 0), sigmaX), -4, 128)
+    return image
 
 
 class CropBlackRegions(A.ImageOnlyTransform):
@@ -113,25 +119,3 @@ def get_test_aug(image_size):
                       border_mode=cv2.BORDER_CONSTANT, value=0),
         A.Normalize()
     ])
-
-
-def test_crop_black_regions():
-    import matplotlib.pyplot as plt
-
-    for image_fname in ['data/train_images/0a4e1a29ffff.png',
-                        'data/train_images/0a61bddab956.png',
-                        'tests/19150_right.jpeg']:
-        image = cv2.imread(image_fname)
-        image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-
-        image = A.CLAHE(always_apply=True)(image=image)['image']
-        cropped = crop_black(image)
-
-        f, ax = plt.subplots(1, 2)
-        ax[0].imshow(image)
-        ax[1].imshow(cropped)
-        f.show()
-
-        # cv2.imshow('cropped', cropped)
-        # cv2.imshow('image', image)
-        # cv2.waitKey(-1)
