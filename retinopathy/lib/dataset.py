@@ -93,6 +93,7 @@ def get_datasets(
         use_idrid=False,
         use_messidor=False,
         target_dtype=int,
+        preprocess_dir_suffix='',
         fast=False,
         fold=None,
         folds=4):
@@ -105,7 +106,7 @@ def get_datasets(
         dataset_dir = os.path.join(data_dir, 'aptos-2019')
         aptos2019_train = pd.read_csv(os.path.join(dataset_dir, 'train.csv'))
         aptos2019_train['image_path'] = aptos2019_train['id_code'].apply(
-            lambda x: os.path.join(dataset_dir, 'train_images', f'{x}.png'))
+            lambda x: os.path.join(dataset_dir, 'train_images_768', f'{x}.png'))
 
         aptos2019_train_x, aptos2019_valid_x, aptos2019_train_y, aptos2019_valid_y = train_test_split(
             aptos2019_train['image_path'], aptos2019_train['diagnosis'],
@@ -122,12 +123,12 @@ def get_datasets(
         aptos2015_train = pd.read_csv(
             os.path.join(dataset_dir, 'train_labels.csv'))
         aptos2015_train['image_path'] = aptos2015_train['id_code'].apply(
-            lambda x: os.path.join(dataset_dir, 'train_images', f'{x}.jpeg'))
+            lambda x: os.path.join(dataset_dir, 'train_images_768', f'{x}.png'))
 
         aptos2015_test = pd.read_csv(
             os.path.join(dataset_dir, 'test_labels.csv'))
         aptos2015_test['image_path'] = aptos2015_test['id_code'].apply(
-            lambda x: os.path.join(dataset_dir, 'test_images', f'{x}.jpeg'))
+            lambda x: os.path.join(dataset_dir, 'test_images_768', f'{x}.png'))
 
         aptos2015 = aptos2015_train.append(aptos2015_test)
 
@@ -146,11 +147,11 @@ def get_datasets(
         idrid_train = pd.read_csv(
             os.path.join(dataset_dir, 'train_labels.csv'))
         idrid_train['image_path'] = idrid_train['id_code'].apply(
-            lambda x: os.path.join(dataset_dir, 'train_images', f'{x}.jpg'))
+            lambda x: os.path.join(dataset_dir, 'train_images_768', f'{x}.png'))
 
         idrid_test = pd.read_csv(os.path.join(dataset_dir, 'test_labels.csv'))
         idrid_test['image_path'] = idrid_test['id_code'].apply(
-            lambda x: os.path.join(dataset_dir, 'test_images', f'{x}.jpg'))
+            lambda x: os.path.join(dataset_dir, 'test_images_768', f'{x}.png'))
 
         train_x.extend(idrid_train['image_path'])
         train_y.extend(idrid_train['diagnosis'])
@@ -200,10 +201,10 @@ def get_datasets(
         valid_y = valid_y[:32]
 
     train_ds = RetinopathyDataset(train_x, train_y,
-                                  transform=get_train_aug(image_size, augmentation),
+                                  transform=get_train_aug(image_size, augmentation, crop_black=False),
                                   dtype=target_dtype)
     valid_ds = RetinopathyDataset(valid_x, valid_y,
-                                  transform=get_test_aug(image_size),
+                                  transform=get_test_aug(image_size, crop_black=False),
                                   dtype=target_dtype)
     return train_ds, valid_ds
 
