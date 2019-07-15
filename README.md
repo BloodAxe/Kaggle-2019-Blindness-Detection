@@ -50,7 +50,10 @@ Using only one model **seresnext50**.
 
 ## Results
 
-| Experiment name         | CV score        | LB score | Encoder  |
-|-------------------------|-----------------|----------|----------|
-| Baseline classification | 0.9077 ± 0.0045 | 0.625    | Resnet18 |
-| Baseline regression     | 0.9093 ± 0.0033 | 0.646    | Resnet18 |
+| Experiment name         | CV score        | LB score | Encoder     | Extra data |
+|-------------------------|-----------------|----------|-------------|------------|
+| Baseline classification | 0.9077 ± 0.0045 | 0.625    | Resnet18    | No         |
+| Baseline regression     | 0.9093 ± 0.0033 | 0.646    | Resnet18    | No         |
+|-------------------------|-----------------|----------|-------------|------------|
+| Baseline classification |                 | 0.772    | SEResnext50 | No         |
+| Baseline regression     | 0.9225 ± 0.0022 | 0.787    | SEResnext50 | No         |
