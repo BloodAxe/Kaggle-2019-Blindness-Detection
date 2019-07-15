@@ -28,8 +28,13 @@ def get_class_names():
 class RetinopathyDataset(Dataset):
     def __init__(self, images, targets, transform: A.Compose,
                  target_as_array=False, dtype=int):
+        targets = np.array(targets) if targets is not None else None
+        unique_targets = set(np.unique(targets))
+        if len(unique_targets.difference({0, 1, 2, 3, 4})):
+            raise ValueError('Unexpected targets in Y ' + str(unique_targets))
+
         self.images = np.array(images)
-        self.targets = np.array(targets) if targets is not None else None
+        self.targets = targets
         self.transform = transform
         self.target_as_array = target_as_array
         self.dtype = dtype

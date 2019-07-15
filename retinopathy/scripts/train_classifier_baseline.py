@@ -138,8 +138,8 @@ def main():
         train_ds, valid_ds = get_datasets(data_dir=data_dir,
                                           use_aptos2015=True,
                                           use_aptos2019=True,
-                                          use_messidor=True,
                                           use_idrid=True,
+                                          use_messidor=False,  # It has inconsistent grade ranging [0;3]
                                           image_size=image_size,
                                           augmentation=augmentations,
                                           fast=fast,

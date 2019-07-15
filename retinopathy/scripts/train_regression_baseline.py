@@ -138,10 +138,10 @@ def main():
                 print('Failed to restore optimizer state from checkpoint', e)
 
         train_ds, valid_ds = get_datasets(data_dir=data_dir,
-                                          use_idrid=True,
-                                          use_messidor=True,
-                                          use_aptos2019=True,
                                           use_aptos2015=True,
+                                          use_aptos2019=True,
+                                          use_idrid=True,
+                                          use_messidor=False,  # It has inconsistent grade ranging [0;3]
                                           image_size=image_size,
                                           augmentation=augmentations,
                                           target_dtype=np.float32,
@@ -153,6 +153,7 @@ def main():
                                                      batch_size=batch_size,
                                                      num_workers=num_workers,
                                                      balance=balance)
+
         if use_swa:
             from torchcontrib.optim import SWA
             optimizer = SWA(optimizer,
