@@ -70,8 +70,13 @@ def get_class_names():
 class RetinopathyDataset(Dataset):
     def __init__(self, images, targets, transform: A.Compose,
                  target_as_array=False, dtype=int):
+        targets = np.array(targets) if targets is not None else None
+        unique_targets = set(np.unique(targets))
+        if len(unique_targets.difference({0, 1, 2, 3, 4})):
+            raise ValueError('Unexpected targets in Y ' + str(unique_targets))
+
         self.images = np.array(images)
-        self.targets = np.array(targets) if targets is not None else None
+        self.targets = targets
         self.transform = transform
         self.target_as_array = target_as_array
         self.dtype = dtype
@@ -396,7 +401,11 @@ def run_model_inference(model_checkpoint: str,
                         image_size=(512, 512),
                         images_dir='test_images',
                         tta=None,
-                        apply_softmax=True) -> pd.DataFrame:
+                        apply_softmax=True,
+                        workers=None) -> pd.DataFrame:
+    if workers is None:
+        workers = multiprocessing.cpu_count()
+
     checkpoint = torch.load(model_checkpoint)
     if model_name is None:
         model_name = checkpoint['checkpoint_data']['cmd_args']['model']
@@ -432,7 +441,7 @@ def run_model_inference(model_checkpoint: str,
         test_ds = RetinopathyDataset(image_fnames, None, get_test_aug(image_size))
         data_loader = DataLoader(test_ds, batch_size,
                                  pin_memory=True,
-                                 num_workers=multiprocessing.cpu_count())
+                                 num_workers=workers)
 
         test_ids = []
         test_preds = []

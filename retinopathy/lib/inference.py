@@ -37,7 +37,11 @@ def run_model_inference(model_checkpoint: str,
                         image_size=(512, 512),
                         images_dir='test_images',
                         tta=None,
-                        apply_softmax=True) -> pd.DataFrame:
+                        apply_softmax=True,
+                        workers=None) -> pd.DataFrame:
+    if workers is None:
+        workers = multiprocessing.cpu_count()
+
     checkpoint = torch.load(model_checkpoint)
     if model_name is None:
         model_name = checkpoint['checkpoint_data']['cmd_args']['model']
@@ -73,7 +77,7 @@ def run_model_inference(model_checkpoint: str,
         test_ds = RetinopathyDataset(image_fnames, None, get_test_aug(image_size))
         data_loader = DataLoader(test_ds, batch_size,
                                  pin_memory=True,
-                                 num_workers=multiprocessing.cpu_count())
+                                 num_workers=workers)
 
         test_ids = []
         test_preds = []
