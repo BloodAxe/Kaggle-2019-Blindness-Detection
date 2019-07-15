@@ -55,5 +55,5 @@ Using only one model **seresnext50**.
 | Baseline classification | 0.9077 ± 0.0045 | 0.625    | Resnet18    | No         | 4 folds |
 | Baseline regression     | 0.9093 ± 0.0033 | 0.646    | Resnet18    | No         | 4 folds |
 |-------------------------|-----------------|----------|-------------|------------|---------|
-| Baseline classification |                 | 0.772    | SEResnext50 | No         | 4 folds |
+| Baseline classification | 0.9213 ± 0.0033 | 0.772    | SEResnext50 | No         | 4 folds |
 | Baseline regression     | 0.9225 ± 0.0022 | 0.787    | SEResnext50 | No         | 2 folds |
