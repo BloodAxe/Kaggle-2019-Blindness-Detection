@@ -63,7 +63,7 @@ def get_train_aug(image_size, augmentation=None):
         A.LongestMaxSize(longest_size, interpolation=cv2.INTER_CUBIC),
 
         A.Compose([
-            A.CoarseDropout(),
+            A.CoarseDropout(max_height=32, max_width=32, min_height=8, min_width=8),
         ], p=float(augmentation > LIGHT)),
 
         A.PadIfNeeded(image_size[0], image_size[1],
@@ -94,17 +94,17 @@ def get_train_aug(image_size, augmentation=None):
             A.RGBShift(r_shift_limit=20, b_shift_limit=10, g_shift_limit=10)
         ], p=float(augmentation >= MEDIUM)),
 
+        # Just flips
+        A.Compose([
+            A.HorizontalFlip(),
+            A.VerticalFlip()
+        ], p=float(augmentation == LIGHT)),
+
         # D4
         A.Compose([
             A.RandomRotate90(),
             A.Transpose()
-        ], p=float(augmentation == HARD)),
-
-        # Horizontal/Vertical flips
-        A.Compose([
-            A.HorizontalFlip(),
-            A.VerticalFlip()
-        ], p=float(augmentation >= LIGHT)),
+        ], p=float(augmentation >= MEDIUM)),
 
         A.Normalize()
     ])
