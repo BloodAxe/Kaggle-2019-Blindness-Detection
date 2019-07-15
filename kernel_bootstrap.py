@@ -68,10 +68,20 @@ def get_class_names():
 
 
 class RetinopathyDataset(Dataset):
-    def __init__(self, images, targets, transform: A.Compose,
-                 target_as_array=False, dtype=int):
+    def __init__(self, images, targets,
+                 transform: A.Compose,
+                 target_as_array=False,
+                 dtype=int,
+                 meta_features=False):
+        if targets is not None:
+            targets = np.array(targets)
+            unique_targets = set(np.unique(targets))
+            if len(unique_targets.difference({0, 1, 2, 3, 4})):
+                raise ValueError('Unexpected targets in Y ' + str(unique_targets))
+
+        self.meta_features = meta_features
         self.images = np.array(images)
-        self.targets = np.array(targets) if targets is not None else None
+        self.targets = targets
         self.transform = transform
         self.target_as_array = target_as_array
         self.dtype = dtype
@@ -80,30 +90,31 @@ class RetinopathyDataset(Dataset):
         return len(self.images)
 
     def __getitem__(self, item):
-        image = cv2.imread(
-            self.images[item])  # Read with OpenCV instead PIL. It's faster
+        image = cv2.imread(self.images[item])  # Read with OpenCV instead PIL. It's faster
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
         height, width = image.shape[:2]
 
-        log_height = math.log(height)
-        log_width = math.log(width)
-        aspect_ratio = log_height / log_width
-        mean = np.mean(image, axis=(0, 1))
-
-        meta_features = np.array([
-            log_height,
-            log_width,
-            aspect_ratio,
-            mean[0],
-            mean[1],
-            mean[2]
-        ])
-
         image = self.transform(image=image)['image']
         data = {'image': tensor_from_rgb_image(image),
-                'image_id': id_from_fname(self.images[item]),
-                'meta_features': meta_features}
+                'image_id': id_from_fname(self.images[item])}
+
+        if self.meta_features:
+            log_height = math.log(height)
+            log_width = math.log(width)
+            aspect_ratio = log_height / log_width
+            mean = np.mean(image, axis=(0, 1))
+
+            meta_features = np.array([
+                log_height,
+                log_width,
+                aspect_ratio,
+                mean[0],
+                mean[1],
+                mean[2]
+            ])
+
+            data['meta_features'] = meta_features
 
         if self.targets is not None:
             target = self.dtype(self.targets[item])
@@ -396,7 +407,11 @@ def run_model_inference(model_checkpoint: str,
                         image_size=(512, 512),
                         images_dir='test_images',
                         tta=None,
-                        apply_softmax=True) -> pd.DataFrame:
+                        apply_softmax=True,
+                        workers=None) -> pd.DataFrame:
+    if workers is None:
+        workers = multiprocessing.cpu_count()
+
     checkpoint = torch.load(model_checkpoint)
     if model_name is None:
         model_name = checkpoint['checkpoint_data']['cmd_args']['model']
@@ -432,7 +447,7 @@ def run_model_inference(model_checkpoint: str,
         test_ds = RetinopathyDataset(image_fnames, None, get_test_aug(image_size))
         data_loader = DataLoader(test_ds, batch_size,
                                  pin_memory=True,
-                                 num_workers=multiprocessing.cpu_count())
+                                 num_workers=workers)
 
         test_ids = []
         test_preds = []
