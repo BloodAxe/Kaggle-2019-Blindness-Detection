@@ -202,12 +202,13 @@ def get_datasets(
 def get_dataloaders(train_ds, valid_ds,
                     batch_size,
                     num_workers,
+                    oversample_factor=1,
                     fast=False,
                     balance=False):
     sampler = None
     if balance:
         weights = compute_sample_weight('balanced', train_ds.targets)
-        sampler = WeightedRandomSampler(weights, len(train_ds))
+        sampler = WeightedRandomSampler(weights, int(len(train_ds) * oversample_factor))
 
     if fast:
         weights = np.ones(len(train_ds))
