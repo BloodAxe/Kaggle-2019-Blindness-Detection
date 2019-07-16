@@ -33,7 +33,7 @@ class RetinopathyDataset(Dataset):
                  meta_features=False):
         if targets is not None:
             targets = np.array(targets)
-            unique_targets = set(np.unique(targets))
+            unique_targets = set(targets)
             if len(unique_targets.difference({0, 1, 2, 3, 4})):
                 raise ValueError('Unexpected targets in Y ' + str(unique_targets))
 
@@ -93,8 +93,6 @@ def get_datasets(
         use_idrid=False,
         use_messidor=False,
         target_dtype=int,
-        preprocess_dir_suffix='',
-        fast=False,
         fold=None,
         folds=4):
     assert use_aptos2019 or use_aptos2015 or use_idrid or use_messidor
@@ -179,11 +177,10 @@ def get_datasets(
     if fold is not None:
         assert fold >= 0 and fold < folds
 
-        x = train_x + valid_x
-        y = train_y + valid_y
+        x = np.array(train_x + valid_x)
+        y = np.array(train_y + valid_y)
 
         skf = StratifiedKFold(n_splits=folds, random_state=13, shuffle=True)
-        skf.get_n_splits(x, y)
 
         for fold_index, (train_index, test_index) in enumerate(
                 skf.split(x, y)):
@@ -192,13 +189,6 @@ def get_datasets(
                 train_y = y[train_index]
                 valid_x = x[test_index]
                 valid_y = y[test_index]
-
-    if fast:
-        train_x = train_x[:32]
-        train_y = train_y[:32]
-
-        valid_x = valid_x[:32]
-        valid_y = valid_y[:32]
 
     train_ds = RetinopathyDataset(train_x, train_y,
                                   transform=get_train_aug(image_size, augmentation, crop_black=False),
@@ -212,11 +202,16 @@ def get_datasets(
 def get_dataloaders(train_ds, valid_ds,
                     batch_size,
                     num_workers,
+                    fast=False,
                     balance=False):
     sampler = None
     if balance:
         weights = compute_sample_weight('balanced', train_ds.targets)
         sampler = WeightedRandomSampler(weights, len(train_ds))
+
+    if fast:
+        weights = np.ones(len(train_ds))
+        sampler = WeightedRandomSampler(weights, 16)
 
     train_dl = DataLoader(train_ds, batch_size=batch_size,
                           shuffle=sampler is None, sampler=sampler,

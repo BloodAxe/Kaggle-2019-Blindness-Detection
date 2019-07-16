@@ -27,7 +27,7 @@ def convert_dir(input_dir, output_dir):
 
     processing_fn = partial(preprocess, output_dir=output_dir)
 
-    with Pool(12) as wp:
+    with Pool(32) as wp:
         for image_id in tqdm(wp.imap_unordered(processing_fn, images), total=len(images)):
             pass
 

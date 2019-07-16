@@ -145,13 +145,13 @@ def main():
                                           image_size=image_size,
                                           augmentation=augmentations,
                                           target_dtype=np.float32,
-                                          fast=fast,
                                           fold=fold,
                                           folds=4)
 
         train_loader, valid_loader = get_dataloaders(train_ds, valid_ds,
                                                      batch_size=batch_size,
                                                      num_workers=num_workers,
+                                                     fast=fast,
                                                      balance=balance)
 
         if use_swa:
@@ -177,9 +177,13 @@ def main():
         os.makedirs(log_dir, exist_ok=False)
 
         scheduler = MultiStepLR(optimizer,
-                                milestones=[10, 20, 30, 40,
-                                            50, 60, 70, 80, 90],
-                                gamma=0.8)
+                                milestones=[int(num_epochs * 0.2),
+                                            int(num_epochs * 0.4),
+                                            int(num_epochs * 0.6),
+                                            int(num_epochs * 0.7),
+                                            int(num_epochs * 0.8),
+                                            int(num_epochs * 0.9)],
+                                gamma=0.5)
 
         print('Train session    :', prefix)
         print('\tFP16 mode      :', fp16)
@@ -249,28 +253,28 @@ def main():
 
         del runner, callbacks, loaders, optimizer, model, criterion, scheduler
 
-        if fold is not None:
-            dataset_fname = os.path.join(data_dir, 'train_with_folds.csv')
-            dataset = pd.read_csv(dataset_fname)
-            oof_csv = dataset[dataset['fold'] == fold]
-
-            model_checkpoint = os.path.join(log_dir, 'checkpoints', 'best.pth')
-            oof_predictions = run_model_inference(
-                model_checkpoint=model_checkpoint,
-                test_csv=oof_csv,
-                images_dir='train_images',
-                data_dir=data_dir,
-                batch_size=batch_size,
-                tta=None,
-                apply_softmax=False)
-
-            checkpoint = load_checkpoint(model_checkpoint)
-            del checkpoint['criterion_state_dict']
-            del checkpoint['optimizer_state_dict']
-            del checkpoint['scheduler_state_dict']
-            checkpoint['oof_predictions'] = oof_predictions.to_dict()
-            torch.save(checkpoint, os.path.join(log_dir, 'checkpoints',
-                                                f'{model_name}_fold{fold}' + '.pth'))
+        # if fold is not None:
+        #     dataset_fname = os.path.join(data_dir, 'train_with_folds.csv')
+        #     dataset = pd.read_csv(dataset_fname)
+        #     oof_csv = dataset[dataset['fold'] == fold]
+        #
+        #     model_checkpoint = os.path.join(log_dir, 'checkpoints', 'best.pth')
+        #     oof_predictions = run_model_inference(
+        #         model_checkpoint=model_checkpoint,
+        #         test_csv=oof_csv,
+        #         images_dir='train_images',
+        #         data_dir=data_dir,
+        #         batch_size=batch_size,
+        #         tta=None,
+        #         apply_softmax=False)
+        #
+        #     checkpoint = load_checkpoint(model_checkpoint)
+        #     del checkpoint['criterion_state_dict']
+        #     del checkpoint['optimizer_state_dict']
+        #     del checkpoint['scheduler_state_dict']
+        #     checkpoint['oof_predictions'] = oof_predictions.to_dict()
+        #     torch.save(checkpoint, os.path.join(log_dir, 'checkpoints',
+        #                                         f'{model_name}_fold{fold}' + '.pth'))
 
 
 if __name__ == '__main__':
