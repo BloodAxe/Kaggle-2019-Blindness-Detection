@@ -1,10 +1,12 @@
 import torch
+from catalyst.contrib.schedulers import OneCycleLR, ExponentialLR
 from pytorch_toolbelt.losses import FocalLoss
 from pytorch_toolbelt.modules.encoders import *
 from pytorch_toolbelt.utils.torch_utils import to_numpy
 from torch import nn
 from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss, SmoothL1Loss
 from torch.optim import SGD, Adam
+from torch.optim.lr_scheduler import MultiStepLR
 
 from retinopathy.lib.losses import ClippedMSELoss, ClippedWingLoss
 from retinopathy.lib.models.classification import BaselineClassificationModel
@@ -80,11 +82,9 @@ def get_optimizable_parameters(model: nn.Module):
     return filter(lambda x: x.requires_grad, model.parameters())
 
 
-def get_optimizer(optimizer_name: str, parameters, lr: float,
-                  weight_decay=1e-4, **kwargs):
+def get_optimizer(optimizer_name: str, parameters, lr: float, weight_decay=1e-5, **kwargs):
     if optimizer_name.lower() == 'sgd':
-        return SGD(parameters, lr, momentum=0.9, nesterov=True,
-                   weight_decay=weight_decay, **kwargs)
+        return SGD(parameters, lr, momentum=0.9, nesterov=True, weight_decay=weight_decay, **kwargs)
 
     if optimizer_name.lower() == 'adam':
         return Adam(parameters, lr, **kwargs)
@@ -118,6 +118,39 @@ def get_loss(loss_name: str, **kwargs):
         return ClippedMSELoss(min=0, max=4)
 
     raise KeyError(loss_name)
+
+
+def get_scheduler(scheduler_name: str,
+                  optimizer,
+                  num_epochs,
+                  batches_in_epoch=None):
+    if scheduler_name is None or scheduler_name.lower() == 'none':
+        return None
+
+    if scheduler_name.lower() in {'1cycle', 'one_cycle'}:
+        return OneCycleLR(optimizer,
+                          lr_range=(0.1, 1e-6, 1e-5),
+                          num_steps=batches_in_epoch,
+                          warmup_fraction=0.05, decay_fraction=0.1)
+
+    if scheduler_name.lower() == 'exp':
+        return ExponentialLR(optimizer, gamma=0.95)
+
+    if scheduler_name.lower() == 'multistep':
+        return MultiStepLR(optimizer,
+                           milestones=[
+                               int(num_epochs * 0.1),
+                               int(num_epochs * 0.2),
+                               int(num_epochs * 0.3),
+                               int(num_epochs * 0.4),
+                               int(num_epochs * 0.5),
+                               int(num_epochs * 0.6),
+                               int(num_epochs * 0.7),
+                               int(num_epochs * 0.8),
+                               int(num_epochs * 0.9)],
+                           gamma=0.75)
+
+    raise KeyError(scheduler_name)
 
 
 @torch.no_grad()

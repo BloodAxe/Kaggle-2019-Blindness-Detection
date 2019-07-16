@@ -75,7 +75,7 @@ class RetinopathyDataset(Dataset):
                  meta_features=False):
         if targets is not None:
             targets = np.array(targets)
-            unique_targets = set(np.unique(targets))
+            unique_targets = set(targets)
             if len(unique_targets.difference({0, 1, 2, 3, 4})):
                 raise ValueError('Unexpected targets in Y ' + str(unique_targets))
 
@@ -381,10 +381,10 @@ def get_model(model_name, num_classes, pretrained=True, **kwargs):
     raise ValueError(model_name)
 
 
-def get_test_aug(image_size):
+def get_test_aug(image_size, crop_black=True):
     longest_size = max(image_size[0], image_size[1])
     return A.Compose([
-        CropBlackRegions(),
+        CropBlackRegions() if crop_black else A.NoOp(always_apply=True),
         A.LongestMaxSize(longest_size, interpolation=cv2.INTER_CUBIC),
         A.PadIfNeeded(image_size[0], image_size[1],
                       border_mode=cv2.BORDER_CONSTANT, value=0),

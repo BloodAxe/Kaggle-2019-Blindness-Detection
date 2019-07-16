@@ -8,8 +8,6 @@ from datetime import datetime
 from functools import partial
 
 import numpy as np
-import pandas as pd
-import torch
 from catalyst.dl import SupervisedRunner, EarlyStoppingCallback
 from catalyst.utils import load_checkpoint, unpack_checkpoint
 from pytorch_toolbelt.utils import fs
@@ -17,7 +15,6 @@ from pytorch_toolbelt.utils.catalyst import ShowPolarBatchesCallback
 from pytorch_toolbelt.utils.random import set_manual_seed
 from pytorch_toolbelt.utils.torch_utils import maybe_cuda, count_parameters, \
     set_trainable
-from torch.optim.lr_scheduler import MultiStepLR
 
 from retinopathy.lib.callbacks import CappaScoreCallbackFromRegression, \
     AccuracyCallbackFromRegression, ConfusionMatrixCallbackFromRegression, \
@@ -25,8 +22,7 @@ from retinopathy.lib.callbacks import CappaScoreCallbackFromRegression, \
 from retinopathy.lib.dataset import get_class_names, \
     get_datasets, get_dataloaders
 from retinopathy.lib.factory import get_model, get_loss, get_optimizer, \
-    get_optimizable_parameters
-from retinopathy.lib.inference import run_model_inference
+    get_optimizable_parameters, get_scheduler
 from retinopathy.lib.visualization import draw_regression_predictions
 
 
@@ -57,6 +53,7 @@ def main():
     parser.add_argument('-tta', '--tta', default=None, type=str, help='Type of TTA to use [fliplr, d4]')
     parser.add_argument('--transfer', default=None, type=str, help='')
     parser.add_argument('--fp16', action='store_true')
+    parser.add_argument('-s', '--scheduler', default='multistep', type=str, help='')
 
     args = parser.parse_args()
 
@@ -79,6 +76,7 @@ def main():
     balance = args.balance
     use_swa = args.swa
     show_batches = args.show
+    scheduler_name = args.scheduler
 
     if folds is None or len(folds) == 0:
         folds = [None]
@@ -138,9 +136,9 @@ def main():
                 print('Failed to restore optimizer state from checkpoint', e)
 
         train_ds, valid_ds = get_datasets(data_dir=data_dir,
-                                          use_aptos2015=True,
+                                          use_aptos2015=not fast,
                                           use_aptos2019=True,
-                                          use_idrid=True,
+                                          use_idrid=not fast,
                                           use_messidor=False,  # It has inconsistent grade ranging [0;3]
                                           image_size=image_size,
                                           augmentation=augmentations,
@@ -151,7 +149,6 @@ def main():
         train_loader, valid_loader = get_dataloaders(train_ds, valid_ds,
                                                      batch_size=batch_size,
                                                      num_workers=num_workers,
-                                                     fast=fast,
                                                      balance=balance)
 
         if use_swa:
@@ -176,14 +173,9 @@ def main():
         log_dir = os.path.join('runs', prefix)
         os.makedirs(log_dir, exist_ok=False)
 
-        scheduler = MultiStepLR(optimizer,
-                                milestones=[int(num_epochs * 0.2),
-                                            int(num_epochs * 0.4),
-                                            int(num_epochs * 0.6),
-                                            int(num_epochs * 0.7),
-                                            int(num_epochs * 0.8),
-                                            int(num_epochs * 0.9)],
-                                gamma=0.5)
+        scheduler = get_scheduler(scheduler_name, optimizer,
+                                  num_epochs=num_epochs,
+                                  batches_in_epoch=len(train_loader))
 
         print('Train session    :', prefix)
         print('\tFP16 mode      :', fp16)
@@ -209,6 +201,7 @@ def main():
         print('\tLearning rate  :', learning_rate)
         print('\tBatch size     :', batch_size)
         print('\tCriterion      :', criterion_name)
+        print('\tScheduler      :', scheduler_name)
 
         # model training
         visualization_fn = partial(draw_regression_predictions,
