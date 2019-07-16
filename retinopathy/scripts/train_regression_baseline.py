@@ -174,6 +174,7 @@ def main():
         os.makedirs(log_dir, exist_ok=False)
 
         scheduler = get_scheduler(scheduler_name, optimizer,
+                                  lr=learning_rate,
                                   num_epochs=num_epochs,
                                   batches_in_epoch=len(train_loader))
 

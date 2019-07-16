@@ -122,6 +122,7 @@ def get_loss(loss_name: str, **kwargs):
 
 def get_scheduler(scheduler_name: str,
                   optimizer,
+                  lr,
                   num_epochs,
                   batches_in_epoch=None):
     if scheduler_name is None or scheduler_name.lower() == 'none':
@@ -129,7 +130,7 @@ def get_scheduler(scheduler_name: str,
 
     if scheduler_name.lower() in {'1cycle', 'one_cycle'}:
         return OneCycleLR(optimizer,
-                          lr_range=(0.1, 1e-6, 1e-5),
+                          lr_range=(lr, 1e-6, 1e-5),
                           num_steps=batches_in_epoch,
                           warmup_fraction=0.05, decay_fraction=0.1)
 
