@@ -90,18 +90,27 @@ class MultiPoolRegressionModule(nn.Module):
         self.output_classes = output_classes
 
         self.fc1 = nn.Linear(bottleneck * 3, bottleneck)
-        self.fc2 = nn.Linear(bottleneck, output_classes)
+        self.fc2 = nn.Linear(bottleneck, bottleneck)
+        self.fc3 = nn.Linear(bottleneck, bottleneck)
+        self.fc4 = nn.Linear(bottleneck, output_classes)
 
     def forward(self, input):
         x1 = self.rms_pool(input)
         x2 = self.max_pool(input)
         x3 = self.avg_pool(input)
 
-        features = torch.cat([x1, x2, x3], dim=1)
-        x = self.fc1(features)
-        x = F.relu(x, inplace=True)
-        logits = self.fc2(x)
+        x = torch.cat([x1, x2, x3], dim=1)
+        x = self.fc1(x)
+        features = x # Store features
+        x = F.leaky_relu(x)
 
+        x = self.fc2(x)
+        x = F.leaky_relu(x)
+
+        x = self.fc3(x)
+        x = F.leaky_relu(x)
+
+        logits = self.fc4(x)
         if self.output_classes == 1:
             logits = logits.squeeze(1)
 
