@@ -149,7 +149,7 @@ def get_scheduler(scheduler_name: str,
                                int(num_epochs * 0.7),
                                int(num_epochs * 0.8),
                                int(num_epochs * 0.9)],
-                           gamma=0.75)
+                           gamma=0.8)
 
     raise KeyError(scheduler_name)
 
