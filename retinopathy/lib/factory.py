@@ -43,7 +43,7 @@ def get_model(model_name, num_classes, pretrained=True, **kwargs):
 
     if model_name == 'reg_resnext50':
         encoder = SEResNeXt50Encoder(pretrained=pretrained)
-        return BaselineRegressionModel(encoder, num_classes, dropout=0.5)
+        return BaselineRegressionModel(encoder, num_classes, dropout=0.25)
 
     if model_name == 'reg_resnext50_multi':
         encoder = SEResNeXt50Encoder(pretrained=pretrained)
@@ -51,11 +51,11 @@ def get_model(model_name, num_classes, pretrained=True, **kwargs):
 
     if model_name == 'reg_resnext101':
         encoder = SEResNeXt101Encoder(pretrained=pretrained)
-        return BaselineRegressionModel(encoder, num_classes, dropout=0.5)
+        return BaselineRegressionModel(encoder, num_classes, dropout=0.25)
 
     if model_name == 'reg_resnext101_multi':
         encoder = SEResNeXt101Encoder(pretrained=pretrained)
-        return MultipoolRegressionModel(encoder, num_classes, dropout=0.5)
+        return MultipoolRegressionModel(encoder, num_classes, dropout=0.25)
 
     if model_name == 'reg_effnet_b4':
         encoder = EfficientNetB4Encoder()
