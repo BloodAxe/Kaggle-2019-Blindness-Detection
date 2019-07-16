@@ -6,7 +6,7 @@ from pytorch_toolbelt.modules.scse import *
 from torch import nn
 import torch.nn.functional as F
 
-from retinopathy.lib.models.stn import STN
+from retinopathy.lib.models.stn import STN, Flatten
 
 
 class RMSPool2d(nn.Module):
@@ -61,11 +61,70 @@ class RegressionModule(nn.Module):
         return logits, features
 
 
+class MultiPoolRegressionModule(nn.Module):
+    def __init__(self, input_features, output_classes, reduction=4, dropout=0.25):
+        super().__init__()
+        bottleneck = input_features // reduction
+
+        self.rms_pool = nn.Sequential(RMSPool2d(),
+                                      Flatten(),
+                                      nn.Dropout(dropout),
+                                      nn.BatchNorm1d(input_features),
+                                      nn.Linear(input_features, bottleneck),
+                                      nn.ReLU(inplace=True))
+
+        self.avg_pool = nn.Sequential(GlobalAvgPool2d(),
+                                      Flatten(),
+                                      nn.Dropout(dropout),
+                                      nn.BatchNorm1d(input_features),
+                                      nn.Linear(input_features, bottleneck),
+                                      nn.ReLU(inplace=True))
+
+        self.max_pool = nn.Sequential(GlobalMaxPool2d(),
+                                      Flatten(),
+                                      nn.Dropout(dropout),
+                                      nn.BatchNorm1d(input_features),
+                                      nn.Linear(input_features, bottleneck),
+                                      nn.ReLU(inplace=True))
+
+        self.output_classes = output_classes
+
+        self.fc1 = nn.Linear(bottleneck * 3, bottleneck)
+        self.fc2 = nn.Linear(bottleneck, output_classes)
+
+    def forward(self, input):
+        x1 = self.rms_pool(input)
+        x2 = self.max_pool(input)
+        x3 = self.avg_pool(input)
+
+        features = torch.cat([x1, x2, x3], dim=1)
+        x = self.fc1(features)
+        x = F.relu(x, inplace=True)
+        logits = self.fc2(x)
+
+        if self.output_classes == 1:
+            logits = logits.squeeze(1)
+
+        return logits, features
+
+
 class BaselineRegressionModel(nn.Module):
     def __init__(self, encoder: EncoderModule, num_dimensions=1, dropout=0.2):
         super().__init__()
         self.encoder = encoder
         self.regressor = RegressionModule(encoder.output_filters[-1], num_dimensions, dropout=dropout)
+
+    def forward(self, input):
+        features = self.encoder(input)[-1]
+        logits, features = self.regressor(features)
+        return {'logits': logits, 'features': features}
+
+
+class MultipoolRegressionModel(nn.Module):
+    def __init__(self, encoder: EncoderModule, num_dimensions=1, dropout=0.25):
+        super().__init__()
+        self.encoder = encoder
+        self.regressor = MultiPoolRegressionModule(encoder.output_filters[-1], num_dimensions, dropout=dropout)
 
     def forward(self, input):
         features = self.encoder(input)[-1]

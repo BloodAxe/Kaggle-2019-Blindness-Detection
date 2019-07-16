@@ -11,7 +11,7 @@ from torch.optim.lr_scheduler import MultiStepLR
 from retinopathy.lib.losses import ClippedMSELoss, ClippedWingLoss
 from retinopathy.lib.models.classification import BaselineClassificationModel
 from retinopathy.lib.models.regression import BaselineRegressionModel, \
-    STNRegressionModel
+    STNRegressionModel, MultipoolRegressionModel
 
 
 def get_model(model_name, num_classes, pretrained=True, **kwargs):
@@ -43,11 +43,19 @@ def get_model(model_name, num_classes, pretrained=True, **kwargs):
 
     if model_name == 'reg_resnext50':
         encoder = SEResNeXt50Encoder(pretrained=pretrained)
-        return BaselineRegressionModel(encoder, num_classes)
+        return BaselineRegressionModel(encoder, num_classes, dropout=0.5)
+
+    if model_name == 'reg_resnext50_multi':
+        encoder = SEResNeXt50Encoder(pretrained=pretrained)
+        return MultipoolRegressionModel(encoder, num_classes, dropout=0.25)
 
     if model_name == 'reg_resnext101':
         encoder = SEResNeXt101Encoder(pretrained=pretrained)
-        return BaselineRegressionModel(encoder, num_classes)
+        return BaselineRegressionModel(encoder, num_classes, dropout=0.5)
+
+    if model_name == 'reg_resnext101_multi':
+        encoder = SEResNeXt101Encoder(pretrained=pretrained)
+        return MultipoolRegressionModel(encoder, num_classes, dropout=0.5)
 
     if model_name == 'reg_effnet_b4':
         encoder = EfficientNetB4Encoder()
