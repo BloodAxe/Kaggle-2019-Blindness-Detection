@@ -148,8 +148,8 @@ def get_scheduler(scheduler_name: str,
     if scheduler_name.lower() == 'multistep':
         return MultiStepLR(optimizer,
                            milestones=[
-                               int(num_epochs * 0.1),
-                               int(num_epochs * 0.2),
+                               # int(num_epochs * 0.1),
+                               # int(num_epochs * 0.2),
                                int(num_epochs * 0.3),
                                int(num_epochs * 0.4),
                                int(num_epochs * 0.5),
@@ -157,7 +157,7 @@ def get_scheduler(scheduler_name: str,
                                int(num_epochs * 0.7),
                                int(num_epochs * 0.8),
                                int(num_epochs * 0.9)],
-                           gamma=0.8)
+                           gamma=0.75)
 
     raise KeyError(scheduler_name)
 
