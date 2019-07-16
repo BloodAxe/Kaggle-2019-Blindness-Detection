@@ -2,7 +2,7 @@ import albumentations as A
 import cv2
 
 
-def crop_black(image, tolerance=10):
+def crop_black(image, tolerance=5):
     gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
     cv2.threshold(gray, tolerance, 255, type=cv2.THRESH_BINARY, dst=gray)
     cv2.medianBlur(gray, 7, gray)
@@ -28,7 +28,7 @@ def contrast_enchance(image, sigmaX=10):
 
 
 class CropBlackRegions(A.ImageOnlyTransform):
-    def __init__(self, tolerance=15):
+    def __init__(self, tolerance=5):
         super().__init__(always_apply=True, p=1)
         self.tolerance = tolerance
 
