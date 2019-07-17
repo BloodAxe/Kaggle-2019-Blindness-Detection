@@ -155,11 +155,11 @@ class GlobalAvgPool2d(nn.Module):
 class GlobalAvgPool2dHead(nn.Module):
     """Global average pooling classifier module"""
 
-    def __init__(self, features, num_classes, dropout=0.0):
+    def __init__(self, features, num_classes, head_block=nn.Linear, dropout=0.0):
         super().__init__()
         self.avg_pool = GlobalAvgPool2d()
         self.dropout = nn.Dropout(dropout)
-        self.last_linear = nn.Linear(features, num_classes)
+        self.last_linear = head_block(features, num_classes)
 
     def forward(self, x):
         x = self.avg_pool(x)
@@ -172,14 +172,14 @@ class GlobalAvgPool2dHead(nn.Module):
 
 class GlobalWeightedAvgPool2dHead(nn.Module):
     """
-    Global Weighted Average Pooling from paper "Global Weighted Average Pooling Bridges Pixel-level Localization and Image-level Classiﬁcation"
+    Global Weighted Average Pooling from paper "Global Weighted Average Pooling Bridges Pixel-level Localization and Image-level Classification"
     """
 
-    def __init__(self, features, num_classes, dropout=0.0, **kwargs):
+    def __init__(self, features, num_classes, head_block=nn.Linear, dropout=0.0, **kwargs):
         super().__init__()
         self.conv = nn.Conv2d(features, 1, kernel_size=1, bias=True)
         self.dropout = nn.Dropout(dropout)
-        self.logits = nn.Linear(features, num_classes)
+        self.logits = head_block(features, num_classes)
 
     def fscore(self, x):
         m = self.conv(x)
@@ -203,15 +203,15 @@ class GlobalWeightedAvgPool2dHead(nn.Module):
 
 class GlobalWeightedMaxPool2dHead(nn.Module):
     """
-    Global Weighted Max Pooling from paper "Global Weighted Average Pooling Bridges Pixel-level Localization and Image-level Classiﬁcation"
+    Global Weighted Max Pooling from paper "Global Weighted Average Pooling Bridges Pixel-level Localization and Image-level Classification"
     """
 
-    def __init__(self, features, num_classes, dropout=0.0, **kwargs):
+    def __init__(self, features, num_classes, head_block=nn.Linear, dropout=0.0, **kwargs):
         super().__init__()
         self.conv = nn.Conv2d(features, 1, kernel_size=1, bias=True)
         self.dropout = nn.Dropout(dropout)
-        self.logits = nn.Linear(features, num_classes)
         self.max_pool = GlobalMaxPool2d()
+        self.logits = head_block(features, num_classes)
 
     def fscore(self, x):
         m = self.conv(x)
@@ -237,18 +237,18 @@ class GlobalWeightedMaxPool2dHead(nn.Module):
 class GlobalMaxPool2dHead(nn.Module):
     """Global max pooling classifier module"""
 
-    def __init__(self, features, num_classes, dropout=0.0):
+    def __init__(self, features, num_classes, head_block=nn.Linear, dropout=0.0):
         super().__init__()
         self.max_pool = GlobalMaxPool2d()
         self.dropout = nn.Dropout(dropout)
-        self.last_linear = nn.Linear(features, num_classes)
+        self.logits = head_block(features, num_classes)
 
     def forward(self, x):
         x = self.max_pool(x)
         x = x.view(x.size(0), -1)
         features = x
         x = self.dropout(x)
-        logits = self.last_linear(x)
+        logits = self.logits(x)
         return features, logits
 
 
@@ -286,7 +286,7 @@ class RMSPoolRegressionHead(nn.Module):
         if self.output_classes == 1:
             logits = logits.squeeze(1)
 
-        return logits, features
+        return features, logits
 
 
 class GlobalMaxAvgPool2dHead(nn.Module):
@@ -313,18 +313,18 @@ class GlobalMaxAvgPool2dHead(nn.Module):
         x = swish(x)
         logits = self.logits(x)
 
-        return logits, features
+        return features, logits
 
 
 class ObjectContextPoolHead(nn.Module):
     """
     """
 
-    def __init__(self, features, num_classes, oc_features, dropout=0.0, **kwargs):
+    def __init__(self, features, num_classes, oc_features, head_block=nn.Linear, dropout=0.0, **kwargs):
         super().__init__()
         self.oc = ASP_OC_Module(features, oc_features, dropout=dropout, dilations=(3, 5, 7))
         self.max_pool = GlobalMaxPool2d()
-        self.logits = nn.Linear(oc_features, num_classes)
+        self.logits = head_block(oc_features, num_classes)
 
     def forward(self, x):
         x = self.oc(x)
@@ -441,6 +441,102 @@ class BaseOC_Context_Module(nn.Module):
         return output
 
 
+class OrdinalEncoderHeadModel(nn.Module):
+    def __init__(self, encoder: EncoderModule, head, num_classes):
+        super().__init__()
+        self.encoder = encoder
+        self.head = head
+        self.link = LogisticCumulativeLink(num_classes,
+                                           init_cutpoints='ordered')
+
+    def forward(self, input):
+        features = self.encoder(input)[-1]
+        features, logits = self.head(features)
+        logits = self.link(logits)
+        return {'features': features, 'logits': logits}
+
+
+class LogisticCumulativeLink(nn.Module):
+    """
+    Converts a single number to the proportional odds of belonging to a class.
+    Parameters
+    ----------
+    num_classes : int
+        Number of ordered classes to partition the odds into.
+    init_cutpoints : str (default='ordered')
+        How to initialize the cutpoints of the model. Valid values are
+        - ordered : cutpoints are initialized to halfway between each class.
+        - random : cutpoints are initialized with random values.
+    """
+
+    def __init__(self, num_classes: int,
+                 init_cutpoints: str = 'ordered') -> None:
+        assert num_classes > 2, (
+            'Only use this model if you have 3 or more classes'
+        )
+        super().__init__()
+        self.num_classes = num_classes
+        self.init_cutpoints = init_cutpoints
+        if init_cutpoints == 'ordered':
+            num_cutpoints = self.num_classes - 1
+            cutpoints = torch.arange(num_cutpoints).float() - num_cutpoints / 2
+            self.cutpoints = nn.Parameter(cutpoints)
+        elif init_cutpoints == 'random':
+            cutpoints = torch.rand(self.num_classes - 1).sort()[0]
+            self.cutpoints = nn.Parameter(cutpoints)
+        else:
+            raise ValueError(f'{init_cutpoints} is not a valid init_cutpoints '
+                             f'type')
+
+    def forward(self, X: torch.Tensor) -> torch.Tensor:
+        """
+        Equation (11) from
+        "On the consistency of ordinal regression methods", Pedregosa et. al.
+        """
+        sigmoids = torch.sigmoid(self.cutpoints - X)
+        link_mat = sigmoids[:, 1:] - sigmoids[:, :-1]
+        link_mat = torch.cat((
+            sigmoids[:, [0]],
+            link_mat,
+            (1 - sigmoids[:, [-1]])
+        ),
+            dim=1
+        )
+        return link_mat
+
+
+class FourReluBlock(nn.Module):
+    """
+    Block used for making final regression predictions
+    """
+
+    def __init__(self, features, num_classes, dropout=0.1):
+        super().__init__()
+        self.fc1 = nn.Linear(features, features // 2)
+        self.fc2 = nn.Linear(features // 2, features // 4)
+        self.fc3 = nn.Linear(features // 4, features // 8)
+        self.fc4 = nn.Linear(features // 8, num_classes)
+        self.drop = nn.Dropout(dropout)
+
+    def forward(self, x):
+        x = self.fc1(x)
+        x = F.leaky_relu(x, inplace=True)
+        x = self.drop(x)
+
+        x = self.fc2(x)
+        x = F.leaky_relu(x, inplace=True)
+        x = self.drop(x)
+
+        x = self.fc3(x)
+        x = F.leaky_relu(x, inplace=True)
+        x = self.drop(x)
+
+        x = self.fc4(x)
+        x = F.leaky_relu(x, inplace=True)
+        x = self.drop(x)
+        return x
+
+
 class ASP_OC_Module(nn.Module):
     def __init__(self, features, out_features=512, dilations=(12, 24, 36), dropout=0.1):
         super(ASP_OC_Module, self).__init__()
@@ -512,8 +608,8 @@ class EncoderHeadModel(nn.Module):
 
     def forward(self, input):
         features = self.encoder(input)[-1]
-        logits, features = self.head(features)
-        return {'logits': logits, 'features': features}
+        features, logits = self.head(features)
+        return {'features': features, 'logits': logits}
 
 
 def crop_black(image, tolerance=5):
@@ -572,13 +668,21 @@ def get_model(model_name, num_classes, pretrained=True, dropout=0.25, **kwargs):
 
     MODELS = {
         'reg': EncoderHeadModel,
-        'cls': EncoderHeadModel
+        'cls': EncoderHeadModel,
+        'ord': partial(OrdinalEncoderHeadModel, num_classes=num_classes)
     }
 
-    if kind == 'reg':
+    if kind == 'reg' or kind == 'ord':
         num_classes = 1
 
-    head = HEADS[head_name](encoder.output_filters[-1], num_classes, dropout=dropout)
+    head_args = {
+        'dropout': dropout
+    }
+
+    if kind == 'reg' and head_name != 'rms':
+        head_args['head_block'] = partial(FourReluBlock, dropout=dropout)
+
+    head = HEADS[head_name](encoder.output_filters[-1], num_classes, **head_args)
     model = MODELS[kind](encoder, head)
     return model
 

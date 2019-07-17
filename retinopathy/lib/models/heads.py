@@ -93,7 +93,7 @@ class GlobalMaxPool2dHead(nn.Module):
 
 class GlobalWeightedAvgPool2dHead(nn.Module):
     """
-    Global Weighted Average Pooling from paper "Global Weighted Average Pooling Bridges Pixel-level Localization and Image-level Classiﬁcation"
+    Global Weighted Average Pooling from paper "Global Weighted Average Pooling Bridges Pixel-level Localization and Image-level Classification"
     """
 
     def __init__(self, features, num_classes, head_block=nn.Linear, dropout=0.0, **kwargs):
@@ -124,7 +124,7 @@ class GlobalWeightedAvgPool2dHead(nn.Module):
 
 class GlobalWeightedMaxPool2dHead(nn.Module):
     """
-    Global Weighted Max Pooling from paper "Global Weighted Average Pooling Bridges Pixel-level Localization and Image-level Classiﬁcation"
+    Global Weighted Max Pooling from paper "Global Weighted Average Pooling Bridges Pixel-level Localization and Image-level Classification"
     """
 
     def __init__(self, features, num_classes, head_block=nn.Linear, dropout=0.0, **kwargs):
