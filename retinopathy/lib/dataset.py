@@ -258,7 +258,7 @@ def get_datasets(
 
     if use_aptos2015:
         dataset_dir = os.path.join(data_dir, 'aptos-2015')
-        tx, vx, ty, vy = get_aptos2019(dataset_dir, random_state, fold, folds)
+        tx, vx, ty, vy = get_aptos2015(dataset_dir, random_state, fold, folds)
 
         train_x.extend(tx)
         train_y.extend(ty)
