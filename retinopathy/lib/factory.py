@@ -64,7 +64,9 @@ def get_optimizer(optimizer_name: str, parameters, learning_rate: float, weight_
         return SGD(parameters, learning_rate, momentum=0.9, nesterov=True, weight_decay=weight_decay, **kwargs)
 
     if optimizer_name.lower() == 'adam':
-        return Adam(parameters, learning_rate, weight_decay=weight_decay, **kwargs)
+        return Adam(parameters, learning_rate, weight_decay=weight_decay,
+                    eps=1e-3,  # As Jeremy suggests
+                    **kwargs)
 
     if optimizer_name.lower() == 'rms':
         return RMSprop(parameters, learning_rate, weight_decay=weight_decay, **kwargs)
