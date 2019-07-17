@@ -17,7 +17,7 @@ from pytorch_toolbelt.utils.random import set_manual_seed
 from pytorch_toolbelt.utils.torch_utils import maybe_cuda, count_parameters, \
     set_trainable
 
-from retinopathy.lib.callbacks import CappaScoreCallback
+from retinopathy.lib.callbacks import CappaScoreCallback, NegativeMiningCallback
 from retinopathy.lib.dataset import get_class_names, \
     get_datasets, get_dataloaders
 from retinopathy.lib.factory import get_model, get_loss, get_optimizer, \
@@ -219,7 +219,8 @@ def main():
         callbacks = [
             AccuracyCallback(),
             CappaScoreCallback(),
-            ConfusionMatrixCallback(class_names=get_class_names())
+            ConfusionMatrixCallback(class_names=get_class_names()),
+            NegativeMiningCallback()
         ]
 
         if mixup:

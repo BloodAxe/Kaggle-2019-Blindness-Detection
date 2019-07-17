@@ -1,4 +1,7 @@
+import os
+
 import numpy as np
+import torch
 from catalyst.dl import MetricCallback, RunnerState, Callback
 from catalyst.dl.callbacks import MixupCallback
 from pytorch_toolbelt.utils.catalyst import get_tensorboard_logger
@@ -244,3 +247,62 @@ class AscensionCallback(Callback):
 
     def on_batch_end(self, state: RunnerState):
         self.net.apply(self.clip)
+
+
+import pandas as pd
+
+
+class NegativeMiningCallback(Callback):
+
+    def __init__(
+            self,
+            input_key: str = "targets",
+            output_key: str = "logits",
+            from_regression=False
+    ):
+        """
+        :param input_key: input key to use for precision calculation;
+            specifies our `y_true`.
+        :param output_key: output key to use for precision calculation;
+            specifies our `y_pred`.
+        """
+        self.output_key = output_key
+        self.input_key = input_key
+        self.from_regression = from_regression
+        self.image_ids = []
+        self.y_preds = []
+        self.y_trues = []
+
+    def on_loader_start(self, state: RunnerState):
+        self.image_ids = []
+        self.y_preds = []
+        self.y_trues = []
+
+    def on_loader_end(self, state: RunnerState):
+        df = pd.DataFrame.from_dict({
+            'image_id': self.image_ids,
+            'y_true': self.y_trues,
+            'y_pred': self.y_preds
+        })
+
+        fname = os.path.join(state.logdir, 'negatives', state.loader_name, f'epoch_{state.epoch}.csv')
+        os.makedirs(os.path.dirname(fname), exist_ok=True)
+        df.to_csv(fname, index=None)
+
+    def on_batch_end(self, state: RunnerState):
+        y_true = state.input[self.input_key].detach()
+        y_pred = state.output[self.output_key].detach()
+
+        if self.from_regression:
+            y_pred = regression_to_class(y_pred)
+        else:
+            y_pred = torch.argmax(y_pred, dim=1)
+
+        y_pred = to_numpy(y_pred)
+        y_true = to_numpy(y_true)
+        negatives = y_true != y_pred
+        image_ids = np.array(state.input['image_id'])
+
+        self.image_ids.extend(image_ids[negatives])
+        self.y_preds.extend(y_pred[negatives])
+        self.y_trues.extend(y_true[negatives])
