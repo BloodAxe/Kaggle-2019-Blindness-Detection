@@ -3,7 +3,7 @@ from pytorch_toolbelt.modules.activations import swish
 from pytorch_toolbelt.modules.encoders import EncoderModule
 from pytorch_toolbelt.modules.pooling import GlobalAvgPool2d, GlobalMaxPool2d
 from torch import nn
-from torch.nn.functional import leaky_relu
+from torch.nn import functional as F
 
 from retinopathy.lib.models.oc import ASP_OC_Module
 
@@ -190,13 +190,13 @@ class RMSPoolRegressionHead(nn.Module):
         x = self.bn(features)
         x = self.drop(x)
         x = self.fc1(x)
-        x = leaky_relu(x)
+        x = F.leaky_relu(x, inplace=True)
 
         x = self.fc2(x)
-        x = leaky_relu(x)
+        x = F.leaky_relu(x, inplace=True)
 
         x = self.fc3(x)
-        x = leaky_relu(x)
+        x = F.leaky_relu(x, inplace=True)
 
         logits = self.fc4(x)
         if self.output_classes == 1:

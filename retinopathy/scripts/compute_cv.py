@@ -16,8 +16,10 @@ import numpy as np
 # ]
 
 checkpoints = [
-    'runs/regression/reg_resnext50/fold_0/Jul13_22_06_wing_loss/checkpoints/reg_resnext50_fold0.pth',
-    'runs/regression/reg_resnext50/fold_1/Jul14_11_44_wing_loss/checkpoints/reg_resnext50_fold1.pth',
+    'runs/regression/reg_resnext101_multi/fold_3/Jul16_22_24_wing_loss_fp16_fast/checkpoints/best.pth',
+    'runs/regression/reg_resnext101_multi/fold_2/Jul16_21_02_wing_loss_fp16_fast/checkpoints/best.pth',
+    'runs/regression/reg_resnext101_multi/fold_1/Jul16_18_08_wing_loss_fp16_fast/checkpoints/best.pth',
+    'runs/regression/reg_resnext101_multi/fold_0/Jul16_15_57_wing_loss_fp16_fast/checkpoints/best.pth'
 ]
 cv = []
 

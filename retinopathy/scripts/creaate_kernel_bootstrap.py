@@ -8,10 +8,14 @@ from pytorch_toolbelt.utils.torch_utils import tensor_from_rgb_image
 from retinopathy.lib.augmentations import CropBlackRegions, get_test_aug, crop_black
 from retinopathy.lib.dataset import RetinopathyDataset, get_class_names
 from retinopathy.lib.factory import get_model
-from retinopathy.lib.inference import PickModelOutput, run_model_inference, cls_predictions_to_submission, average_predictions, reg_predictions_to_submission
-from retinopathy.lib.models.classification import BaselineClassificationModel, ClassifierModule
-from retinopathy.lib.models.regression import regression_to_class, STNRegressionModel, EncoderHeadModel, RMSPool2d, RegressionModule
-from retinopathy.lib.models.stn import STN, Flatten
+from retinopathy.lib.inference import PickModelOutput, run_model_inference, cls_predictions_to_submission, \
+    average_predictions, reg_predictions_to_submission
+from retinopathy.lib.models.heads import RMSPool2d, EncoderHeadModel, GlobalAvgPool2d, GlobalAvgPool2dHead, \
+    GlobalWeightedAvgPool2dHead, GlobalWeightedMaxPool2dHead, GlobalMaxAvgPool2dHead, RMSPoolRegressionHead, \
+    GlobalMaxPool2dHead, ObjectContextPoolHead
+from retinopathy.lib.models.oc import ASP_OC_Module, BaseOC_Context_Module, SelfAttentionBlock2D, _SelfAttentionBlock
+from retinopathy.lib.models.regression import regression_to_class
+from retinopathy.lib.models.stn import Flatten
 
 
 def encode_archive(archive_name):
@@ -67,7 +71,9 @@ def main():
         'from pytorch_toolbelt.modules.activations import swish',
         'from pytorch_toolbelt.modules.pooling import *',
         'from pytorch_toolbelt.modules.scse import *',
-        'import torch.nn.functional as F'
+        'import torch.nn.functional as F',
+        'from pytorch_toolbelt.modules import ABN',
+        'from torch.autograd import Variable'
     ]
     functions = [
         tensor_from_rgb_image,
@@ -75,14 +81,21 @@ def main():
         read_rgb_image,
         get_class_names,
         RetinopathyDataset,
-        BaselineClassificationModel,
         RMSPool2d,
+        GlobalAvgPool2d,
+        GlobalAvgPool2dHead,
+        GlobalWeightedAvgPool2dHead,
+        GlobalWeightedMaxPool2dHead,
+        GlobalMaxPool2dHead,
+        RMSPoolRegressionHead,
+        GlobalMaxAvgPool2dHead,
+        ObjectContextPoolHead,
+        _SelfAttentionBlock,
+        SelfAttentionBlock2D,
+        BaseOC_Context_Module,
+        ASP_OC_Module,
         Flatten,
         EncoderHeadModel,
-        RegressionModule,
-        STN,
-        STNRegressionModel,
-        ClassifierModule,
         crop_black,
         CropBlackRegions,
         get_model,

@@ -34,6 +34,7 @@ def main():
     parser.add_argument('--balance', action='store_true')
     parser.add_argument('--swa', action='store_true')
     parser.add_argument('--show', action='store_true')
+    parser.add_argument('-v', '--verbose', action='store_true')
     parser.add_argument('-acc', '--accumulation-steps', type=int, default=1, help='Number of batches to process')
     parser.add_argument('-dd', '--data-dir', type=str, default='data', help='Data directory')
     parser.add_argument('-m', '--model', type=str, default='reg_resnet18', help='')
@@ -44,7 +45,7 @@ def main():
     parser.add_argument('-f', '--fold', action='append', type=int, default=None)
     parser.add_argument('-fe', '--freeze-encoder', action='store_true')
     parser.add_argument('-lr', '--learning-rate', type=float, default=1e-4, help='Initial learning rate')
-    parser.add_argument('-l', '--criterion', type=str, default='mse', help='Criterion')
+    parser.add_argument('-l', '--criterion', type=str, default='wing_loss', help='Criterion')
     parser.add_argument('-o', '--optimizer', default='Adam', help='Name of the optimizer')
     parser.add_argument('-c', '--checkpoint', type=str, default=None,
                         help='Checkpoint filename to use as initial model weights')
@@ -77,6 +78,7 @@ def main():
     use_swa = args.swa
     show_batches = args.show
     scheduler_name = args.scheduler
+    verbose = args.verbose
 
     if folds is None or len(folds) == 0:
         folds = [None]
@@ -150,7 +152,7 @@ def main():
         train_loader, valid_loader = get_dataloaders(train_ds, valid_ds,
                                                      batch_size=batch_size,
                                                      num_workers=num_workers,
-                                                     # oversample_factor=2 if fast else 1,
+                                                     oversample_factor=2 if fast else 1,
                                                      balance=balance)
 
         if use_swa:
@@ -241,7 +243,7 @@ def main():
             loaders=loaders,
             logdir=log_dir,
             num_epochs=num_epochs,
-            verbose=True,
+            verbose=verbose,
             main_metric='kappa_score',
             minimize_metric=False,
             checkpoint_data={"cmd_args": vars(args)}
