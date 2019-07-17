@@ -1,14 +1,12 @@
-import pytest
 from typing import Optional
 
 import numpy as np
 import pytest
 import torch
+import torch.nn.functional as F
 from catalyst.contrib import registry
-from catalyst.dl import Callback
 from pytorch_toolbelt.losses import WingLoss
 from torch import nn
-from torch.nn import Module
 from torch.nn.modules.loss import MSELoss
 
 
@@ -50,6 +48,31 @@ def clip_regression(input, target, min=0, max=4):
     input = input.masked_fill(min_mask, min)
     input = input.masked_fill(max_mask, max)
     return input, target
+
+
+@registry.Criterion
+class LabelSmoothingLoss(nn.Module):
+    def __init__(self, smooth_factor=0.05):
+        super().__init__()
+        self.smooth_factor = smooth_factor
+
+    def _smooth_labels(self, num_classes, target):
+        # When label smoothing is turned on,
+        # KL-divergence between q_{smoothed ground truth prob.}(w)
+        # and p_{prob. computed by model}(w) is minimized.
+        # If label smoothing value is set to zero, the loss
+        # is equivalent to NLLLoss or CrossEntropyLoss.
+        # All non-true labels are uniformly set to low-confidence.
+
+        target_one_hot = F.one_hot(target, num_classes).float()
+        target_one_hot[target_one_hot == 1] = 1 - self.smooth_factor
+        target_one_hot[target_one_hot == 0] = self.smooth_factor
+        return target_one_hot
+
+    def forward(self, input, target):
+        logp = F.log_softmax(input, dim=1)
+        target_one_hot = self._smooth_labels(input.size(1), target)
+        return F.kl_div(logp, target_one_hot, reduction='sum')
 
 
 @registry.Criterion
@@ -206,5 +229,3 @@ class CumulativeLinkLoss(nn.Module):
         return cumulative_link_loss(y_pred, y_true,
                                     reduction=self.reduction,
                                     class_weights=self.class_weights)
-
-

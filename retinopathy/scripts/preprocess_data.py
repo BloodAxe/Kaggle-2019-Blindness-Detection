@@ -33,14 +33,17 @@ def convert_dir(input_dir, output_dir):
 
 
 def main():
-    convert_dir('data/aptos-2019/train_images', 'data/aptos-2019/train_images_768')
-    convert_dir('data/aptos-2019/test_images', 'data/aptos-2019/test_images_768')
+    # convert_dir('data/aptos-2019/train_images', 'data/aptos-2019/train_images_768')
+    # convert_dir('data/aptos-2019/test_images', 'data/aptos-2019/test_images_768')
 
-    convert_dir('data/aptos-2015/train_images', 'data/aptos-2015/train_images_768')
-    convert_dir('data/aptos-2015/test_images', 'data/aptos-2015/test_images_768')
+    # convert_dir('data/aptos-2015/train_images', 'data/aptos-2015/train_images_768')
+    # convert_dir('data/aptos-2015/test_images', 'data/aptos-2015/test_images_768')
 
-    convert_dir('data/idrid/train_images', 'data/idrid/train_images_768')
-    convert_dir('data/idrid/test_images', 'data/idrid/test_images_768')
+    # convert_dir('data/idrid/train_images', 'data/idrid/train_images_768')
+    # convert_dir('data/idrid/test_images', 'data/idrid/test_images_768')
+
+    convert_dir('data/messidor/train_images', 'data/messidor/train_images_768')
+    convert_dir('data/messidor/test_images', 'data/messidor/test_images_768')
 
 
 if __name__ == '__main__':

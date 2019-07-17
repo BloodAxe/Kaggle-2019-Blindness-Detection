@@ -9,9 +9,11 @@ from torch import nn
 from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss, SmoothL1Loss
 from torch.optim import SGD, Adam
 from torch.optim.lr_scheduler import MultiStepLR
+from torch.optim.rmsprop import RMSprop
 
-from retinopathy.lib.losses import ClippedMSELoss, ClippedWingLoss, CumulativeLinkLoss
-from retinopathy.lib.models.heads import GlobalAvgPool2dHead, GlobalMaxPool2dHead, GlobalWeightedAvgPool2dHead, GlobalWeightedMaxPool2dHead, ObjectContextPoolHead, \
+from retinopathy.lib.losses import ClippedMSELoss, ClippedWingLoss, CumulativeLinkLoss, LabelSmoothingLoss
+from retinopathy.lib.models.heads import GlobalAvgPool2dHead, GlobalMaxPool2dHead, GlobalWeightedAvgPool2dHead, \
+    GlobalWeightedMaxPool2dHead, ObjectContextPoolHead, \
     RMSPoolRegressionHead, GlobalMaxAvgPool2dHead, EncoderHeadModel
 from retinopathy.lib.models.ordinal import OrdinalEncoderHeadModel
 
@@ -56,12 +58,15 @@ def get_optimizable_parameters(model: nn.Module):
     return filter(lambda x: x.requires_grad, model.parameters())
 
 
-def get_optimizer(optimizer_name: str, parameters, lr: float, weight_decay=1e-5, **kwargs):
+def get_optimizer(optimizer_name: str, parameters, learning_rate: float, weight_decay=1e-5, **kwargs):
     if optimizer_name.lower() == 'sgd':
-        return SGD(parameters, lr, momentum=0.9, nesterov=True, weight_decay=weight_decay, **kwargs)
+        return SGD(parameters, learning_rate, momentum=0.9, nesterov=True, weight_decay=weight_decay, **kwargs)
 
     if optimizer_name.lower() == 'adam':
-        return Adam(parameters, lr, **kwargs)
+        return Adam(parameters, learning_rate, weight_decay=weight_decay, **kwargs)
+
+    if optimizer_name.lower() == 'rms':
+        return RMSprop(parameters, learning_rate, weight_decay=weight_decay, **kwargs)
 
     raise ValueError("Unsupported optimizer name " + optimizer_name)
 
@@ -93,6 +98,9 @@ def get_loss(loss_name: str, **kwargs):
 
     if loss_name.lower() == 'link':
         return CumulativeLinkLoss()
+
+    if loss_name.lower() == 'smooth_kl':
+        return LabelSmoothingLoss()
 
     raise KeyError(loss_name)
 

@@ -57,4 +57,8 @@ Using only one model **seresnext50**.
 |-------------------------|-----------------|----------|--------------|------------|---------|
 | Baseline classification | 0.9213 ± 0.0033 | 0.772    | SEResnext50  | No         | 4 folds |
 | Baseline regression     | 0.9225 ± 0.0022 | 0.787    | SEResnext50  | No         | 2 folds |
-| Baseline regression     | 0.9176 ± 0.0080 |          | SEResnext101 | No         | 4 folds, Multi-pooling |
+| Baseline regression     | 0.9176 ± 0.0080 | 0.763    | SEResnext101 | No         | 4 folds, Multi-pooling |
+
+# References
+
+1. https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5961805/

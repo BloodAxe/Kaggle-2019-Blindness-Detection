@@ -55,6 +55,7 @@ def main():
     parser.add_argument('--transfer', default=None, type=str, help='')
     parser.add_argument('--fp16', action='store_true')
     parser.add_argument('-s', '--scheduler', default='multistep', type=str, help='')
+    parser.add_argument('-wd', '--weight-decay', default=0, type=float, help='L2 weight decay')
 
     args = parser.parse_args()
 
@@ -79,6 +80,7 @@ def main():
     show_batches = args.show
     scheduler_name = args.scheduler
     verbose = args.verbose
+    weight_decay = args.weight_decay
 
     if folds is None or len(folds) == 0:
         folds = [None]
@@ -129,7 +131,9 @@ def main():
 
         criterion = get_loss(criterion_name)
         parameters = get_optimizable_parameters(model)
-        optimizer = get_optimizer(optimizer_name, parameters, learning_rate)
+        optimizer = get_optimizer(optimizer_name, parameters,
+                                  learning_rate=learning_rate,
+                                  weight_decay=weight_decay)
 
         if checkpoint is not None:
             try:
@@ -142,7 +146,7 @@ def main():
                                           use_aptos2015=not fast,
                                           use_aptos2019=True,
                                           use_idrid=not fast,
-                                          use_messidor=False,  # It has inconsistent grade ranging [0;3]
+                                          use_messidor=not fast,
                                           image_size=image_size,
                                           augmentation=augmentations,
                                           target_dtype=np.float32,
