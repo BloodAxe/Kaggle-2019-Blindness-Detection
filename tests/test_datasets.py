@@ -115,4 +115,15 @@ def test_all():
     num_train_samples = len(train_ds)
     num_valid_samples = len(valid_ds)
     assert num_train_samples > num_valid_samples
-    print(len(train_ds), len(valid_ds))
+    print(num_train_samples, num_valid_samples)
+
+    train_ds, valid_ds = get_datasets(data_dir='../data',
+                                      use_aptos2019=True,
+                                      use_aptos2015=True,
+                                      use_idrid=True,
+                                      use_messidor=True,
+                                      image_size=(512, 512), fold=1, folds=4)
+    num_train_samples = len(train_ds)
+    num_valid_samples = len(valid_ds)
+    assert num_train_samples > num_valid_samples
+    print(num_train_samples, num_valid_samples)

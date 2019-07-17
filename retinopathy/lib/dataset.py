@@ -84,6 +84,152 @@ class RetinopathyDataset(Dataset):
         return data
 
 
+def get_aptos2019(data_dir='data',
+                  random_state=42,
+                  fold=None,
+                  folds=4):
+    aptos2019_train = pd.read_csv(os.path.join(data_dir, 'train.csv'))
+    x = np.array(aptos2019_train['id_code'].apply(lambda x: os.path.join(data_dir, 'train_images_768', f'{x}.png')))
+    y = np.array(aptos2019_train['diagnosis'], dtype=int)
+
+    train_x, train_y = [], []
+    valid_x, valid_y = [], []
+
+    if fold is not None:
+        assert 0 <= fold < folds
+        skf = StratifiedKFold(n_splits=folds, random_state=random_state, shuffle=True)
+
+        for fold_index, (train_index, test_index) in enumerate(skf.split(x, y)):
+            if fold_index == fold:
+                train_x = x[train_index]
+                train_y = y[train_index]
+                valid_x = x[test_index]
+                valid_y = y[test_index]
+                break
+    else:
+        train_x, valid_x, train_y, valid_y = train_test_split(x, y,
+                                                              random_state=random_state,
+                                                              test_size=0.1,
+                                                              shuffle=True,
+                                                              stratify=y)
+
+    return train_x, valid_x, train_y, valid_y
+
+
+def get_aptos2015(dataset_dir='data',
+                  random_state=42,
+                  fold=None,
+                  folds=4):
+    aptos2015_train = pd.read_csv(os.path.join(dataset_dir, 'train_labels.csv'))
+    aptos2015_train['image_path'] = aptos2015_train['id_code'].apply(lambda x: os.path.join(dataset_dir, 'train_images_768', f'{x}.png'))
+
+    aptos2015_test = pd.read_csv(os.path.join(dataset_dir, 'test_labels.csv'))
+    aptos2015_test['image_path'] = aptos2015_test['id_code'].apply(lambda x: os.path.join(dataset_dir, 'test_images_768', f'{x}.png'))
+
+    aptos2015 = aptos2015_train.append(aptos2015_test)
+
+    x = np.array(aptos2015['image_path'])
+    y = np.array(aptos2015['diagnosis'], dtype=int)
+
+    train_x, train_y = [], []
+    valid_x, valid_y = [], []
+
+    if fold is not None:
+        assert 0 <= fold < folds
+        skf = StratifiedKFold(n_splits=folds, random_state=random_state, shuffle=True)
+
+        for fold_index, (train_index, test_index) in enumerate(skf.split(x, y)):
+            if fold_index == fold:
+                train_x = x[train_index]
+                train_y = y[train_index]
+                valid_x = x[test_index]
+                valid_y = y[test_index]
+                break
+    else:
+        train_x, valid_x, train_y, valid_y = train_test_split(x, y,
+                                                              random_state=random_state,
+                                                              test_size=0.1,
+                                                              shuffle=True,
+                                                              stratify=y)
+
+    return train_x, valid_x, train_y, valid_y
+
+
+def get_idrid(dataset_dir='data',
+              random_state=42,
+              fold=None,
+              folds=4):
+    dataset_dir = os.path.join(dataset_dir, 'idrid')
+    idrid_train = pd.read_csv(os.path.join(dataset_dir, 'train_labels.csv'))
+    idrid_train['image_path'] = idrid_train['id_code'].apply(lambda x: os.path.join(dataset_dir, 'train_images_768', f'{x}.png'))
+
+    idrid_test = pd.read_csv(os.path.join(dataset_dir, 'test_labels.csv'))
+    idrid_test['image_path'] = idrid_test['id_code'].apply(lambda x: os.path.join(dataset_dir, 'test_images_768', f'{x}.png'))
+
+    train_x, train_y = [], []
+    valid_x, valid_y = [], []
+
+    if fold is not None:
+        assert 0 <= fold < folds
+
+        idrid_full = idrid_train.append(idrid_test)
+        x = np.array(idrid_full['image_path'])
+        y = np.array(idrid_full['diagnosis'], dtype=int)
+
+        skf = StratifiedKFold(n_splits=folds, random_state=random_state, shuffle=True)
+
+        for fold_index, (train_index, test_index) in enumerate(skf.split(x, y)):
+            if fold_index == fold:
+                train_x = x[train_index]
+                train_y = y[train_index]
+                valid_x = x[test_index]
+                valid_y = y[test_index]
+                break
+    else:
+        train_x = np.array(idrid_train['image_path'])
+        train_y = np.array(idrid_train['diagnosis'], dtype=int)
+
+        valid_x = np.array(idrid_test['image_path'])
+        valid_y = np.array(idrid_test['diagnosis'], dtype=int)
+
+    return train_x, valid_x, train_y, valid_y
+
+
+def get_messidor(dataset_dir='data',
+                 random_state=42,
+                 fold=None,
+                 folds=4):
+    dataset_dir = os.path.join(dataset_dir, 'messidor')
+    messidor_train = pd.read_csv(os.path.join(dataset_dir, 'train_labels.csv'))
+    messidor_train['image_path'] = messidor_train['id_code'].apply(lambda x: os.path.join(dataset_dir, 'train_images_768', f'{x}.png'))
+
+    x = np.array(messidor_train['image_path'])
+    y = np.array(messidor_train['diagnosis'], dtype=int)
+
+    train_x, train_y = [], []
+    valid_x, valid_y = [], []
+
+    if fold is not None:
+        assert 0 <= fold < folds
+        skf = StratifiedKFold(n_splits=folds, random_state=random_state, shuffle=True)
+
+        for fold_index, (train_index, test_index) in enumerate(skf.split(x, y)):
+            if fold_index == fold:
+                train_x = x[train_index]
+                train_y = y[train_index]
+                valid_x = x[test_index]
+                valid_y = y[test_index]
+                break
+    else:
+        train_x, valid_x, train_y, valid_y = train_test_split(x, y,
+                                                              random_state=random_state,
+                                                              test_size=0.1,
+                                                              shuffle=True,
+                                                              stratify=y)
+
+    return train_x, valid_x, train_y, valid_y
+
+
 def get_datasets(
         data_dir='data',
         image_size=(512, 512),
@@ -93,6 +239,7 @@ def get_datasets(
         use_idrid=False,
         use_messidor=False,
         target_dtype=int,
+        random_state=42,
         fold=None,
         folds=4):
     assert use_aptos2019 or use_aptos2015 or use_idrid or use_messidor
@@ -102,97 +249,44 @@ def get_datasets(
 
     if use_aptos2019:
         dataset_dir = os.path.join(data_dir, 'aptos-2019')
-        aptos2019_train = pd.read_csv(os.path.join(dataset_dir, 'train.csv'))
-        aptos2019_train['image_path'] = aptos2019_train['id_code'].apply(
-            lambda x: os.path.join(dataset_dir, 'train_images_768', f'{x}.png'))
+        tx, vx, ty, vy = get_aptos2019(dataset_dir, random_state, fold, folds)
 
-        aptos2019_train_x, aptos2019_valid_x, aptos2019_train_y, aptos2019_valid_y = train_test_split(
-            aptos2019_train['image_path'], aptos2019_train['diagnosis'],
-            random_state=42, test_size=0.1, shuffle=True,
-            stratify=aptos2019_train['diagnosis'])
-
-        train_x.extend(aptos2019_train_x)
-        train_y.extend(aptos2019_train_y)
-        valid_x.extend(aptos2019_valid_x)
-        valid_y.extend(aptos2019_valid_y)
+        train_x.extend(tx)
+        train_y.extend(ty)
+        valid_x.extend(vx)
+        valid_y.extend(vy)
 
     if use_aptos2015:
         dataset_dir = os.path.join(data_dir, 'aptos-2015')
-        aptos2015_train = pd.read_csv(
-            os.path.join(dataset_dir, 'train_labels.csv'))
-        aptos2015_train['image_path'] = aptos2015_train['id_code'].apply(
-            lambda x: os.path.join(dataset_dir, 'train_images_768', f'{x}.png'))
+        tx, vx, ty, vy = get_aptos2019(dataset_dir, random_state, fold, folds)
 
-        aptos2015_test = pd.read_csv(
-            os.path.join(dataset_dir, 'test_labels.csv'))
-        aptos2015_test['image_path'] = aptos2015_test['id_code'].apply(
-            lambda x: os.path.join(dataset_dir, 'test_images_768', f'{x}.png'))
-
-        aptos2015 = aptos2015_train.append(aptos2015_test)
-
-        aptos2015_train_x, aptos2015_valid_x, aptos2015_train_y, aptos2015_valid_y = train_test_split(
-            aptos2015['image_path'], aptos2015['diagnosis'],
-            random_state=42, test_size=0.1, shuffle=True,
-            stratify=aptos2015['diagnosis'])
-
-        train_x.extend(aptos2015_train_x)
-        train_y.extend(aptos2015_train_y)
-        valid_x.extend(aptos2015_valid_x)
-        valid_y.extend(aptos2015_valid_y)
+        train_x.extend(tx)
+        train_y.extend(ty)
+        valid_x.extend(vx)
+        valid_y.extend(vy)
 
     if use_idrid:
         dataset_dir = os.path.join(data_dir, 'idrid')
-        idrid_train = pd.read_csv(
-            os.path.join(dataset_dir, 'train_labels.csv'))
-        idrid_train['image_path'] = idrid_train['id_code'].apply(
-            lambda x: os.path.join(dataset_dir, 'train_images_768', f'{x}.png'))
+        tx, vx, ty, vy = get_idrid(dataset_dir, random_state, fold, folds)
 
-        idrid_test = pd.read_csv(os.path.join(dataset_dir, 'test_labels.csv'))
-        idrid_test['image_path'] = idrid_test['id_code'].apply(
-            lambda x: os.path.join(dataset_dir, 'test_images_768', f'{x}.png'))
-
-        train_x.extend(idrid_train['image_path'])
-        train_y.extend(idrid_train['diagnosis'])
-
-        valid_x.extend(idrid_test['image_path'])
-        valid_y.extend(idrid_test['diagnosis'])
+        train_x.extend(tx)
+        train_y.extend(ty)
+        valid_x.extend(vx)
+        valid_y.extend(vy)
 
     if use_messidor:
         dataset_dir = os.path.join(data_dir, 'messidor')
-        messidor_train = pd.read_csv(
-            os.path.join(dataset_dir, 'train_labels.csv'))
-        messidor_train['image_path'] = messidor_train['id_code'].apply(
-            lambda x: os.path.join(dataset_dir, 'train_images', f'{x}.tif'))
+        tx, vx, ty, vy = get_messidor(dataset_dir, random_state, fold, folds)
 
-        messidor_train_x, messidor_valid_x, messidor_train_y, messidor_valid_y = train_test_split(
-            messidor_train['image_path'], messidor_train['diagnosis'],
-            random_state=42, test_size=0.1, shuffle=True,
-            stratify=messidor_train['diagnosis'])
-
-        train_x.extend(messidor_train_x)
-        train_y.extend(messidor_train_y)
-        valid_x.extend(messidor_valid_x)
-        valid_y.extend(messidor_valid_y)
-
-    if fold is not None:
-        assert fold >= 0 and fold < folds
-
-        x = np.array(train_x + valid_x)
-        y = np.array(train_y + valid_y)
-
-        skf = StratifiedKFold(n_splits=folds, random_state=13, shuffle=True)
-
-        for fold_index, (train_index, test_index) in enumerate(
-                skf.split(x, y)):
-            if fold_index == fold:
-                train_x = x[train_index]
-                train_y = y[train_index]
-                valid_x = x[test_index]
-                valid_y = y[test_index]
+        train_x.extend(tx)
+        train_y.extend(ty)
+        valid_x.extend(vx)
+        valid_y.extend(vy)
 
     train_ds = RetinopathyDataset(train_x, train_y,
                                   transform=get_train_aug(image_size, augmentation, crop_black=False),
                                   dtype=target_dtype)
+
     valid_ds = RetinopathyDataset(valid_x, valid_y,
                                   transform=get_test_aug(image_size, crop_black=False),
                                   dtype=target_dtype)
