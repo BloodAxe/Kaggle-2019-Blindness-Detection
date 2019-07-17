@@ -23,14 +23,46 @@ class RMSPool2d(nn.Module):
         return avg_pool.sqrt()
 
 
+class FourReluBlock(nn.Module):
+    """
+    Block used for making final regression predictions
+    """
+
+    def __init__(self, features, num_classes, dropout=0.1):
+        super().__init__()
+        self.fc1 = nn.Linear(features, features // 2)
+        self.fc2 = nn.Linear(features // 2, features // 4)
+        self.fc3 = nn.Linear(features // 4, features // 8)
+        self.fc4 = nn.Linear(features // 8, num_classes)
+        self.drop = nn.Dropout(dropout)
+
+    def forward(self, x):
+        x = self.fc1(x)
+        x = F.leaky_relu(x, inplace=True)
+        x = self.drop(x)
+
+        x = self.fc2(x)
+        x = F.leaky_relu(x, inplace=True)
+        x = self.drop(x)
+
+        x = self.fc3(x)
+        x = F.leaky_relu(x, inplace=True)
+        x = self.drop(x)
+
+        x = self.fc4(x)
+        x = F.leaky_relu(x, inplace=True)
+        x = self.drop(x)
+        return x
+
+
 class GlobalAvgPool2dHead(nn.Module):
     """Global average pooling classifier module"""
 
-    def __init__(self, features, num_classes, dropout=0.0):
+    def __init__(self, features, num_classes, head_block=nn.Linear, dropout=0.0):
         super().__init__()
         self.avg_pool = GlobalAvgPool2d()
         self.dropout = nn.Dropout(dropout)
-        self.last_linear = nn.Linear(features, num_classes)
+        self.last_linear = head_block(features, num_classes)
 
     def forward(self, x):
         x = self.avg_pool(x)
@@ -44,18 +76,18 @@ class GlobalAvgPool2dHead(nn.Module):
 class GlobalMaxPool2dHead(nn.Module):
     """Global max pooling classifier module"""
 
-    def __init__(self, features, num_classes, dropout=0.0):
+    def __init__(self, features, num_classes, head_block=nn.Linear, dropout=0.0):
         super().__init__()
         self.max_pool = GlobalMaxPool2d()
         self.dropout = nn.Dropout(dropout)
-        self.last_linear = nn.Linear(features, num_classes)
+        self.logits = head_block(features, num_classes)
 
     def forward(self, x):
         x = self.max_pool(x)
         x = x.view(x.size(0), -1)
         features = x
         x = self.dropout(x)
-        logits = self.last_linear(x)
+        logits = self.logits(x)
         return features, logits
 
 
@@ -64,11 +96,11 @@ class GlobalWeightedAvgPool2dHead(nn.Module):
     Global Weighted Average Pooling from paper "Global Weighted Average Pooling Bridges Pixel-level Localization and Image-level Classiﬁcation"
     """
 
-    def __init__(self, features, num_classes, dropout=0.0, **kwargs):
+    def __init__(self, features, num_classes, head_block=nn.Linear, dropout=0.0, **kwargs):
         super().__init__()
         self.conv = nn.Conv2d(features, 1, kernel_size=1, bias=True)
         self.dropout = nn.Dropout(dropout)
-        self.logits = nn.Linear(features, num_classes)
+        self.logits = head_block(features, num_classes)
 
     def fscore(self, x):
         m = self.conv(x)
@@ -95,12 +127,12 @@ class GlobalWeightedMaxPool2dHead(nn.Module):
     Global Weighted Max Pooling from paper "Global Weighted Average Pooling Bridges Pixel-level Localization and Image-level Classiﬁcation"
     """
 
-    def __init__(self, features, num_classes, dropout=0.0, **kwargs):
+    def __init__(self, features, num_classes, head_block=nn.Linear, dropout=0.0, **kwargs):
         super().__init__()
         self.conv = nn.Conv2d(features, 1, kernel_size=1, bias=True)
         self.dropout = nn.Dropout(dropout)
-        self.logits = nn.Linear(features, num_classes)
         self.max_pool = GlobalMaxPool2d()
+        self.logits = head_block(features, num_classes)
 
     def fscore(self, x):
         m = self.conv(x)
@@ -127,11 +159,11 @@ class ObjectContextPoolHead(nn.Module):
     """
     """
 
-    def __init__(self, features, num_classes, oc_features, dropout=0.0, **kwargs):
+    def __init__(self, features, num_classes, oc_features, head_block=nn.Linear, dropout=0.0, **kwargs):
         super().__init__()
         self.oc = ASP_OC_Module(features, oc_features, dropout=dropout, dilations=(3, 5, 7))
         self.max_pool = GlobalMaxPool2d()
-        self.logits = nn.Linear(oc_features, num_classes)
+        self.logits = head_block(oc_features, num_classes)
 
     def forward(self, x):
         x = self.oc(x)
