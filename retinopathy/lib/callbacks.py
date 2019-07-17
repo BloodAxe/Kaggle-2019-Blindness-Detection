@@ -1,13 +1,14 @@
-import torch
-from catalyst.dl import MetricCallback, RunnerState, Callback, MultiMetricCallback
-from typing import Callable, List
 import numpy as np
+from catalyst.dl import MetricCallback, RunnerState, Callback
 from catalyst.dl.callbacks import MixupCallback
 from pytorch_toolbelt.utils.catalyst import get_tensorboard_logger
 from pytorch_toolbelt.utils.torch_utils import to_numpy
 from pytorch_toolbelt.utils.visualization import plot_confusion_matrix, render_figure_to_tensor
 from sklearn.metrics import cohen_kappa_score, confusion_matrix
+from torch import nn
+from torch.nn import Module
 
+from retinopathy.lib.models.ordinal import LogisticCumulativeLink
 from retinopathy.lib.models.regression import regression_to_class
 
 
@@ -207,3 +208,39 @@ class MixupRegressionCallback(MixupCallback):
         y = y_a * self.lam + y_b * (1 - self.lam)
         loss = criterion(pred, y)
         return loss
+
+
+class AscensionCallback(Callback):
+    """
+    Ensure that each cutpoint is ordered in ascending value.
+    e.g.
+    .. < cutpoint[i - 1] < cutpoint[i] < cutpoint[i + 1] < ...
+    This is done by clipping the cutpoint values at the end of a batch gradient
+    update. By no means is this an efficient way to do things, but it works out
+    of the box with stochastic gradient descent.
+    Parameters
+    ----------
+    margin : float, (default=0.0)
+        The minimum value between any two adjacent cutpoints.
+        e.g. enforce that cutpoint[i - 1] + margin < cutpoint[i]
+    min_val : float, (default=-1e6)
+        Minimum value that the smallest cutpoint may take.
+    """
+
+    def __init__(self, net: nn.Module, margin: float = 0.0, min_val: float = -1.0e6) -> None:
+        super().__init__()
+        self.net = net
+        self.margin = margin
+        self.min_val = min_val
+
+    def clip(self, module: Module) -> None:
+        # NOTE: Only works for LogisticCumulativeLink right now
+        # We assume the cutpoints parameters are called `cutpoints`.
+        if isinstance(module, LogisticCumulativeLink):
+            cutpoints = module.cutpoints.data
+            for i in range(cutpoints.shape[0] - 1):
+                cutpoints[i].clamp_(self.min_val,
+                                    cutpoints[i + 1] - self.margin)
+
+    def on_batch_end(self, state: RunnerState):
+        self.net.apply(self.clip)

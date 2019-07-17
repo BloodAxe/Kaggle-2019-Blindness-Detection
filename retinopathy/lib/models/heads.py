@@ -165,7 +165,7 @@ class GlobalMaxAvgPool2dHead(nn.Module):
         x = swish(x)
         logits = self.logits(x)
 
-        return logits, features
+        return features, logits
 
 
 class RMSPoolRegressionHead(nn.Module):
@@ -202,7 +202,7 @@ class RMSPoolRegressionHead(nn.Module):
         if self.output_classes == 1:
             logits = logits.squeeze(1)
 
-        return logits, features
+        return features, logits
 
 
 def regression_to_class(value: torch.Tensor, min=0, max=4):
@@ -219,5 +219,5 @@ class EncoderHeadModel(nn.Module):
 
     def forward(self, input):
         features = self.encoder(input)[-1]
-        logits, features = self.head(features)
-        return {'logits': logits, 'features': features}
+        features, logits = self.head(features)
+        return {'features': features, 'logits': logits}

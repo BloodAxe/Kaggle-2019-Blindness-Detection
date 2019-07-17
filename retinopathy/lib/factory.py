@@ -10,9 +10,10 @@ from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss, SmoothL1Loss
 from torch.optim import SGD, Adam
 from torch.optim.lr_scheduler import MultiStepLR
 
-from retinopathy.lib.losses import ClippedMSELoss, ClippedWingLoss
+from retinopathy.lib.losses import ClippedMSELoss, ClippedWingLoss, CumulativeLinkLoss
 from retinopathy.lib.models.heads import GlobalAvgPool2dHead, GlobalMaxPool2dHead, GlobalWeightedAvgPool2dHead, GlobalWeightedMaxPool2dHead, ObjectContextPoolHead, \
     RMSPoolRegressionHead, GlobalMaxAvgPool2dHead, EncoderHeadModel
+from retinopathy.lib.models.ordinal import OrdinalEncoderHeadModel
 
 
 def get_model(model_name, num_classes, pretrained=True, dropout=0.25, **kwargs):
@@ -39,10 +40,11 @@ def get_model(model_name, num_classes, pretrained=True, dropout=0.25, **kwargs):
 
     MODELS = {
         'reg': EncoderHeadModel,
-        'cls': EncoderHeadModel
+        'cls': EncoderHeadModel,
+        'ord': partial(OrdinalEncoderHeadModel, num_classes=num_classes)
     }
 
-    if kind == 'reg':
+    if kind == 'reg' or kind == 'ord':
         num_classes = 1
 
     head = HEADS[head_name](encoder.output_filters[-1], num_classes, dropout=dropout)
@@ -88,6 +90,9 @@ def get_loss(loss_name: str, **kwargs):
 
     if loss_name.lower() == 'clipped_mse':
         return ClippedMSELoss(min=0, max=4)
+
+    if loss_name.lower() == 'link':
+        return CumulativeLinkLoss()
 
     raise KeyError(loss_name)
 
