@@ -76,6 +76,21 @@ class LabelSmoothingLoss(nn.Module):
 
 
 @registry.Criterion
+class SoftCrossEntropyLoss(nn.Module):
+    def __init__(self, smooth_factor=0.05):
+        super().__init__()
+        self.smooth_factor = smooth_factor
+
+    def forward(self, pred, target):
+        n_class = pred.size(1)
+        one_hot = torch.zeros_like(pred).scatter(1, target.view(-1, 1), 1)
+        one_hot = one_hot * (1 - self.smooth_factor) + (1 - one_hot) * self.smooth_factor / (n_class - 1)
+        log_prb = F.log_softmax(pred, dim=1)
+        loss = -(one_hot * log_prb).sum(dim=1)
+        return loss.sum()
+
+
+@registry.Criterion
 class ClippedWingLoss(WingLoss):
     def __init__(self, width=5, curvature=0.5, reduction='mean', min=0, max=4):
         super(ClippedWingLoss, self).__init__()

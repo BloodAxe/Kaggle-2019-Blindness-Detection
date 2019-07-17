@@ -11,7 +11,8 @@ from torch.optim import SGD, Adam
 from torch.optim.lr_scheduler import MultiStepLR
 from torch.optim.rmsprop import RMSprop
 
-from retinopathy.lib.losses import ClippedMSELoss, ClippedWingLoss, CumulativeLinkLoss, LabelSmoothingLoss
+from retinopathy.lib.losses import ClippedMSELoss, ClippedWingLoss, CumulativeLinkLoss, LabelSmoothingLoss, \
+    SoftCrossEntropyLoss
 from retinopathy.lib.models.heads import GlobalAvgPool2dHead, GlobalMaxPool2dHead, GlobalWeightedAvgPool2dHead, \
     GlobalWeightedMaxPool2dHead, ObjectContextPoolHead, \
     RMSPoolRegressionHead, GlobalMaxAvgPool2dHead, EncoderHeadModel
@@ -101,6 +102,9 @@ def get_loss(loss_name: str, **kwargs):
 
     if loss_name.lower() == 'smooth_kl':
         return LabelSmoothingLoss()
+
+    if loss_name.lower() == 'soft_ce':
+        return SoftCrossEntropyLoss()
 
     raise KeyError(loss_name)
 
