@@ -50,10 +50,11 @@ Using only one model **seresnext50**.
 
 ## Results
 
-| Experiment name         | CV score        | LB score | Encoder     | Extra data | Note    |
-|-------------------------|-----------------|----------|-------------|------------|---------|
-| Baseline classification | 0.9077 ± 0.0045 | 0.625    | Resnet18    | No         | 4 folds |
-| Baseline regression     | 0.9093 ± 0.0033 | 0.646    | Resnet18    | No         | 4 folds |
-|-------------------------|-----------------|----------|-------------|------------|---------|
-| Baseline classification | 0.9213 ± 0.0033 | 0.772    | SEResnext50 | No         | 4 folds |
-| Baseline regression     | 0.9225 ± 0.0022 | 0.787    | SEResnext50 | No         | 2 folds |
+| Experiment name         | CV score        | LB score | Encoder      | Extra data | Note    |
+|-------------------------|-----------------|----------|--------------|------------|---------|
+| Baseline classification | 0.9077 ± 0.0045 | 0.625    | Resnet18     | No         | 4 folds |
+| Baseline regression     | 0.9093 ± 0.0033 | 0.646    | Resnet18     | No         | 4 folds |
+|-------------------------|-----------------|----------|--------------|------------|---------|
+| Baseline classification | 0.9213 ± 0.0033 | 0.772    | SEResnext50  | No         | 4 folds |
+| Baseline regression     | 0.9225 ± 0.0022 | 0.787    | SEResnext50  | No         | 2 folds |
+| Baseline regression     | 0.9176 ± 0.0080 |          | SEResnext101 | No         | 4 folds, Multi-pooling |
