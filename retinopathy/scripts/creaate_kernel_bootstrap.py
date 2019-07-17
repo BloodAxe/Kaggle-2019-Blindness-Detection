@@ -10,7 +10,7 @@ from retinopathy.lib.dataset import RetinopathyDataset, get_class_names
 from retinopathy.lib.factory import get_model
 from retinopathy.lib.inference import PickModelOutput, run_model_inference, cls_predictions_to_submission, average_predictions, reg_predictions_to_submission
 from retinopathy.lib.models.classification import BaselineClassificationModel, ClassifierModule
-from retinopathy.lib.models.regression import regression_to_class, STNRegressionModel, BaselineRegressionModel, RMSPool2d, RegressionModule
+from retinopathy.lib.models.regression import regression_to_class, STNRegressionModel, EncoderHeadModel, RMSPool2d, RegressionModule
 from retinopathy.lib.models.stn import STN, Flatten
 
 
@@ -78,7 +78,7 @@ def main():
         BaselineClassificationModel,
         RMSPool2d,
         Flatten,
-        BaselineRegressionModel,
+        EncoderHeadModel,
         RegressionModule,
         STN,
         STNRegressionModel,

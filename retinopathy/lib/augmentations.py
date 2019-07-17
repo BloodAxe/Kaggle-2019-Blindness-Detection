@@ -39,6 +39,24 @@ class CropBlackRegions(A.ImageOnlyTransform):
         return ('tolerance',)
 
 
+class IndependentRandomBrightnessContrast(A.ImageOnlyTransform):
+    """ Change brightness & contrast independently per channels """
+
+    def __init__(self, brightness_limit=0.2, contrast_limit=0.2, always_apply=False, p=0.5):
+        super(IndependentRandomBrightnessContrast, self).__init__(always_apply, p)
+        self.brightness_limit = A.to_tuple(brightness_limit)
+        self.contrast_limit = A.to_tuple(contrast_limit)
+
+    def apply(self, img, **params):
+        img = img.copy()
+        for ch in range(img.shape[2]):
+            alpha = 1.0 + random.uniform(self.contrast_limit[0], self.contrast_limit[1])
+            beta = 0.0 + random.uniform(self.brightness_limit[0], self.brightness_limit[1])
+            img[..., ch] = AF.brightness_contrast_adjust(img[..., ch], alpha, beta)
+
+        return img
+
+
 def get_train_aug(image_size, augmentation=None, crop_black=True):
     if augmentation is None:
         augmentation = 'none'

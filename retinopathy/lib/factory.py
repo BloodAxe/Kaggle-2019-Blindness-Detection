@@ -1,3 +1,5 @@
+from functools import partial
+
 import torch
 from catalyst.contrib.schedulers import OneCycleLR, ExponentialLR
 from pytorch_toolbelt.losses import FocalLoss
@@ -9,81 +11,43 @@ from torch.optim import SGD, Adam
 from torch.optim.lr_scheduler import MultiStepLR
 
 from retinopathy.lib.losses import ClippedMSELoss, ClippedWingLoss
-from retinopathy.lib.models.classification import BaselineClassificationModel
-from retinopathy.lib.models.regression import BaselineRegressionModel, \
-    STNRegressionModel, MultipoolRegressionModel
+from retinopathy.lib.models.heads import GlobalAvgPool2dHead, GlobalMaxPool2dHead, GlobalWeightedAvgPool2dHead, GlobalWeightedMaxPool2dHead, ObjectContextPoolHead, \
+    RMSPoolRegressionHead, GlobalMaxAvgPool2dHead, EncoderHeadModel
 
 
-def get_model(model_name, num_classes, pretrained=True, **kwargs):
-    # Regression
-    if model_name == 'reg_resnet18':
-        assert num_classes == 1
-        encoder = Resnet18Encoder(pretrained=pretrained)
-        return BaselineRegressionModel(encoder)
+def get_model(model_name, num_classes, pretrained=True, dropout=0.25, **kwargs):
+    kind, encoder_name, head_name = model_name.split('_')
 
-    if model_name == 'reg_resnet50':
-        assert num_classes == 1
-        encoder = Resnet50Encoder(pretrained=pretrained)
-        return BaselineRegressionModel(encoder, dropout=0.5)
+    ENCODERS = {
+        'resnet18': Resnet18Encoder,
+        'resnet50': Resnet50Encoder,
+        'resnext50': SEResNeXt50Encoder,
+        'resnext101': SEResNeXt101Encoder,
+    }
 
-    if model_name == 'reg_resnext50':
-        assert num_classes == 1
-        encoder = SEResNeXt50Encoder(pretrained=pretrained)
-        return BaselineRegressionModel(encoder, dropout=0.5)
+    encoder = ENCODERS[encoder_name](pretrained=pretrained)
 
-    if model_name == 'reg_resnext101':
-        assert num_classes == 1
-        encoder = SEResNeXt101Encoder(pretrained=pretrained)
-        return BaselineRegressionModel(encoder, dropout=0.5)
+    HEADS = {
+        'gap': GlobalAvgPool2dHead,
+        'gmp': GlobalMaxPool2dHead,
+        'gwap': GlobalWeightedAvgPool2dHead,
+        'gwmp': GlobalWeightedMaxPool2dHead,
+        'ocp': partial(ObjectContextPoolHead, oc_features=encoder.output_filters[-1] // 4),
+        'rms': RMSPoolRegressionHead,
+        'maxavg': GlobalMaxAvgPool2dHead
+    }
 
-    if model_name == 'reg_stn_resnet18':
-        assert num_classes == 1
-        encoder = Resnet18Encoder(pretrained=pretrained)
-        return STNRegressionModel(encoder, pretrained=pretrained)
+    MODELS = {
+        'reg': EncoderHeadModel,
+        'cls': EncoderHeadModel
+    }
 
-    if model_name == 'reg_resnext50':
-        encoder = SEResNeXt50Encoder(pretrained=pretrained)
-        return BaselineRegressionModel(encoder, num_classes, dropout=0.25)
+    if kind == 'reg':
+        num_classes = 1
 
-    if model_name == 'reg_resnext50_multi':
-        encoder = SEResNeXt50Encoder(pretrained=pretrained)
-        return MultipoolRegressionModel(encoder, num_classes, dropout=0.25)
-
-    if model_name == 'reg_resnext101':
-        encoder = SEResNeXt101Encoder(pretrained=pretrained)
-        return BaselineRegressionModel(encoder, num_classes, dropout=0.25)
-
-    if model_name == 'reg_resnext101_multi':
-        encoder = SEResNeXt101Encoder(pretrained=pretrained)
-        return MultipoolRegressionModel(encoder, num_classes, dropout=0.25)
-
-    if model_name == 'reg_effnet_b4':
-        encoder = EfficientNetB4Encoder()
-        return BaselineRegressionModel(encoder, num_classes)
-
-    # Classification
-    if model_name == 'cls_resnet18':
-        encoder = Resnet18Encoder(pretrained=pretrained)
-        return BaselineClassificationModel(encoder, num_classes)
-
-    if model_name == 'cls_resnext50':
-        encoder = SEResNeXt50Encoder(pretrained=pretrained)
-        return BaselineClassificationModel(encoder, num_classes)
-
-    if model_name == 'cls_resnext101':
-        encoder = SEResNeXt101Encoder(pretrained=pretrained)
-        return BaselineClassificationModel(encoder, num_classes)
-
-    if model_name == 'cls_effnet_b4':
-        encoder = EfficientNetB4Encoder()
-        return BaselineClassificationModel(encoder, num_classes, dropout=0.5)
-
-    if model_name == 'cls_resnext101':
-        assert num_classes == 1
-        encoder = SEResNeXt101Encoder(pretrained=pretrained)
-        return BaselineClassificationModel(encoder, num_classes, dropout=0.5)
-
-    raise ValueError(model_name)
+    head = HEADS[head_name](encoder.output_filters[-1], num_classes, dropout=dropout)
+    model = MODELS[kind](encoder, head)
+    return model
 
 
 def get_optimizable_parameters(model: nn.Module):

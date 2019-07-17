@@ -84,7 +84,8 @@ def main():
     for fold in folds:
 
         set_manual_seed(args.seed)
-        model = maybe_cuda(get_model(model_name, num_classes=1))
+        model = maybe_cuda(
+            get_model(model_name, num_classes=len(get_class_names())))
 
         if args.transfer:
             transfer_checkpoint = fs.auto_file(args.transfer)
