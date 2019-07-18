@@ -283,36 +283,25 @@ class RMSPoolRegressionHead(nn.Module):
         x = F.leaky_relu(x, inplace=True)
 
         logits = self.fc4(x)
-        if self.output_classes == 1:
-            logits = logits.squeeze(1)
-
         return features, logits
 
 
 class GlobalMaxAvgPool2dHead(nn.Module):
-    def __init__(self, input_features, output_classes, reduction=4, dropout=0.25):
+    """Global average pooling classifier module"""
+
+    def __init__(self, features, num_classes, head_block=nn.Linear, dropout=0.0):
         super().__init__()
         self.avg_pool = GlobalAvgPool2d()
         self.max_pool = GlobalMaxPool2d()
-        self.bn = nn.BatchNorm1d(input_features * 2)
-        self.drop = nn.Dropout(dropout)
+        self.dropout = nn.Dropout(dropout)
+        self.last_linear = head_block(features, num_classes)
 
-        self.bottleneck = nn.Linear(input_features * 2, input_features // reduction)
-        self.logits = nn.Linear(input_features // reduction, output_classes)
-
-    def forward(self, input):
-        x1 = self.avg_pool(input)
-        x2 = self.max_pool(input)
-        x = torch.cat([x1, x2], dim=1)
-        features = x.view(x.size(0), -1)
-
-        x = self.bn(features)
-        x = swish(x)
-        x = self.drop(x)
-        x = self.bottleneck(x)
-        x = swish(x)
-        logits = self.logits(x)
-
+    def forward(self, x):
+        x = self.avg_pool(x) + self.max_pool(x)
+        x = x.view(x.size(0), -1)
+        features = x
+        x = self.dropout(x)
+        logits = self.last_linear(x)
         return features, logits
 
 
@@ -609,6 +598,10 @@ class EncoderHeadModel(nn.Module):
     def forward(self, input):
         features = self.encoder(input)[-1]
         features, logits = self.head(features)
+
+        if logits.size(1) == 1:
+            logits = logits.squeeze(1)
+
         return {'features': features, 'logits': logits}
 
 
