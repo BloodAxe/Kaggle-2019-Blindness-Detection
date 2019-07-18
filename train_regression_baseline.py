@@ -35,6 +35,9 @@ def main():
     parser.add_argument('--balance', action='store_true')
     parser.add_argument('--swa', action='store_true')
     parser.add_argument('--show', action='store_true')
+    parser.add_argument('--use-idrid', action='store_true')
+    parser.add_argument('--use-messidor', action='store_true')
+    parser.add_argument('--use-aptos-2015', action='store_true')
     parser.add_argument('-v', '--verbose', action='store_true')
     parser.add_argument('-acc', '--accumulation-steps', type=int, default=1, help='Number of batches to process')
     parser.add_argument('-dd', '--data-dir', type=str, default='data', help='Data directory')
@@ -82,6 +85,9 @@ def main():
     scheduler_name = args.scheduler
     verbose = args.verbose
     weight_decay = args.weight_decay
+    use_idrid = args.use_idrid
+    use_messidor = args.use_messidor
+    use_aptos2015 = args.use_aptos2015
 
     current_time = datetime.now().strftime('%b%d_%H_%M')
 
@@ -148,9 +154,9 @@ def main():
 
         train_ds, valid_ds = get_datasets(data_dir=data_dir,
                                           use_aptos2019=True,
-                                          use_aptos2015=not fast,
-                                          use_idrid=not fast,
-                                          use_messidor=not fast,
+                                          use_aptos2015=use_aptos2015,
+                                          use_idrid=use_idrid,
+                                          use_messidor=use_messidor,
                                           image_size=image_size,
                                           augmentation=augmentations,
                                           target_dtype=np.float32,
@@ -189,30 +195,34 @@ def main():
                                   num_epochs=num_epochs,
                                   batches_in_epoch=len(train_loader))
 
+        print('Datasets         :', data_dir)
+        print('  Train size     :', len(train_loader), len(train_loader.dataset))
+        print('  Valid size     :', len(valid_loader), len(valid_loader.dataset))
+        print('  Aptos 2019     :', True)
+        print('  Aptos 2015     :', use_aptos2015)
+        print('  IDRID          :', use_idrid)
+        print('  Messidor       :', use_messidor)
         print('Train session    :', prefix)
-        print('\tFP16 mode      :', fp16)
-        print('\tFast mode      :', fast)
-        print('\tMixup          :', mixup)
-        print('\tBalance        :', balance)
-        print('\tEpochs         :', num_epochs)
-        print('\tEarly stopping :', early_stopping)
-        print('\tWorkers        :', num_workers)
-        print('\tData dir       :', data_dir)
-        print('\tFold           :', fold)
-        print('\tLog dir        :', log_dir)
-        print('\tAugmentations  :', augmentations)
-        print('\tTrain size     :', len(train_loader), len(train_loader.dataset))
-        print('\tValid size     :', len(valid_loader), len(valid_loader.dataset))
+        print('  FP16 mode      :', fp16)
+        print('  Fast mode      :', fast)
+        print('  Mixup          :', mixup)
+        print('  Balance        :', balance)
+        print('  Epochs         :', num_epochs)
+        print('  Workers        :', num_workers)
+        print('  Fold           :', fold)
+        print('  Log dir        :', log_dir)
+        print('  Augmentations  :', augmentations)
         print('Model            :', model_name)
-        print('\tParameters     :', count_parameters(model))
-        print('\tImage size     :', image_size)
-        print('\tFreeze encoder :', freeze_encoder)
+        print('  Parameters     :', count_parameters(model))
+        print('  Image size     :', image_size)
+        print('  Freeze encoder :', freeze_encoder)
         print('Optimizer        :', optimizer_name)
-        print('\tLearning rate  :', learning_rate)
-        print('\tBatch size     :', batch_size)
-        print('\tCriterion      :', criterion_name)
-        print('\tScheduler      :', scheduler_name)
-        print('\tWeight decay   :', weight_decay)
+        print('  Learning rate  :', learning_rate)
+        print('  Batch size     :', batch_size)
+        print('  Criterion      :', criterion_name)
+        print('  Scheduler      :', scheduler_name)
+        print('  Weight decay   :', weight_decay)
+        print('  Early stopping :', early_stopping)
 
         # model training
         visualization_fn = partial(draw_regression_predictions,
