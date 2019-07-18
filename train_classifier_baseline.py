@@ -37,7 +37,7 @@ def main():
     parser.add_argument('--show', action='store_true')
     parser.add_argument('--use-idrid', action='store_true')
     parser.add_argument('--use-messidor', action='store_true')
-    parser.add_argument('--use-aptos-2015', action='store_true')
+    parser.add_argument('--use-aptos2015', action='store_true')
     parser.add_argument('-v', '--verbose', action='store_true')
     parser.add_argument('-acc', '--accumulation-steps', type=int, default=1, help='Number of batches to process')
     parser.add_argument('-dd', '--data-dir', type=str, default='data', help='Data directory')
