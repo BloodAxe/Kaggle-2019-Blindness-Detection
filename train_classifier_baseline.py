@@ -7,13 +7,13 @@ import os
 from datetime import datetime
 from functools import partial
 
-from catalyst.dl import SupervisedRunner, EarlyStoppingCallback, CheckpointCallback
+from catalyst.dl import SupervisedRunner, EarlyStoppingCallback
 from catalyst.dl.callbacks import AccuracyCallback, MixupCallback
 from catalyst.utils import load_checkpoint, unpack_checkpoint
 from pytorch_toolbelt.utils import fs
 from pytorch_toolbelt.utils.catalyst import ShowPolarBatchesCallback, \
     ConfusionMatrixCallback
-from pytorch_toolbelt.utils.random import set_manual_seed
+from pytorch_toolbelt.utils.random import set_manual_seed, get_random_name
 from pytorch_toolbelt.utils.torch_utils import maybe_cuda, count_parameters, \
     set_trainable
 
@@ -23,7 +23,6 @@ from retinopathy.lib.dataset import get_class_names, \
 from retinopathy.lib.factory import get_model, get_loss, get_optimizer, \
     get_optimizable_parameters, get_scheduler
 from retinopathy.lib.visualization import draw_classification_predictions
-from pytorch_toolbelt.utils.random import get_random_name
 
 from retinopathy.scripts.clean_checkpoint import clean_checkpoint
 
