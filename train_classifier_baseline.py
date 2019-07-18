@@ -96,6 +96,12 @@ def main():
 
     for fold in folds:
         checkpoint_prefix = f'{model_name}_{get_random_name()}_fold{fold}'
+        if use_aptos2015:
+            checkpoint_prefix += '_aptos2015'
+        if use_messidor:
+            checkpoint_prefix += '_messidor'
+        if use_idrid:
+            checkpoint_prefix += '_idrid'
 
         set_manual_seed(args.seed)
         model = maybe_cuda(
@@ -179,13 +185,7 @@ def main():
         loaders["train"] = train_loader
         loaders["valid"] = valid_loader
 
-        prefix = f'classification/{model_name}/fold_{fold}/{current_time}_{criterion_name}'
-
-        if fp16:
-            prefix += '_fp16'
-
-        if fast:
-            prefix += '_fast'
+        prefix = f'classification/{model_name}/{checkpoint_prefix}'
 
         log_dir = os.path.join('runs', prefix)
         os.makedirs(log_dir, exist_ok=False)
