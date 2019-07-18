@@ -126,7 +126,7 @@ def get_aptos2015(dataset_dir,
     aptos2015_test = pd.read_csv(os.path.join(dataset_dir, 'test_labels.csv'))
     aptos2015_test['image_path'] = aptos2015_test['id_code'].apply(lambda x: os.path.join(dataset_dir, 'test_images_768', f'{x}.png'))
 
-    aptos2015 = aptos2015_train.append(aptos2015_test)
+    aptos2015 = aptos2015_train.append(aptos2015_test, sort=True)
 
     x = np.array(aptos2015['image_path'])
     y = np.array(aptos2015['diagnosis'], dtype=int)
@@ -171,7 +171,7 @@ def get_idrid(dataset_dir,
     if fold is not None:
         assert 0 <= fold < folds
 
-        idrid_full = idrid_train.append(idrid_test)
+        idrid_full = idrid_train.append(idrid_test, sort=True)
         x = np.array(idrid_full['image_path'])
         y = np.array(idrid_full['diagnosis'], dtype=int)
 
