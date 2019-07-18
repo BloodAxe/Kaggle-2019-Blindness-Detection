@@ -10,6 +10,7 @@ from retinopathy.lib.factory import get_model
 
 @pytest.mark.parametrize('model_name',
                          [
+                             'cls_resnet18_hyp',
                              'cls_resnet18_gap',
                              'cls_resnet18_gmp',
                              'cls_resnet18_gwap',
@@ -23,7 +24,7 @@ def test_cls_models(model_name):
     x = torch.rand((1, 3, 512, 512)).cuda()
     output = model(x)
     assert output['logits'].size(1) == 4
-    assert output['features'].size(1) == 512
+    assert output['features'].size(1) == model.features_size
 
     print(model_name, count_parameters(model))
 

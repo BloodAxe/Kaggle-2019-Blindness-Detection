@@ -7,7 +7,7 @@ import os
 from datetime import datetime
 from functools import partial
 
-from catalyst.dl import SupervisedRunner, EarlyStoppingCallback
+from catalyst.dl import SupervisedRunner, EarlyStoppingCallback, CheckpointCallback
 from catalyst.dl.callbacks import AccuracyCallback, MixupCallback
 from catalyst.utils import load_checkpoint, unpack_checkpoint
 from pytorch_toolbelt.utils import fs
@@ -23,6 +23,9 @@ from retinopathy.lib.dataset import get_class_names, \
 from retinopathy.lib.factory import get_model, get_loss, get_optimizer, \
     get_optimizable_parameters, get_scheduler
 from retinopathy.lib.visualization import draw_classification_predictions
+from pytorch_toolbelt.utils.random import get_random_name
+
+from retinopathy.scripts.clean_checkpoint import clean_checkpoint
 
 
 def main():
@@ -81,10 +84,13 @@ def main():
     verbose = args.verbose
     weight_decay = args.weight_decay
 
+    current_time = datetime.now().strftime('%b%d_%H_%M')
+
     if folds is None or len(folds) == 0:
         folds = [None]
 
     for fold in folds:
+        checkpoint_prefix = f'{model_name}_{get_random_name()}_fold{fold}'
 
         set_manual_seed(args.seed)
         model = maybe_cuda(
@@ -168,7 +174,6 @@ def main():
         loaders["train"] = train_loader
         loaders["valid"] = valid_loader
 
-        current_time = datetime.now().strftime('%b%d_%H_%M')
         prefix = f'classification/{model_name}/fold_{fold}/{current_time}_{criterion_name}'
 
         if fp16:
@@ -253,28 +258,9 @@ def main():
 
         del runner, callbacks, loaders, optimizer, model, criterion, scheduler
 
-        # if fold is not None:
-        #     dataset_fname = os.path.join(data_dir, 'train_with_folds.csv')
-        #     dataset = pd.read_csv(dataset_fname)
-        #     oof_csv = dataset[dataset['fold'] == fold]
-        #
-        #     model_checkpoint = os.path.join(log_dir, 'checkpoints', 'best.pth')
-        #     oof_predictions = run_model_inference(
-        #         model_checkpoint=model_checkpoint,
-        #         test_csv=oof_csv,
-        #         images_dir='train_images',
-        #         data_dir=data_dir,
-        #         batch_size=batch_size,
-        #         tta=None,
-        #         apply_softmax=True)
-        #
-        #     checkpoint = load_checkpoint(model_checkpoint)
-        #     del checkpoint['criterion_state_dict']
-        #     del checkpoint['optimizer_state_dict']
-        #     del checkpoint['scheduler_state_dict']
-        #     checkpoint['oof_predictions'] = oof_predictions.to_dict()
-        #     torch.save(checkpoint, os.path.join(log_dir, 'checkpoints',
-        #                                         f'{model_name}_fold{fold}' + '.pth'))
+        best__checkpoint = os.path.join(log_dir, 'checkpoints', 'best.pth')
+        model_checkpoint = os.path.join(log_dir, 'checkpoints', f'{checkpoint_prefix}_best.pth')
+        clean_checkpoint(best__checkpoint, model_checkpoint)
 
 
 if __name__ == '__main__':

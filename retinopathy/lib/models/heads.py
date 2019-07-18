@@ -8,6 +8,14 @@ from torch.nn import functional as F
 from retinopathy.lib.models.oc import ASP_OC_Module
 
 
+class Flatten(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, x):
+        return x.view(x.shape[0], -1)
+
+
 class RMSPool2d(nn.Module):
     """
     Root mean square pooling
@@ -60,11 +68,16 @@ class GlobalAvgPool2dHead(nn.Module):
 
     def __init__(self, features, num_classes, head_block=nn.Linear, dropout=0.0):
         super().__init__()
+        if isinstance(features, list):
+            features = features[-1]
+
+        self.features_size = features
         self.avg_pool = GlobalAvgPool2d()
         self.dropout = nn.Dropout(dropout)
         self.last_linear = head_block(features, num_classes)
 
-    def forward(self, x):
+    def forward(self, feature_maps):
+        x = feature_maps[-1]
         x = self.avg_pool(x)
         x = x.view(x.size(0), -1)
         features = x
@@ -78,11 +91,16 @@ class GlobalMaxPool2dHead(nn.Module):
 
     def __init__(self, features, num_classes, head_block=nn.Linear, dropout=0.0):
         super().__init__()
+        if isinstance(features, list):
+            features = features[-1]
+
+        self.features_size = features
         self.max_pool = GlobalMaxPool2d()
         self.dropout = nn.Dropout(dropout)
         self.logits = head_block(features, num_classes)
 
-    def forward(self, x):
+    def forward(self, feature_maps):
+        x = feature_maps[-1]
         x = self.max_pool(x)
         x = x.view(x.size(0), -1)
         features = x
@@ -98,6 +116,10 @@ class GlobalWeightedAvgPool2dHead(nn.Module):
 
     def __init__(self, features, num_classes, head_block=nn.Linear, dropout=0.0, **kwargs):
         super().__init__()
+        if isinstance(features, list):
+            features = features[-1]
+
+        self.features_size = features
         self.conv = nn.Conv2d(features, 1, kernel_size=1, bias=True)
         self.dropout = nn.Dropout(dropout)
         self.logits = head_block(features, num_classes)
@@ -110,7 +132,9 @@ class GlobalWeightedAvgPool2dHead(nn.Module):
     def norm(self, x: torch.Tensor):
         return x / x.sum(dim=[2, 3], keepdim=True)
 
-    def forward(self, x):
+    def forward(self, feature_maps):
+        x = feature_maps[-1]
+
         input_x = x
         x = self.fscore(x)
         x = self.norm(x)
@@ -129,6 +153,10 @@ class GlobalWeightedMaxPool2dHead(nn.Module):
 
     def __init__(self, features, num_classes, head_block=nn.Linear, dropout=0.0, **kwargs):
         super().__init__()
+        if isinstance(features, list):
+            features = features[-1]
+
+        self.features_size = features
         self.conv = nn.Conv2d(features, 1, kernel_size=1, bias=True)
         self.dropout = nn.Dropout(dropout)
         self.max_pool = GlobalMaxPool2d()
@@ -142,7 +170,9 @@ class GlobalWeightedMaxPool2dHead(nn.Module):
     def norm(self, x: torch.Tensor):
         return x / x.sum(dim=[2, 3], keepdim=True)
 
-    def forward(self, x):
+    def forward(self, feature_maps):
+        x = feature_maps[-1]
+
         input_x = x
         x = self.fscore(x)
         x = self.norm(x)
@@ -161,11 +191,16 @@ class ObjectContextPoolHead(nn.Module):
 
     def __init__(self, features, num_classes, oc_features, head_block=nn.Linear, dropout=0.0, **kwargs):
         super().__init__()
+        if isinstance(features, list):
+            features = features[-1]
+
+        self.features_size = oc_features
         self.oc = ASP_OC_Module(features, oc_features, dropout=dropout, dilations=(3, 5, 7))
         self.max_pool = GlobalMaxPool2d()
         self.logits = head_block(oc_features, num_classes)
 
-    def forward(self, x):
+    def forward(self, feature_maps):
+        x = feature_maps[-1]
         x = self.oc(x)
         x = self.max_pool(x)
         features = x.view(x.size(0), -1)
@@ -178,12 +213,17 @@ class GlobalMaxAvgPool2dHead(nn.Module):
 
     def __init__(self, features, num_classes, head_block=nn.Linear, dropout=0.0):
         super().__init__()
+        if isinstance(features, list):
+            features = features[-1]
+
+        self.features_size = features
         self.avg_pool = GlobalAvgPool2d()
         self.max_pool = GlobalMaxPool2d()
         self.dropout = nn.Dropout(dropout)
         self.last_linear = head_block(features, num_classes)
 
-    def forward(self, x):
+    def forward(self, feature_maps):
+        x = feature_maps[-1]
         x = self.avg_pool(x) + self.max_pool(x)
         x = x.view(x.size(0), -1)
         features = x
@@ -192,23 +232,55 @@ class GlobalMaxAvgPool2dHead(nn.Module):
         return features, logits
 
 
-class RMSPoolRegressionHead(nn.Module):
-    def __init__(self, input_features, output_classes, reduction=4, dropout=0.25):
+class HyperPoolHead(nn.Module):
+    """Global average pooling classifier module"""
+
+    def __init__(self, features, num_classes, head_module=GlobalMaxAvgPool2dHead, head_block=nn.Linear, dropout=0.0):
         super().__init__()
+
+        heads = []
+        for f in features:
+            head = head_module(f, num_classes, head_block=head_block, dropout=dropout)
+            heads.append(head)
+
+        self.heads = nn.ModuleList(heads)
+        self.features_size = sum(features)
+
+    def forward(self, feature_maps):
+        features = []
+        logits = []
+        for feature_map, head in zip(feature_maps, self.heads):
+            f, l = head([feature_map])
+            features.append(f)
+            logits.append(l)
+
+        features = torch.cat(features, dim=1)
+        logits = sum(logits)
+        return features, logits
+
+
+class RMSPoolRegressionHead(nn.Module):
+    def __init__(self, features, output_classes, reduction=4, dropout=0.25):
+        super().__init__()
+        if isinstance(features, list):
+            features = features[-1]
+
+        self.features_size = features
         self.rms_pool = RMSPool2d()
-        self.bn = nn.BatchNorm1d(input_features)
+        self.bn = nn.BatchNorm1d(features)
         self.drop = nn.Dropout(dropout, inplace=True)
         self.output_classes = output_classes
 
-        bottleneck = input_features // reduction
+        bottleneck = features // reduction
 
-        self.fc1 = nn.Linear(input_features, bottleneck)
+        self.fc1 = nn.Linear(features, bottleneck)
         self.fc2 = nn.Linear(bottleneck, bottleneck)
         self.fc3 = nn.Linear(bottleneck, bottleneck)
         self.fc4 = nn.Linear(bottleneck, output_classes)
 
-    def forward(self, input):
-        x = self.rms_pool(input)
+    def forward(self, feature_maps):
+        x = feature_maps[-1]
+        x = self.rms_pool(x)
         features = x.view(x.size(0), -1)
 
         x = self.bn(features)
@@ -238,9 +310,13 @@ class EncoderHeadModel(nn.Module):
         self.encoder = encoder
         self.head = head
 
+    @property
+    def features_size(self):
+        return self.head.features_size
+
     def forward(self, input):
-        features = self.encoder(input)[-1]
-        features, logits = self.head(features)
+        feature_maps = self.encoder(input)
+        features, logits = self.head(feature_maps)
 
         if logits.size(1) == 1:
             logits = logits.squeeze(1)

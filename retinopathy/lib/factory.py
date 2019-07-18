@@ -15,7 +15,7 @@ from retinopathy.lib.losses import ClippedMSELoss, ClippedWingLoss, CumulativeLi
     SoftCrossEntropyLoss
 from retinopathy.lib.models.heads import GlobalAvgPool2dHead, GlobalMaxPool2dHead, GlobalWeightedAvgPool2dHead, \
     GlobalWeightedMaxPool2dHead, ObjectContextPoolHead, \
-    RMSPoolRegressionHead, GlobalMaxAvgPool2dHead, EncoderHeadModel, FourReluBlock
+    RMSPoolRegressionHead, GlobalMaxAvgPool2dHead, EncoderHeadModel, FourReluBlock, HyperPoolHead
 from retinopathy.lib.models.ordinal import OrdinalEncoderHeadModel
 
 
@@ -29,7 +29,7 @@ def get_model(model_name, num_classes, pretrained=True, dropout=0.25, **kwargs):
         'resnext101': SEResNeXt101Encoder,
     }
 
-    encoder = ENCODERS[encoder_name](pretrained=pretrained)
+    encoder = ENCODERS[encoder_name](layers=[1, 2, 3, 4], pretrained=pretrained)
 
     HEADS = {
         'gap': GlobalAvgPool2dHead,
@@ -38,7 +38,8 @@ def get_model(model_name, num_classes, pretrained=True, dropout=0.25, **kwargs):
         'gwmp': GlobalWeightedMaxPool2dHead,
         'ocp': partial(ObjectContextPoolHead, oc_features=encoder.output_filters[-1] // 4),
         'rms': RMSPoolRegressionHead,
-        'maxavg': GlobalMaxAvgPool2dHead
+        'maxavg': GlobalMaxAvgPool2dHead,
+        'hyp': HyperPoolHead,
     }
 
     MODELS = {
@@ -57,7 +58,7 @@ def get_model(model_name, num_classes, pretrained=True, dropout=0.25, **kwargs):
     if kind == 'reg' and head_name != 'rms':
         head_args['head_block'] = partial(FourReluBlock, dropout=dropout)
 
-    head = HEADS[head_name](encoder.output_filters[-1], num_classes, **head_args)
+    head = HEADS[head_name](encoder.output_filters, num_classes, **head_args)
     model = MODELS[kind](encoder, head)
     return model
 
