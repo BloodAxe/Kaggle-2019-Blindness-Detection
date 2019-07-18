@@ -1,18 +1,16 @@
 import multiprocessing
 import os
-from functools import partial
 
-import torch
-
-from pytorch_toolbelt.utils import fs
-import pandas as pd
 import numpy as np
-from pytorch_toolbelt.utils.torch_utils import to_numpy
+import pandas as pd
+import torch
 from pytorch_toolbelt.inference.tta import *
+from pytorch_toolbelt.utils import fs
+from pytorch_toolbelt.utils.torch_utils import to_numpy
 from sklearn.metrics import cohen_kappa_score
 from torch import nn
-from tqdm import tqdm
 from torch.utils.data import DataLoader
+from tqdm import tqdm
 
 from retinopathy.lib.augmentations import get_test_aug
 from retinopathy.lib.dataset import get_class_names, RetinopathyDataset
@@ -29,16 +27,13 @@ class PickModelOutput(nn.Module):
         return input[self.target_key]
 
 
-def run_model_inference(model_checkpoint: str,
-                        test_csv: pd.DataFrame,
-                        data_dir,
-                        model_name=None,
-                        batch_size=None,
-                        image_size=(512, 512),
-                        images_dir='test_images',
-                        tta=None,
-                        apply_softmax=True,
-                        workers=None) -> pd.DataFrame:
+def run_model_inference_via_dataset(model_checkpoint: str,
+                                    dataset: RetinopathyDataset,
+                                    model_name=None,
+                                    batch_size=None,
+                                    tta=None,
+                                    apply_softmax=True,
+                                    workers=None) -> pd.DataFrame:
     if workers is None:
         workers = multiprocessing.cpu_count()
 
@@ -73,9 +68,7 @@ def run_model_inference(model_checkpoint: str,
     with torch.no_grad():
         model = model.eval().cuda()
 
-        image_fnames = test_csv['id_code'].apply(lambda x: os.path.join(data_dir, images_dir, f'{x}.png'))
-        test_ds = RetinopathyDataset(image_fnames, None, get_test_aug(image_size))
-        data_loader = DataLoader(test_ds, batch_size,
+        data_loader = DataLoader(dataset, batch_size,
                                  pin_memory=True,
                                  num_workers=workers)
 
@@ -94,6 +87,26 @@ def run_model_inference(model_checkpoint: str,
 
     del model, data_loader
     return predictions
+
+
+def run_model_inference(model_checkpoint: str,
+                        test_csv: pd.DataFrame,
+                        data_dir,
+                        model_name=None,
+                        batch_size=None,
+                        image_size=(512, 512),
+                        images_dir='test_images',
+                        tta=None,
+                        apply_softmax=True,
+                        workers=None) -> pd.DataFrame:
+    image_fnames = test_csv['id_code'].apply(lambda x: os.path.join(data_dir, images_dir, f'{x}.png'))
+    test_ds = RetinopathyDataset(image_fnames, None, get_test_aug(image_size))
+    return run_model_inference_via_dataset(model_checkpoint, test_ds,
+                                           model_name=model_name,
+                                           batch_size=batch_size,
+                                           tta=tta,
+                                           apply_softmax=apply_softmax,
+                                           workers=workers)
 
 
 def cls_predictions_to_submission(predictions) -> pd.DataFrame:

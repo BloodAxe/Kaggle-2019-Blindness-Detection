@@ -1,5 +1,8 @@
+import random
+
 import albumentations as A
 import cv2
+from albumentations.augmentations.functional import brightness_contrast_adjust
 
 
 def crop_black(image, tolerance=5):
@@ -22,9 +25,21 @@ def crop_black(image, tolerance=5):
     return image[y:y + h, x:x + w]
 
 
-def contrast_enchance(image, sigmaX=10):
+def unsharp_mask(image, sigmaX=10):
     image = cv2.addWeighted(image, 4, cv2.GaussianBlur(image, (0, 0), sigmaX), -4, 128)
     return image
+
+
+def clahe_preprocessing(image, clip_limit=4.0, tile_grid_size=(18, 18)):
+    image_norm = image.copy()
+
+    clahe = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=tile_grid_size)
+    image_norm[:, :, 0] = clahe.apply(image[:, :, 0])
+    image_norm[:, :, 1] = clahe.apply(image[:, :, 1])
+    image_norm[:, :, 2] = clahe.apply(image[:, :, 2])
+
+    # image_norm = cv2.addWeighted(image, 0.5, image_norm, 0.5, 0)
+    return image_norm
 
 
 class CropBlackRegions(A.ImageOnlyTransform):
@@ -37,6 +52,28 @@ class CropBlackRegions(A.ImageOnlyTransform):
 
     def get_transform_init_args_names(self):
         return ('tolerance',)
+
+
+class UnsharpMask(A.ImageOnlyTransform):
+    def __init__(self):
+        super().__init__(always_apply=True, p=1)
+
+    def apply(self, img, **params):
+        return unsharp_mask(img)
+
+    def get_transform_init_args_names(self):
+        return tuple()
+
+
+class ChannelIndependentCLAHE(A.ImageOnlyTransform):
+    def __init__(self):
+        super().__init__(always_apply=True, p=1)
+
+    def apply(self, img, **params):
+        return clahe_preprocessing(img)
+
+    def get_transform_init_args_names(self):
+        return tuple()
 
 
 class IndependentRandomBrightnessContrast(A.ImageOnlyTransform):
@@ -52,7 +89,7 @@ class IndependentRandomBrightnessContrast(A.ImageOnlyTransform):
         for ch in range(img.shape[2]):
             alpha = 1.0 + random.uniform(self.contrast_limit[0], self.contrast_limit[1])
             beta = 0.0 + random.uniform(self.brightness_limit[0], self.brightness_limit[1])
-            img[..., ch] = AF.brightness_contrast_adjust(img[..., ch], alpha, beta)
+            img[..., ch] = brightness_contrast_adjust(img[..., ch], alpha, beta)
 
         return img
 
