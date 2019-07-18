@@ -151,7 +151,7 @@ def main():
                                           use_aptos2019=True,
                                           use_aptos2015=not fast,
                                           use_idrid=not fast,
-                                          use_messidor=not fast,
+                                          use_messidor=False,
                                           image_size=image_size,
                                           augmentation=augmentations,
                                           target_dtype=int,
