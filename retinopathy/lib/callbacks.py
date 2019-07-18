@@ -298,8 +298,8 @@ class NegativeMiningCallback(Callback):
         else:
             y_pred = torch.argmax(y_pred, dim=1)
 
-        y_pred = to_numpy(y_pred)
-        y_true = to_numpy(y_true)
+        y_pred = to_numpy(y_pred).astype(int)
+        y_true = to_numpy(y_true).astype(int)
         negatives = y_true != y_pred
         image_ids = np.array(state.input['image_id'])
 
