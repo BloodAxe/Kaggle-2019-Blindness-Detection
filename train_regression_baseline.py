@@ -18,7 +18,7 @@ from pytorch_toolbelt.utils.torch_utils import maybe_cuda, count_parameters, \
 
 from retinopathy.lib.callbacks import CappaScoreCallbackFromRegression, \
     AccuracyCallbackFromRegression, ConfusionMatrixCallbackFromRegression, \
-    MixupRegressionCallback
+    MixupRegressionCallback, NegativeMiningCallback
 from retinopathy.lib.dataset import get_class_names, \
     get_datasets, get_dataloaders
 from retinopathy.lib.factory import get_model, get_loss, get_optimizer, \
@@ -198,10 +198,8 @@ def main():
         print('\tFold           :', fold)
         print('\tLog dir        :', log_dir)
         print('\tAugmentations  :', augmentations)
-        print('\tTrain size     :', len(train_loader),
-              len(train_loader.dataset))
-        print('\tValid size     :', len(valid_loader),
-              len(valid_loader.dataset))
+        print('\tTrain size     :', len(train_loader), len(train_loader.dataset))
+        print('\tValid size     :', len(valid_loader), len(valid_loader.dataset))
         print('Model            :', model_name)
         print('\tParameters     :', count_parameters(model))
         print('\tImage size     :', image_size)
@@ -221,6 +219,7 @@ def main():
             CappaScoreCallbackFromRegression(),
             ConfusionMatrixCallbackFromRegression(
                 class_names=get_class_names()),
+            NegativeMiningCallback(from_regression=True)
         ]
 
         if mixup:

@@ -15,8 +15,8 @@
 #python train_classifier_baseline.py -m cls_resnext50_rms    -b 60 -e 50 -es 20 -lr 1e-4 -o Adam -a hard --fast --fp16 --balance
 #sleep 5
 
-python train_classifier_baseline.py -m cls_resnext50_maxavg -b 60 -e 50 -es 20 -l wing_loss -lr 1e-4 -o Adam -a hard --fast --fp16 --balance
-sleep 5
+#python train_classifier_baseline.py -m cls_resnext50_maxavg -b 60 -e 50 -es 20 -l wing_loss -lr 1e-4 -o Adam -a hard --fast --fp16 --balance
+#sleep 5
 
 python train_regression_baseline.py -m reg_resnext50_gap    -b 60 -e 50 -es 20 -l wing_loss -lr 1e-4 -o Adam -a hard --fast --fp16 --balance
 sleep 5
