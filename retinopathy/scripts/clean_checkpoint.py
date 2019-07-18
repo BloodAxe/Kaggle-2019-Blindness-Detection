@@ -1,3 +1,5 @@
+import argparse
+
 import torch
 
 
@@ -17,12 +19,13 @@ def clean_checkpoint(src_fname, dst_fname):
     torch.save(checkpoint, dst_fname)
 
 
-checkpoints = [
-    'runs/regression/reg_resnext101_multi/fold_3/Jul16_22_24_wing_loss_fp16_fast/checkpoints/reg_resnext101_multi_fold3.pth',
-    'runs/regression/reg_resnext101_multi/fold_2/Jul16_21_02_wing_loss_fp16_fast/checkpoints/reg_resnext101_multi_fold2.pth',
-    'runs/regression/reg_resnext101_multi/fold_1/Jul16_18_08_wing_loss_fp16_fast/checkpoints/reg_resnext101_multi_fold1.pth',
-    'runs/regression/reg_resnext101_multi/fold_0/Jul16_15_57_wing_loss_fp16_fast/checkpoints/reg_resnext101_multi_fold0.pth'
-]
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('input', nargs='+')
+    args = parser.parse_args()
+    for c in args.input:
+        clean_checkpoint(c, c)
 
-for c in checkpoints:
-    clean_checkpoint(c)
+
+if __name__ == '__main__':
+    main()
