@@ -116,6 +116,7 @@ def get_train_aug(image_size, augmentation=None, crop_black=True):
     return A.Compose([
         CropBlackRegions() if crop_black else A.NoOp(always_apply=True),
         A.LongestMaxSize(longest_size, interpolation=cv2.INTER_CUBIC),
+        ChannelIndependentCLAHE(),
 
         A.Compose([
             A.CoarseDropout(max_height=32, max_width=32, min_height=8, min_width=8),
@@ -143,6 +144,7 @@ def get_train_aug(image_size, augmentation=None, crop_black=True):
 
         A.OneOf([
             A.RandomBrightnessContrast(),
+            IndependentRandomBrightnessContrast(),
             A.RandomGamma(),
             A.HueSaturationValue(hue_shift_limit=5),
             A.CLAHE(),
@@ -170,6 +172,8 @@ def get_test_aug(image_size, crop_black=True):
     return A.Compose([
         CropBlackRegions() if crop_black else A.NoOp(always_apply=True),
         A.LongestMaxSize(longest_size, interpolation=cv2.INTER_CUBIC),
+        ChannelIndependentCLAHE(),
+
         A.PadIfNeeded(image_size[0], image_size[1],
                       border_mode=cv2.BORDER_CONSTANT, value=0),
         A.Normalize()

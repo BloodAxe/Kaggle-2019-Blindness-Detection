@@ -235,7 +235,7 @@ class GlobalMaxAvgPool2dHead(nn.Module):
 class HyperPoolHead(nn.Module):
     """Global average pooling classifier module"""
 
-    def __init__(self, features, num_classes, head_module=GlobalMaxAvgPool2dHead, head_block=nn.Linear, dropout=0.0):
+    def __init__(self, features, num_classes, head_module=GlobalMaxPool2dHead, head_block=nn.Linear, dropout=0.0):
         super().__init__()
 
         heads = []
