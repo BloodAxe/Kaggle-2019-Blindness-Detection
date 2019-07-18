@@ -12,8 +12,9 @@ from retinopathy.lib.inference import PickModelOutput, run_model_inference, cls_
     average_predictions, reg_predictions_to_submission
 from retinopathy.lib.models.heads import RMSPool2d, EncoderHeadModel, GlobalAvgPool2d, GlobalAvgPool2dHead, \
     GlobalWeightedAvgPool2dHead, GlobalWeightedMaxPool2dHead, GlobalMaxAvgPool2dHead, RMSPoolRegressionHead, \
-    GlobalMaxPool2dHead, ObjectContextPoolHead
+    GlobalMaxPool2dHead, ObjectContextPoolHead, FourReluBlock
 from retinopathy.lib.models.oc import ASP_OC_Module, BaseOC_Context_Module, SelfAttentionBlock2D, _SelfAttentionBlock
+from retinopathy.lib.models.ordinal import OrdinalEncoderHeadModel, LogisticCumulativeLink
 from retinopathy.lib.models.regression import regression_to_class
 from retinopathy.lib.models.stn import Flatten
 
@@ -93,6 +94,9 @@ def main():
         _SelfAttentionBlock,
         SelfAttentionBlock2D,
         BaseOC_Context_Module,
+        OrdinalEncoderHeadModel,
+        LogisticCumulativeLink,
+        FourReluBlock,
         ASP_OC_Module,
         Flatten,
         EncoderHeadModel,
