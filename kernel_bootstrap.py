@@ -157,11 +157,16 @@ class GlobalAvgPool2dHead(nn.Module):
 
     def __init__(self, features, num_classes, head_block=nn.Linear, dropout=0.0):
         super().__init__()
+        if isinstance(features, list):
+            features = features[-1]
+
+        self.features_size = features
         self.avg_pool = GlobalAvgPool2d()
         self.dropout = nn.Dropout(dropout)
         self.last_linear = head_block(features, num_classes)
 
-    def forward(self, x):
+    def forward(self, feature_maps):
+        x = feature_maps[-1]
         x = self.avg_pool(x)
         x = x.view(x.size(0), -1)
         features = x
@@ -177,6 +182,10 @@ class GlobalWeightedAvgPool2dHead(nn.Module):
 
     def __init__(self, features, num_classes, head_block=nn.Linear, dropout=0.0, **kwargs):
         super().__init__()
+        if isinstance(features, list):
+            features = features[-1]
+
+        self.features_size = features
         self.conv = nn.Conv2d(features, 1, kernel_size=1, bias=True)
         self.dropout = nn.Dropout(dropout)
         self.logits = head_block(features, num_classes)
@@ -189,7 +198,9 @@ class GlobalWeightedAvgPool2dHead(nn.Module):
     def norm(self, x: torch.Tensor):
         return x / x.sum(dim=[2, 3], keepdim=True)
 
-    def forward(self, x):
+    def forward(self, feature_maps):
+        x = feature_maps[-1]
+
         input_x = x
         x = self.fscore(x)
         x = self.norm(x)
@@ -208,6 +219,10 @@ class GlobalWeightedMaxPool2dHead(nn.Module):
 
     def __init__(self, features, num_classes, head_block=nn.Linear, dropout=0.0, **kwargs):
         super().__init__()
+        if isinstance(features, list):
+            features = features[-1]
+
+        self.features_size = features
         self.conv = nn.Conv2d(features, 1, kernel_size=1, bias=True)
         self.dropout = nn.Dropout(dropout)
         self.max_pool = GlobalMaxPool2d()
@@ -221,7 +236,9 @@ class GlobalWeightedMaxPool2dHead(nn.Module):
     def norm(self, x: torch.Tensor):
         return x / x.sum(dim=[2, 3], keepdim=True)
 
-    def forward(self, x):
+    def forward(self, feature_maps):
+        x = feature_maps[-1]
+
         input_x = x
         x = self.fscore(x)
         x = self.norm(x)
@@ -239,11 +256,16 @@ class GlobalMaxPool2dHead(nn.Module):
 
     def __init__(self, features, num_classes, head_block=nn.Linear, dropout=0.0):
         super().__init__()
+        if isinstance(features, list):
+            features = features[-1]
+
+        self.features_size = features
         self.max_pool = GlobalMaxPool2d()
         self.dropout = nn.Dropout(dropout)
         self.logits = head_block(features, num_classes)
 
-    def forward(self, x):
+    def forward(self, feature_maps):
+        x = feature_maps[-1]
         x = self.max_pool(x)
         x = x.view(x.size(0), -1)
         features = x
@@ -253,22 +275,27 @@ class GlobalMaxPool2dHead(nn.Module):
 
 
 class RMSPoolRegressionHead(nn.Module):
-    def __init__(self, input_features, output_classes, reduction=4, dropout=0.25):
+    def __init__(self, features, output_classes, reduction=4, dropout=0.25):
         super().__init__()
+        if isinstance(features, list):
+            features = features[-1]
+
+        self.features_size = features
         self.rms_pool = RMSPool2d()
-        self.bn = nn.BatchNorm1d(input_features)
+        self.bn = nn.BatchNorm1d(features)
         self.drop = nn.Dropout(dropout, inplace=True)
         self.output_classes = output_classes
 
-        bottleneck = input_features // reduction
+        bottleneck = features // reduction
 
-        self.fc1 = nn.Linear(input_features, bottleneck)
+        self.fc1 = nn.Linear(features, bottleneck)
         self.fc2 = nn.Linear(bottleneck, bottleneck)
         self.fc3 = nn.Linear(bottleneck, bottleneck)
         self.fc4 = nn.Linear(bottleneck, output_classes)
 
-    def forward(self, input):
-        x = self.rms_pool(input)
+    def forward(self, feature_maps):
+        x = feature_maps[-1]
+        x = self.rms_pool(x)
         features = x.view(x.size(0), -1)
 
         x = self.bn(features)
@@ -291,12 +318,17 @@ class GlobalMaxAvgPool2dHead(nn.Module):
 
     def __init__(self, features, num_classes, head_block=nn.Linear, dropout=0.0):
         super().__init__()
+        if isinstance(features, list):
+            features = features[-1]
+
+        self.features_size = features
         self.avg_pool = GlobalAvgPool2d()
         self.max_pool = GlobalMaxPool2d()
         self.dropout = nn.Dropout(dropout)
         self.last_linear = head_block(features, num_classes)
 
-    def forward(self, x):
+    def forward(self, feature_maps):
+        x = feature_maps[-1]
         x = self.avg_pool(x) + self.max_pool(x)
         x = x.view(x.size(0), -1)
         features = x
@@ -311,11 +343,16 @@ class ObjectContextPoolHead(nn.Module):
 
     def __init__(self, features, num_classes, oc_features, head_block=nn.Linear, dropout=0.0, **kwargs):
         super().__init__()
+        if isinstance(features, list):
+            features = features[-1]
+
+        self.features_size = oc_features
         self.oc = ASP_OC_Module(features, oc_features, dropout=dropout, dilations=(3, 5, 7))
         self.max_pool = GlobalMaxPool2d()
         self.logits = head_block(oc_features, num_classes)
 
-    def forward(self, x):
+    def forward(self, feature_maps):
+        x = feature_maps[-1]
         x = self.oc(x)
         x = self.max_pool(x)
         features = x.view(x.size(0), -1)
@@ -437,10 +474,13 @@ class OrdinalEncoderHeadModel(nn.Module):
         self.head = head
         self.link = LogisticCumulativeLink(num_classes,
                                            init_cutpoints='ordered')
+    @property
+    def features_size(self):
+        return self.head.features_size
 
     def forward(self, input):
-        features = self.encoder(input)[-1]
-        features, logits = self.head(features)
+        feature_maps = self.encoder(input)
+        features, logits = self.head(feature_maps)
         logits = self.link(logits)
         return {'features': features, 'logits': logits}
 
@@ -526,6 +566,33 @@ class FourReluBlock(nn.Module):
         return x
 
 
+class HyperPoolHead(nn.Module):
+    """Global average pooling classifier module"""
+
+    def __init__(self, features, num_classes, head_module=GlobalMaxAvgPool2dHead, head_block=nn.Linear, dropout=0.0):
+        super().__init__()
+
+        heads = []
+        for f in features:
+            head = head_module(f, num_classes, head_block=head_block, dropout=dropout)
+            heads.append(head)
+
+        self.heads = nn.ModuleList(heads)
+        self.features_size = sum(features)
+
+    def forward(self, feature_maps):
+        features = []
+        logits = []
+        for feature_map, head in zip(feature_maps, self.heads):
+            f, l = head([feature_map])
+            features.append(f)
+            logits.append(l)
+
+        features = torch.cat(features, dim=1)
+        logits = sum(logits)
+        return features, logits
+
+
 class ASP_OC_Module(nn.Module):
     def __init__(self, features, out_features=512, dilations=(12, 24, 36), dropout=0.1):
         super(ASP_OC_Module, self).__init__()
@@ -595,9 +662,13 @@ class EncoderHeadModel(nn.Module):
         self.encoder = encoder
         self.head = head
 
+    @property
+    def features_size(self):
+        return self.head.features_size
+
     def forward(self, input):
-        features = self.encoder(input)[-1]
-        features, logits = self.head(features)
+        feature_maps = self.encoder(input)
+        features, logits = self.head(feature_maps)
 
         if logits.size(1) == 1:
             logits = logits.squeeze(1)
@@ -637,6 +708,29 @@ class CropBlackRegions(A.ImageOnlyTransform):
         return ('tolerance',)
 
 
+def clahe_preprocessing(image, clip_limit=4.0, tile_grid_size=(18, 18)):
+    image_norm = image.copy()
+
+    clahe = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=tile_grid_size)
+    image_norm[:, :, 0] = clahe.apply(image[:, :, 0])
+    image_norm[:, :, 1] = clahe.apply(image[:, :, 1])
+    image_norm[:, :, 2] = clahe.apply(image[:, :, 2])
+
+    # image_norm = cv2.addWeighted(image, 0.5, image_norm, 0.5, 0)
+    return image_norm
+
+
+class ChannelIndependentCLAHE(A.ImageOnlyTransform):
+    def __init__(self):
+        super().__init__(always_apply=True, p=1)
+
+    def apply(self, img, **params):
+        return clahe_preprocessing(img)
+
+    def get_transform_init_args_names(self):
+        return tuple()
+
+
 def get_model(model_name, num_classes, pretrained=True, dropout=0.25, **kwargs):
     kind, encoder_name, head_name = model_name.split('_')
 
@@ -647,7 +741,7 @@ def get_model(model_name, num_classes, pretrained=True, dropout=0.25, **kwargs):
         'resnext101': SEResNeXt101Encoder,
     }
 
-    encoder = ENCODERS[encoder_name](pretrained=pretrained)
+    encoder = ENCODERS[encoder_name](layers=[1, 2, 3, 4], pretrained=pretrained)
 
     HEADS = {
         'gap': GlobalAvgPool2dHead,
@@ -656,7 +750,8 @@ def get_model(model_name, num_classes, pretrained=True, dropout=0.25, **kwargs):
         'gwmp': GlobalWeightedMaxPool2dHead,
         'ocp': partial(ObjectContextPoolHead, oc_features=encoder.output_filters[-1] // 4),
         'rms': RMSPoolRegressionHead,
-        'maxavg': GlobalMaxAvgPool2dHead
+        'maxavg': GlobalMaxAvgPool2dHead,
+        'hyp': HyperPoolHead,
     }
 
     MODELS = {
@@ -675,7 +770,7 @@ def get_model(model_name, num_classes, pretrained=True, dropout=0.25, **kwargs):
     if kind == 'reg' and head_name != 'rms':
         head_args['head_block'] = partial(FourReluBlock, dropout=dropout)
 
-    head = HEADS[head_name](encoder.output_filters[-1], num_classes, **head_args)
+    head = HEADS[head_name](encoder.output_filters, num_classes, **head_args)
     model = MODELS[kind](encoder, head)
     return model
 
@@ -685,6 +780,8 @@ def get_test_aug(image_size, crop_black=True):
     return A.Compose([
         CropBlackRegions() if crop_black else A.NoOp(always_apply=True),
         A.LongestMaxSize(longest_size, interpolation=cv2.INTER_CUBIC),
+        ChannelIndependentCLAHE(),
+
         A.PadIfNeeded(image_size[0], image_size[1],
                       border_mode=cv2.BORDER_CONSTANT, value=0),
         A.Normalize()
@@ -700,16 +797,13 @@ class PickModelOutput(nn.Module):
         return input[self.target_key]
 
 
-def run_model_inference(model_checkpoint: str,
-                        test_csv: pd.DataFrame,
-                        data_dir,
-                        model_name=None,
-                        batch_size=None,
-                        image_size=(512, 512),
-                        images_dir='test_images',
-                        tta=None,
-                        apply_softmax=True,
-                        workers=None) -> pd.DataFrame:
+def run_model_inference_via_dataset(model_checkpoint: str,
+                                    dataset: RetinopathyDataset,
+                                    model_name=None,
+                                    batch_size=None,
+                                    tta=None,
+                                    apply_softmax=True,
+                                    workers=None) -> pd.DataFrame:
     if workers is None:
         workers = multiprocessing.cpu_count()
 
@@ -744,9 +838,7 @@ def run_model_inference(model_checkpoint: str,
     with torch.no_grad():
         model = model.eval().cuda()
 
-        image_fnames = test_csv['id_code'].apply(lambda x: os.path.join(data_dir, images_dir, f'{x}.png'))
-        test_ds = RetinopathyDataset(image_fnames, None, get_test_aug(image_size))
-        data_loader = DataLoader(test_ds, batch_size,
+        data_loader = DataLoader(dataset, batch_size,
                                  pin_memory=True,
                                  num_workers=workers)
 
@@ -765,6 +857,26 @@ def run_model_inference(model_checkpoint: str,
 
     del model, data_loader
     return predictions
+
+
+def run_model_inference(model_checkpoint: str,
+                        test_csv: pd.DataFrame,
+                        data_dir,
+                        model_name=None,
+                        batch_size=None,
+                        image_size=(512, 512),
+                        images_dir='test_images',
+                        tta=None,
+                        apply_softmax=True,
+                        workers=None) -> pd.DataFrame:
+    image_fnames = test_csv['id_code'].apply(lambda x: os.path.join(data_dir, images_dir, f'{x}.png'))
+    test_ds = RetinopathyDataset(image_fnames, None, get_test_aug(image_size))
+    return run_model_inference_via_dataset(model_checkpoint, test_ds,
+                                           model_name=model_name,
+                                           batch_size=batch_size,
+                                           tta=tta,
+                                           apply_softmax=apply_softmax,
+                                           workers=workers)
 
 
 def average_predictions(predictions):
