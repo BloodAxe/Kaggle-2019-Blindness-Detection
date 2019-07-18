@@ -1,3 +1,5 @@
+import argparse
+
 import torch
 
 
@@ -15,3 +17,15 @@ def clean_checkpoint(src_fname, dst_fname):
             del checkpoint[key]
 
     torch.save(checkpoint, dst_fname)
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('input', nargs='+')
+    args = parser.parse_args()
+    for c in args.input:
+        clean_checkpoint(c, c)
+
+
+if __name__ == '__main__':
+    main()
