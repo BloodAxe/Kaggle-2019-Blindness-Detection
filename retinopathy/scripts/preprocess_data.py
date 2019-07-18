@@ -43,7 +43,7 @@ def main():
     # convert_dir('data/idrid/test_images', 'data/idrid/test_images_768')
 
     convert_dir('data/messidor/train_images', 'data/messidor/train_images_768')
-    convert_dir('data/messidor/test_images', 'data/messidor/test_images_768')
+    # convert_dir('data/messidor/test_images', 'data/messidor/test_images_768')
 
 
 if __name__ == '__main__':

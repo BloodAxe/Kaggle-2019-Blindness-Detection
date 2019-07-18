@@ -1,5 +1,6 @@
 import torch
 import numpy as np
+
 #
 # checkpoints = [
 #     'runs/classification/cls_resnet18/fold_0/Jul08_14_51_ce/checkpoints/fold0_best.pth',
@@ -16,10 +17,10 @@ import numpy as np
 # ]
 
 checkpoints = [
-    'runs/regression/reg_resnext101_multi/fold_3/Jul16_22_24_wing_loss_fp16_fast/checkpoints/best.pth',
-    'runs/regression/reg_resnext101_multi/fold_2/Jul16_21_02_wing_loss_fp16_fast/checkpoints/best.pth',
-    'runs/regression/reg_resnext101_multi/fold_1/Jul16_18_08_wing_loss_fp16_fast/checkpoints/best.pth',
-    'runs/regression/reg_resnext101_multi/fold_0/Jul16_15_57_wing_loss_fp16_fast/checkpoints/best.pth'
+    'runs/classification/cls_resnext50_gap/fold_3/Jul18_08_57_ce_fp16/checkpoints/best.pth',
+    'runs/classification/cls_resnext50_gap/fold_2/Jul18_03_48_ce_fp16/checkpoints/best.pth',
+    'runs/classification/cls_resnext50_gap/fold_1/Jul18_00_54_ce_fp16/checkpoints/best.pth',
+    'runs/classification/cls_resnext50_gap/fold_0/Jul17_22_37_ce_fp16/checkpoints/best.pth'
 ]
 cv = []
 

@@ -141,8 +141,8 @@ def main():
                 print('Failed to restore optimizer state from checkpoint', e)
 
         train_ds, valid_ds = get_datasets(data_dir=data_dir,
-                                          use_aptos2015=not fast,
                                           use_aptos2019=True,
+                                          use_aptos2015=not fast,
                                           use_idrid=not fast,
                                           use_messidor=not fast,
                                           image_size=image_size,

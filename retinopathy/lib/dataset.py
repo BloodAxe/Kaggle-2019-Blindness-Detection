@@ -84,7 +84,7 @@ class RetinopathyDataset(Dataset):
         return data
 
 
-def get_aptos2019(data_dir='data',
+def get_aptos2019(data_dir,
                   random_state=42,
                   fold=None,
                   folds=4):
@@ -116,7 +116,7 @@ def get_aptos2019(data_dir='data',
     return train_x, valid_x, train_y, valid_y
 
 
-def get_aptos2015(dataset_dir='data',
+def get_aptos2015(dataset_dir,
                   random_state=42,
                   fold=None,
                   folds=4):
@@ -155,11 +155,10 @@ def get_aptos2015(dataset_dir='data',
     return train_x, valid_x, train_y, valid_y
 
 
-def get_idrid(dataset_dir='data',
+def get_idrid(dataset_dir,
               random_state=42,
               fold=None,
               folds=4):
-    dataset_dir = os.path.join(dataset_dir, 'idrid')
     idrid_train = pd.read_csv(os.path.join(dataset_dir, 'train_labels.csv'))
     idrid_train['image_path'] = idrid_train['id_code'].apply(lambda x: os.path.join(dataset_dir, 'train_images_768', f'{x}.png'))
 
@@ -195,11 +194,10 @@ def get_idrid(dataset_dir='data',
     return train_x, valid_x, train_y, valid_y
 
 
-def get_messidor(dataset_dir='data',
+def get_messidor(dataset_dir,
                  random_state=42,
                  fold=None,
                  folds=4):
-    dataset_dir = os.path.join(dataset_dir, 'messidor')
     messidor_train = pd.read_csv(os.path.join(dataset_dir, 'train_labels.csv'))
     messidor_train['image_path'] = messidor_train['id_code'].apply(lambda x: os.path.join(dataset_dir, 'train_images_768', f'{x}.png'))
 

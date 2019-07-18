@@ -231,9 +231,6 @@ class RMSPoolRegressionHead(nn.Module):
         x = F.leaky_relu(x, inplace=True)
 
         logits = self.fc4(x)
-        if self.output_classes == 1:
-            logits = logits.squeeze(1)
-
         return features, logits
 
 
@@ -252,4 +249,8 @@ class EncoderHeadModel(nn.Module):
     def forward(self, input):
         features = self.encoder(input)[-1]
         features, logits = self.head(features)
+
+        if logits.size(1) == 1:
+            logits = logits.squeeze(1)
+
         return {'features': features, 'logits': logits}

@@ -142,8 +142,8 @@ def main():
                 print('Failed to restore optimizer state from checkpoint', e)
 
         train_ds, valid_ds = get_datasets(data_dir=data_dir,
-                                          use_aptos2015=not fast,
                                           use_aptos2019=True,
+                                          use_aptos2015=not fast,
                                           use_idrid=not fast,
                                           use_messidor=not fast,
                                           image_size=image_size,
@@ -197,10 +197,8 @@ def main():
         print('\tFold           :', fold)
         print('\tLog dir        :', log_dir)
         print('\tAugmentations  :', augmentations)
-        print('\tTrain size     :', len(train_loader),
-              len(train_loader.dataset))
-        print('\tValid size     :', len(valid_loader),
-              len(valid_loader.dataset))
+        print('\tTrain size     :', len(train_loader), len(train_loader.dataset))
+        print('\tValid size     :', len(valid_loader), len(valid_loader.dataset))
         print('Model            :', model_name)
         print('\tParameters     :', count_parameters(model))
         print('\tImage size     :', image_size)
