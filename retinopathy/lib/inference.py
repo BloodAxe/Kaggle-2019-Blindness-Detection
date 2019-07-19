@@ -123,11 +123,20 @@ def reg_predictions_to_submission(predictions) -> pd.DataFrame:
     return predictions
 
 
-def average_predictions(predictions):
-    accumulator = np.zeros_like(predictions[0]['diagnosis'].values)
-    for p in predictions:
-        accumulator += p['diagnosis']
-    accumulator /= len(predictions)
+def average_predictions(predictions, method='mean'):
+    if method == 'mean':
+        accumulator = np.zeros_like(predictions[0]['diagnosis'].values)
+        for p in predictions:
+            accumulator += p['diagnosis']
+        accumulator /= len(predictions)
+    elif method == 'geom':
+        accumulator = np.ones_like(predictions[0]['diagnosis'].values).astype(np.float32)
+        for p in predictions:
+            accumulator *= p['diagnosis'].values
+        accumulator = np.power(accumulator, 1. / len(predictions))
+    else:
+        raise KeyError(method)
+
     result = predictions[0].copy()
     result['diagnosis'] = accumulator
     return result

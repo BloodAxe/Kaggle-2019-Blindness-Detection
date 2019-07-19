@@ -1,7 +1,8 @@
-from retinopathy.lib.factory import get_model
 from catalyst.contrib import registry
+
+from retinopathy.lib.factory import get_model
 
 
 @registry.Model
-def reg_resnet18(**kwargs):
-    return get_model('reg_resnet18', num_classes=1, **kwargs)
+def reg_resnet50_rms(**kwargs):
+    return get_model('reg_resnet50_rms', num_classes=5, **kwargs)

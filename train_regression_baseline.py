@@ -38,6 +38,7 @@ def main():
     parser.add_argument('--use-idrid', action='store_true')
     parser.add_argument('--use-messidor', action='store_true')
     parser.add_argument('--use-aptos2015', action='store_true')
+    parser.add_argument('--use-aptos2019', action='store_true')
     parser.add_argument('-v', '--verbose', action='store_true')
     parser.add_argument('-acc', '--accumulation-steps', type=int, default=1, help='Number of batches to process')
     parser.add_argument('-dd', '--data-dir', type=str, default='data', help='Data directory')
@@ -60,7 +61,9 @@ def main():
     parser.add_argument('--fp16', action='store_true')
     parser.add_argument('-s', '--scheduler', default='multistep', type=str, help='')
     parser.add_argument('-wd', '--weight-decay', default=0, type=float, help='L2 weight decay')
-
+    parser.add_argument('-w', '--warmup', default=0, type=int,
+                        help='Number of warmup epochs with 0.1 of the initial LR and frozed encoder')
+    # '--use-messidor --use-aptos2019 --use-idrid'
     args = parser.parse_args()
 
     data_dir = args.data_dir
@@ -88,6 +91,10 @@ def main():
     use_idrid = args.use_idrid
     use_messidor = args.use_messidor
     use_aptos2015 = args.use_aptos2015
+    use_aptos2019 = args.use_aptos2019
+    warmup = args.warmup
+
+    assert use_aptos2015 or use_aptos2019 or use_idrid or use_messidor
 
     current_time = datetime.now().strftime('%b%d_%H_%M')
 
@@ -96,6 +103,8 @@ def main():
 
     for fold in folds:
         checkpoint_prefix = f'{model_name}_{get_random_name()}_fold{fold}'
+        if use_aptos2019:
+            checkpoint_prefix += '_aptos2019'
         if use_aptos2015:
             checkpoint_prefix += '_aptos2015'
         if use_messidor:
@@ -142,38 +151,23 @@ def main():
                   checkpoint['epoch_metrics']['valid']['accuracy'],
                   'loss:', checkpoint['epoch_metrics']['valid']['loss'])
 
-        if freeze_encoder:
-            set_trainable(model.encoder, trainable=False, freeze_bn=True)
-
-        criterion = get_loss(criterion_name)
-        parameters = get_optimizable_parameters(model)
-        optimizer = get_optimizer(optimizer_name, parameters,
-                                  learning_rate=learning_rate,
-                                  weight_decay=weight_decay)
-
-        if checkpoint is not None:
-            try:
-                unpack_checkpoint(checkpoint, optimizer=optimizer)
-                print('Restored optimizer state from checkpoint')
-            except Exception as e:
-                print('Failed to restore optimizer state from checkpoint', e)
-
-        train_ds, valid_ds = get_datasets(data_dir=data_dir,
-                                          use_aptos2019=True,
-                                          use_aptos2015=use_aptos2015,
-                                          use_idrid=use_idrid,
-                                          use_messidor=use_messidor,
-                                          image_size=image_size,
-                                          augmentation=augmentations,
-                                          target_dtype=np.float32,
-                                          fold=fold,
-                                          folds=4)
+        train_ds, valid_ds, train_sizes = get_datasets(data_dir=data_dir,
+                                                       use_aptos2019=use_aptos2019,
+                                                       use_aptos2015=use_aptos2015,
+                                                       use_idrid=use_idrid,
+                                                       use_messidor=use_messidor,
+                                                       image_size=image_size,
+                                                       augmentation=augmentations,
+                                                       target_dtype=np.float32,
+                                                       fold=fold,
+                                                       folds=4)
 
         not_using_extra_data = not (use_idrid and use_messidor and use_aptos2015)
         train_loader, valid_loader = get_dataloaders(train_ds, valid_ds,
                                                      batch_size=batch_size,
                                                      num_workers=num_workers,
                                                      oversample_factor=2 if not_using_extra_data else 1,
+                                                     train_sizes=train_sizes,
                                                      balance=balance)
 
         if use_swa:
@@ -191,11 +185,6 @@ def main():
         log_dir = os.path.join('runs', prefix)
         os.makedirs(log_dir, exist_ok=False)
 
-        scheduler = get_scheduler(scheduler_name, optimizer,
-                                  lr=learning_rate,
-                                  num_epochs=num_epochs,
-                                  batches_in_epoch=len(train_loader))
-
         print('Datasets         :', data_dir)
         print('  Train size     :', len(train_loader), len(train_loader.dataset))
         print('  Valid size     :', len(valid_loader), len(valid_loader.dataset))
@@ -208,7 +197,8 @@ def main():
         print('  Fast mode      :', fast)
         print('  Mixup          :', mixup)
         print('  Balance        :', balance)
-        print('  Epochs         :', num_epochs)
+        print('  Warmup epoch   :', warmup)
+        print('  Train epochs   :', num_epochs)
         print('  Workers        :', num_workers)
         print('  Fold           :', fold)
         print('  Log dir        :', log_dir)
@@ -237,6 +227,32 @@ def main():
             NegativeMiningCallback(from_regression=True)
         ]
 
+        criterion = get_loss(criterion_name)
+        runner = SupervisedRunner(input_key='image')
+        # Pretrain/warmup
+        if warmup:
+            set_trainable(model.encoder, False, False)
+            optimizer = get_optimizer(optimizer_name, get_optimizable_parameters(model),
+                                      learning_rate=learning_rate * 0.1,
+                                      weight_decay=weight_decay)
+            runner.train(
+                fp16=fp16,
+                model=model,
+                criterion=criterion,
+                optimizer=optimizer,
+                scheduler=None,
+                callbacks=callbacks,
+                loaders=loaders,
+                logdir=os.path.join(log_dir, 'warmup'),
+                num_epochs=warmup,
+                verbose=verbose,
+                main_metric='kappa_score',
+                minimize_metric=False,
+                checkpoint_data={"cmd_args": vars(args)}
+            )
+
+            del optimizer
+
         if mixup:
             callbacks += [MixupRegressionCallback(fields=['image'])]
 
@@ -250,7 +266,27 @@ def main():
                 ShowPolarBatchesCallback(visualization_fn, metric='accuracy',
                                          minimize=False)]
 
-        runner = SupervisedRunner(input_key='image')
+        # Main train
+        set_trainable(model.encoder, True, False)
+        if freeze_encoder:
+            set_trainable(model.encoder, trainable=False, freeze_bn=False)
+
+        optimizer = get_optimizer(optimizer_name, get_optimizable_parameters(model),
+                                  learning_rate=learning_rate,
+                                  weight_decay=weight_decay)
+
+        scheduler = get_scheduler(scheduler_name, optimizer,
+                                  lr=learning_rate,
+                                  num_epochs=num_epochs,
+                                  batches_in_epoch=len(train_loader))
+
+        if checkpoint is not None:
+            try:
+                unpack_checkpoint(checkpoint, optimizer=optimizer)
+                print('Restored optimizer state from checkpoint')
+            except Exception as e:
+                print('Failed to restore optimizer state from checkpoint', e)
+
         runner.train(
             fp16=fp16,
             model=model,
