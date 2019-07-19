@@ -29,7 +29,7 @@ def get_model(model_name, num_classes, pretrained=True, dropout=0.25, **kwargs):
         'resnext101': SEResNeXt101Encoder,
     }
 
-    encoder = ENCODERS[encoder_name](layers=[1, 2, 3, 4], pretrained=pretrained)
+    encoder = ENCODERS[encoder_name](layers=[2, 3, 4], pretrained=pretrained)
 
     HEADS = {
         'gap': GlobalAvgPool2dHead,
