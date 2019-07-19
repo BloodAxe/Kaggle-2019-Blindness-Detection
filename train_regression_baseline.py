@@ -61,7 +61,7 @@ def main():
     parser.add_argument('--fp16', action='store_true')
     parser.add_argument('-s', '--scheduler', default='multistep', type=str, help='')
     parser.add_argument('-wd', '--weight-decay', default=0, type=float, help='L2 weight decay')
-    parser.add_argument('-w', '--warmup', default=0, type=int,
+    parser.add_argument('--warmup', default=0, type=int,
                         help='Number of warmup epochs with 0.1 of the initial LR and frozed encoder')
     # '--use-messidor --use-aptos2019 --use-idrid'
     args = parser.parse_args()
