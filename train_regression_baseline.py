@@ -96,6 +96,12 @@ def main():
 
     for fold in folds:
         checkpoint_prefix = f'{model_name}_{get_random_name()}_fold{fold}'
+        if use_aptos2015:
+            checkpoint_prefix += '_aptos2015'
+        if use_messidor:
+            checkpoint_prefix += '_messidor'
+        if use_idrid:
+            checkpoint_prefix += '_idrid'
 
         set_manual_seed(args.seed)
         model = maybe_cuda(
@@ -163,10 +169,11 @@ def main():
                                           fold=fold,
                                           folds=4)
 
+        not_using_extra_data = not (use_idrid and use_messidor and use_aptos2015)
         train_loader, valid_loader = get_dataloaders(train_ds, valid_ds,
                                                      batch_size=batch_size,
                                                      num_workers=num_workers,
-                                                     oversample_factor=2 if fast else 1,
+                                                     oversample_factor=2 if not_using_extra_data else 1,
                                                      balance=balance)
 
         if use_swa:
@@ -179,13 +186,7 @@ def main():
         loaders["train"] = train_loader
         loaders["valid"] = valid_loader
 
-        prefix = f'regression/{model_name}/fold_{fold}/{current_time}_{criterion_name}'
-
-        if fp16:
-            prefix += '_fp16'
-
-        if fast:
-            prefix += '_fast'
+        prefix = f'regression/{model_name}/{checkpoint_prefix}'
 
         log_dir = os.path.join('runs', prefix)
         os.makedirs(log_dir, exist_ok=False)

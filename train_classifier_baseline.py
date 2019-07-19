@@ -169,10 +169,11 @@ def main():
                                           fold=fold,
                                           folds=4)
 
+        not_using_extra_data = not (use_idrid and use_messidor and use_aptos2015)
         train_loader, valid_loader = get_dataloaders(train_ds, valid_ds,
                                                      batch_size=batch_size,
                                                      num_workers=num_workers,
-                                                     oversample_factor=2 if fast else 1,
+                                                     oversample_factor=2 if not_using_extra_data else 1,
                                                      balance=balance)
 
         if use_swa:
