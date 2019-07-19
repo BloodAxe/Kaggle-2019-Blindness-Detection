@@ -321,7 +321,8 @@ def get_dataloaders(train_ds, valid_ds,
             dataset_balancing_term = np.array(dataset_balancing_term)
             weights = weights * dataset_balancing_term
 
-        sampler = WeightedRandomSampler(weights, int(len(train_ds) * oversample_factor))
+        # If we do balancing, let's go for fixed number of batches
+        sampler = WeightedRandomSampler(weights, batch_size * 256)
 
     if fast:
         weights = np.ones(len(train_ds))
