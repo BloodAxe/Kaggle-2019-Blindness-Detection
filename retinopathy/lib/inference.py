@@ -67,6 +67,8 @@ def run_model_inference_via_dataset(model_checkpoint: str,
 
     with torch.no_grad():
         model = model.eval().cuda()
+        if torch.cuda.device_count() > 0:
+            model = nn.DataParallel(model)
 
         data_loader = DataLoader(dataset, batch_size,
                                  pin_memory=True,
@@ -85,7 +87,7 @@ def run_model_inference_via_dataset(model_checkpoint: str,
 
         predictions = pd.DataFrame.from_dict({'id_code': test_ids, 'diagnosis': test_preds})
 
-    del model, data_loader
+    del data_loader, model
     return predictions
 
 
