@@ -11,6 +11,7 @@ from sklearn.metrics import cohen_kappa_score, confusion_matrix
 from torch import nn
 from torch.nn import Module
 import pandas as pd
+from typing import List
 
 from retinopathy.lib.models.ordinal import LogisticCumulativeLink
 from retinopathy.lib.models.regression import regression_to_class
@@ -202,14 +203,53 @@ class MixupRegressionCallback(MixupCallback):
         You may not use them together.
     """
 
+    def __init__(self, fields: List[str] = ("features",), alpha=1.5, on_train_only=True, **kwargs):
+        """
+        Note we set alpha 1.5 to enforce mixing
+        :param fields:
+        :param alpha:
+        :param on_train_only:
+        :param kwargs:
+        """
+        super().__init__(fields, alpha, on_train_only, **kwargs)
+
+    def on_batch_start(self, state: RunnerState):
+        if not self.is_needed:
+            return
+
+        if self.alpha > 0:
+            self.lam = np.random.beta(self.alpha, self.alpha)
+        else:
+            self.lam = 1
+
+        if self.lam < 0.3 or self.lam > 0.7:
+            # Do not apply mixup on small lambdas
+            return
+
+        self.index = torch.randperm(state.input[self.fields[0]].shape[0])
+        self.index.to(state.device)
+
+        for f in self.fields:
+            state.input[f] = self.lam * state.input[f] + \
+                             (1 - self.lam) * state.input[f][self.index]
+
     def _compute_loss(self, state: RunnerState, criterion):
         if not self.is_needed:
             return super()._compute_loss(state, criterion)
 
+        if self.lam < 0.3 or self.lam > 0.7:
+            # Do not apply mixup on small lambdas
+            return super()._compute_loss(state, criterion)
+
         pred = state.output[self.output_key]
-        y_a = state.input[self.input_key]
-        y_b = state.input[self.input_key][self.index]
-        y = y_a * self.lam + y_b * (1 - self.lam)
+        y_a: torch.Tensor = state.input[self.input_key]
+        y_b: torch.Tensor = state.input[self.input_key][self.index]
+        # y = y_a * self.lam + y_b * (1 - self.lam)
+
+        # In case of regression, if we do mixup of images of DR of different stages, we assign the maximum stage as our target
+        mask = y_b < y_a
+        y = y_a.masked_scatter(mask, y_b[mask])
+
         loss = criterion(pred, y)
         return loss
 
@@ -248,8 +288,6 @@ class AscensionCallback(Callback):
 
     def on_batch_end(self, state: RunnerState):
         self.net.apply(self.clip)
-
-
 
 
 class NegativeMiningCallback(Callback):
