@@ -188,7 +188,7 @@ def main():
         print('Datasets         :', data_dir)
         print('  Train size     :', len(train_loader), len(train_loader.dataset))
         print('  Valid size     :', len(valid_loader), len(valid_loader.dataset))
-        print('  Aptos 2019     :', True)
+        print('  Aptos 2019     :', use_aptos2019)
         print('  Aptos 2015     :', use_aptos2015)
         print('  IDRID          :', use_idrid)
         print('  Messidor       :', use_messidor)
