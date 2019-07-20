@@ -1,3 +1,6 @@
+from sklearn.utils import compute_sample_weight, compute_class_weight
+from torch.utils.data import WeightedRandomSampler, DataLoader
+
 from retinopathy.lib.dataset import get_datasets
 
 
@@ -127,3 +130,51 @@ def test_all():
     num_valid_samples = len(valid_ds)
     assert num_train_samples > num_valid_samples
     print(num_train_samples, num_valid_samples)
+
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
+
+def test_balancing():
+    train = pd.read_csv('aptos2015_train.csv')
+    test = pd.read_csv('aptos2015_test.csv')
+    train = pd.concat((train, test), sort=False)
+
+    dataset_size = len(train)
+    print(dataset_size)
+
+    x = np.arange(dataset_size)
+    y = train['level'].values
+
+    weights = compute_sample_weight('balanced', y)
+    weights = np.sqrt(weights)
+    # class_weight = compute_class_weight('balanced', np.arange(5), y)
+    # weights = class_weight[y]
+
+    sampler = WeightedRandomSampler(weights, dataset_size)
+    loader = DataLoader(x, sampler=sampler, batch_size=60)
+    hits = np.zeros(dataset_size)
+
+    plt.figure()
+    plt.hist(y)
+    plt.title('Original distribution')
+    plt.show()
+
+    labels = []
+    for batch in loader:
+        for image in batch:
+            label = y[image]
+            labels.append(label)
+            hits[image] += 1
+
+    plt.figure()
+    plt.hist(labels)
+    plt.title('Balanced distribution')
+    plt.show()
+
+    plt.figure()
+    plt.hist(hits)
+    plt.title('Hits')
+    plt.show()
