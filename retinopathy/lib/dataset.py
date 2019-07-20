@@ -315,8 +315,9 @@ def get_dataloaders(train_ds, valid_ds,
         if train_sizes is not None:
             dataset_balancing_term = []
 
-            for size in train_sizes:
-                dataset_balancing_term.extend([1. / size] * size)
+            for subset_size in train_sizes:
+                full_dataset_size = float(sum(train_sizes))
+                dataset_balancing_term.extend([full_dataset_size / subset_size] * subset_size)
 
             dataset_balancing_term = np.array(dataset_balancing_term)
             weights = weights * dataset_balancing_term
