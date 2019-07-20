@@ -10,6 +10,7 @@ from pytorch_toolbelt.utils.visualization import plot_confusion_matrix, render_f
 from sklearn.metrics import cohen_kappa_score, confusion_matrix
 from torch import nn
 from torch.nn import Module
+import pandas as pd
 
 from retinopathy.lib.models.ordinal import LogisticCumulativeLink
 from retinopathy.lib.models.regression import regression_to_class
@@ -249,7 +250,6 @@ class AscensionCallback(Callback):
         self.net.apply(self.clip)
 
 
-import pandas as pd
 
 
 class NegativeMiningCallback(Callback):
@@ -306,3 +306,16 @@ class NegativeMiningCallback(Callback):
         self.image_ids.extend(image_ids[negatives])
         self.y_preds.extend(y_pred[negatives])
         self.y_trues.extend(y_true[negatives])
+
+
+class WeightDecayCallback(Callback):
+    def __init__(self, optimizer, start_wd=0, epoch_step=5e-6):
+        self.optimizer = optimizer
+        self.start_wd = start_wd
+        self.epoch_step = epoch_step
+        self.current_wd = start_wd
+
+    def on_stage_end(self, state: RunnerState):
+        self.current_wd += self.epoch_step
+        for pg in self.optimizer.param_groups:
+            pg["weight_decay"] = self.current_wd

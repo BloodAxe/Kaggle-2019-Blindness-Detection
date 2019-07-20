@@ -5,18 +5,18 @@ import inspect
 from pytorch_toolbelt.utils.fs import read_rgb_image, id_from_fname
 from pytorch_toolbelt.utils.torch_utils import tensor_from_rgb_image
 
-from retinopathy.lib.augmentations import CropBlackRegions, get_test_aug, crop_black
+from retinopathy.lib.augmentations import CropBlackRegions, get_test_aug, crop_black, ChannelIndependentCLAHE, \
+    clahe_preprocessing
 from retinopathy.lib.dataset import RetinopathyDataset, get_class_names
 from retinopathy.lib.factory import get_model
 from retinopathy.lib.inference import PickModelOutput, run_model_inference, cls_predictions_to_submission, \
-    average_predictions, reg_predictions_to_submission
+    average_predictions, reg_predictions_to_submission, run_model_inference_via_dataset
 from retinopathy.lib.models.heads import RMSPool2d, EncoderHeadModel, GlobalAvgPool2d, GlobalAvgPool2dHead, \
     GlobalWeightedAvgPool2dHead, GlobalWeightedMaxPool2dHead, GlobalMaxAvgPool2dHead, RMSPoolRegressionHead, \
-    GlobalMaxPool2dHead, ObjectContextPoolHead, FourReluBlock
+    GlobalMaxPool2dHead, ObjectContextPoolHead, FourReluBlock, Flatten, HyperPoolHead
 from retinopathy.lib.models.oc import ASP_OC_Module, BaseOC_Context_Module, SelfAttentionBlock2D, _SelfAttentionBlock
 from retinopathy.lib.models.ordinal import OrdinalEncoderHeadModel, LogisticCumulativeLink
 from retinopathy.lib.models.regression import regression_to_class
-from retinopathy.lib.models.stn import Flatten
 
 
 def encode_archive(archive_name):
@@ -97,14 +97,18 @@ def main():
         OrdinalEncoderHeadModel,
         LogisticCumulativeLink,
         FourReluBlock,
+        HyperPoolHead,
         ASP_OC_Module,
         Flatten,
         EncoderHeadModel,
         crop_black,
         CropBlackRegions,
+        clahe_preprocessing,
+        ChannelIndependentCLAHE,
         get_model,
         get_test_aug,
         PickModelOutput,
+        run_model_inference_via_dataset,
         run_model_inference,
         average_predictions,
         cls_predictions_to_submission,

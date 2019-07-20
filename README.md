@@ -59,7 +59,16 @@ Using only one model **seresnext50**.
 | Baseline regression     | 0.9225 ± 0.0022 | 0.787      | SEResnext50       | No         | 2 folds |
 | Baseline regression     | 0.9176 ± 0.0080 | 0.763      | SEResnext101      | No         | 4 folds, Multi-pooling |
 | Baseline classification | 0.8055 ± 0.0065 | 0.714 (?1) | cls_resnext50_gap | Yes        | 4 folds |
+| Baseline regression     | 0.9234 ± 0.0035 | 0.791      | reg_resnext50_rms | No         | 4 folds |
 
 # References
 
 1. https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5961805/
+
+Train on Aptos 2019
+
+Validation on IDRID + MESSIDOR: 0.6325 / 0.6291
+messidor TTA None Mean 0.5497315432994327 std 0.020016714451918216 MeanAvg 0.5370538498582897
+idrid TTA None Mean 0.7221154799857236 std 0.02454628058174581 MeanAvg 0.7603479511540748
+aptos2019 TTA None Mean 0.9720265955567333 std 0.0024721825621897855 MeanAvg 0.9873314014864271
+aptos2015 TTA None Mean 0.471382231210149 std 0.02805589901308936 MeanAvg 0.4984512005316677

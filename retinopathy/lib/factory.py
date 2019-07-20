@@ -19,17 +19,25 @@ from retinopathy.lib.models.heads import GlobalAvgPool2dHead, GlobalMaxPool2dHea
 from retinopathy.lib.models.ordinal import OrdinalEncoderHeadModel
 
 
-def get_model(model_name, num_classes, pretrained=True, dropout=0.25, **kwargs):
+def get_model(model_name, num_classes, pretrained=True, dropout=0.0, **kwargs):
     kind, encoder_name, head_name = model_name.split('_')
 
     ENCODERS = {
         'resnet18': Resnet18Encoder,
+        'resnet34': Resnet34Encoder,
         'resnet50': Resnet50Encoder,
         'resnext50': SEResNeXt50Encoder,
         'resnext101': SEResNeXt101Encoder,
+        'efficientb0': EfficientNetB0Encoder,
+        'efficientb1': EfficientNetB1Encoder,
+        'efficientb2': EfficientNetB2Encoder,
+        'efficientb3': EfficientNetB3Encoder,
+        'efficientb4': EfficientNetB4Encoder,
+        'efficientb5': EfficientNetB5Encoder,
+        'efficientb6': EfficientNetB6Encoder
     }
 
-    encoder = ENCODERS[encoder_name](layers=[1, 2, 3, 4], pretrained=pretrained)
+    encoder = ENCODERS[encoder_name](pretrained=pretrained)
 
     HEADS = {
         'gap': GlobalAvgPool2dHead,
@@ -139,16 +147,10 @@ def get_scheduler(scheduler_name: str,
     if scheduler_name.lower() == 'multistep':
         return MultiStepLR(optimizer,
                            milestones=[
-                               # int(num_epochs * 0.1),
-                               # int(num_epochs * 0.2),
                                int(num_epochs * 0.3),
-                               int(num_epochs * 0.4),
-                               int(num_epochs * 0.5),
                                int(num_epochs * 0.6),
-                               int(num_epochs * 0.7),
-                               int(num_epochs * 0.8),
                                int(num_epochs * 0.9)],
-                           gamma=0.75)
+                           gamma=0.5)
 
     raise KeyError(scheduler_name)
 

@@ -121,10 +121,12 @@ def get_aptos2015(dataset_dir,
                   fold=None,
                   folds=4):
     aptos2015_train = pd.read_csv(os.path.join(dataset_dir, 'train_labels.csv'))
-    aptos2015_train['image_path'] = aptos2015_train['id_code'].apply(lambda x: os.path.join(dataset_dir, 'train_images_768', f'{x}.png'))
+    aptos2015_train['image_path'] = aptos2015_train['id_code'].apply(
+        lambda x: os.path.join(dataset_dir, 'train_images_768', f'{x}.png'))
 
     aptos2015_test = pd.read_csv(os.path.join(dataset_dir, 'test_labels.csv'))
-    aptos2015_test['image_path'] = aptos2015_test['id_code'].apply(lambda x: os.path.join(dataset_dir, 'test_images_768', f'{x}.png'))
+    aptos2015_test['image_path'] = aptos2015_test['id_code'].apply(
+        lambda x: os.path.join(dataset_dir, 'test_images_768', f'{x}.png'))
 
     aptos2015 = aptos2015_train.append(aptos2015_test, sort=True)
 
@@ -160,10 +162,12 @@ def get_idrid(dataset_dir,
               fold=None,
               folds=4):
     idrid_train = pd.read_csv(os.path.join(dataset_dir, 'train_labels.csv'))
-    idrid_train['image_path'] = idrid_train['id_code'].apply(lambda x: os.path.join(dataset_dir, 'train_images_768', f'{x}.png'))
+    idrid_train['image_path'] = idrid_train['id_code'].apply(
+        lambda x: os.path.join(dataset_dir, 'train_images_768', f'{x}.png'))
 
     idrid_test = pd.read_csv(os.path.join(dataset_dir, 'test_labels.csv'))
-    idrid_test['image_path'] = idrid_test['id_code'].apply(lambda x: os.path.join(dataset_dir, 'test_images_768', f'{x}.png'))
+    idrid_test['image_path'] = idrid_test['id_code'].apply(
+        lambda x: os.path.join(dataset_dir, 'test_images_768', f'{x}.png'))
 
     train_x, train_y = [], []
     valid_x, valid_y = [], []
@@ -199,7 +203,8 @@ def get_messidor(dataset_dir,
                  fold=None,
                  folds=4):
     messidor_train = pd.read_csv(os.path.join(dataset_dir, 'train_labels.csv'))
-    messidor_train['image_path'] = messidor_train['id_code'].apply(lambda x: os.path.join(dataset_dir, 'train_images_768', f'{x}.png'))
+    messidor_train['image_path'] = messidor_train['id_code'].apply(
+        lambda x: os.path.join(dataset_dir, 'train_images_768', f'{x}.png'))
 
     x = np.array(messidor_train['image_path'])
     y = np.array(messidor_train['diagnosis'], dtype=int)
@@ -241,7 +246,7 @@ def get_datasets(
         fold=None,
         folds=4):
     assert use_aptos2019 or use_aptos2015 or use_idrid or use_messidor
-
+    trainset_sizes = []
     train_x, train_y = [], []
     valid_x, valid_y = [], []
 
@@ -249,6 +254,7 @@ def get_datasets(
         dataset_dir = os.path.join(data_dir, 'aptos-2019')
         tx, vx, ty, vy = get_aptos2019(dataset_dir, random_state, fold, folds)
 
+        trainset_sizes.append(len(tx))
         train_x.extend(tx)
         train_y.extend(ty)
         valid_x.extend(vx)
@@ -258,6 +264,7 @@ def get_datasets(
         dataset_dir = os.path.join(data_dir, 'aptos-2015')
         tx, vx, ty, vy = get_aptos2015(dataset_dir, random_state, fold, folds)
 
+        trainset_sizes.append(len(tx))
         train_x.extend(tx)
         train_y.extend(ty)
         valid_x.extend(vx)
@@ -267,6 +274,7 @@ def get_datasets(
         dataset_dir = os.path.join(data_dir, 'idrid')
         tx, vx, ty, vy = get_idrid(dataset_dir, random_state, fold, folds)
 
+        trainset_sizes.append(len(tx))
         train_x.extend(tx)
         train_y.extend(ty)
         valid_x.extend(vx)
@@ -276,6 +284,7 @@ def get_datasets(
         dataset_dir = os.path.join(data_dir, 'messidor')
         tx, vx, ty, vy = get_messidor(dataset_dir, random_state, fold, folds)
 
+        trainset_sizes.append(len(tx))
         train_x.extend(tx)
         train_y.extend(ty)
         valid_x.extend(vx)
@@ -288,7 +297,7 @@ def get_datasets(
     valid_ds = RetinopathyDataset(valid_x, valid_y,
                                   transform=get_test_aug(image_size, crop_black=False),
                                   dtype=target_dtype)
-    return train_ds, valid_ds
+    return train_ds, valid_ds, trainset_sizes
 
 
 def get_dataloaders(train_ds, valid_ds,
@@ -296,11 +305,25 @@ def get_dataloaders(train_ds, valid_ds,
                     num_workers,
                     oversample_factor=1,
                     fast=False,
+                    train_sizes=None,
                     balance=False):
     sampler = None
+
     if balance:
         weights = compute_sample_weight('balanced', train_ds.targets)
-        sampler = WeightedRandomSampler(weights, int(len(train_ds) * oversample_factor))
+
+        if train_sizes is not None:
+            dataset_balancing_term = []
+
+            for subset_size in train_sizes:
+                full_dataset_size = float(sum(train_sizes))
+                dataset_balancing_term.extend([full_dataset_size / subset_size] * subset_size)
+
+            dataset_balancing_term = np.array(dataset_balancing_term)
+            weights = weights * dataset_balancing_term
+
+        # If we do balancing, let's go for fixed number of batches
+        sampler = WeightedRandomSampler(weights, batch_size * 256)
 
     if fast:
         weights = np.ones(len(train_ds))

@@ -1,36 +1,26 @@
 from collections import OrderedDict
+
 import torchvision
-from torchvision import transforms
 from catalyst.dl import ConfigExperiment
+
+from retinopathy.lib.augmentations import get_train_aug, get_test_aug
+from retinopathy.lib.dataset import get_datasets
 
 
 class Experiment(ConfigExperiment):
     @staticmethod
-    def get_transforms(stage: str = None, mode: str = None):
-        return transforms.Compose(
-            [
-                transforms.ToTensor(),
-                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
-            ]
-        )
+    def get_transforms(stage: str = None, image_size=(512, 512), augmentation='medium', mode: str = None):
+        if mode == 'train':
+            return get_train_aug(image_size=image_size, augmentation=augmentation, crop_black=False)
+
+        return get_test_aug(image_size=image_size, crop_black=False)
 
     def get_datasets(self, stage: str, **kwargs):
         datasets = OrderedDict()
 
-        trainset = torchvision.datasets.CIFAR10(
-            root="./data",
-            train=True,
-            download=True,
-            transform=Experiment.get_transforms(stage=stage, mode="train")
-        )
-        testset = torchvision.datasets.CIFAR10(
-            root="./data",
-            train=False,
-            download=True,
-            transform=Experiment.get_transforms(stage=stage, mode="valid")
-        )
+        train_ds, valid_ds = get_datasets()
 
-        datasets["train"] = trainset
-        datasets["valid"] = testset
+        datasets["train"] = train_ds
+        datasets["valid"] = valid_ds
 
         return datasets

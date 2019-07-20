@@ -235,27 +235,23 @@ class GlobalMaxAvgPool2dHead(nn.Module):
 class HyperPoolHead(nn.Module):
     """Global average pooling classifier module"""
 
-    def __init__(self, features, num_classes, head_module=GlobalMaxAvgPool2dHead, head_block=nn.Linear, dropout=0.0):
+    def __init__(self, features, num_classes, head_block=nn.Linear, dropout=0.0):
         super().__init__()
-
-        heads = []
-        for f in features:
-            head = head_module(f, num_classes, head_block=head_block, dropout=dropout)
-            heads.append(head)
-
-        self.heads = nn.ModuleList(heads)
         self.features_size = sum(features)
+        self.max_pool = GlobalMaxPool2d()
+        self.dropout = nn.Dropout(dropout)
+        self.last_linear = head_block(self.features_size, num_classes)
 
     def forward(self, feature_maps):
         features = []
-        logits = []
-        for feature_map, head in zip(feature_maps, self.heads):
-            f, l = head([feature_map])
-            features.append(f)
-            logits.append(l)
+        for feature_map in feature_maps:
+            x = self.max_pool(feature_map)
+            x = x.view(x.size(0), -1)
+            features.append(x)
 
         features = torch.cat(features, dim=1)
-        logits = sum(logits)
+        x = self.dropout(features)
+        logits = self.last_linear(x)
         return features, logits
 
 
