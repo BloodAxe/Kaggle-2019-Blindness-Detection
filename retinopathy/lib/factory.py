@@ -19,7 +19,7 @@ from retinopathy.lib.models.heads import GlobalAvgPool2dHead, GlobalMaxPool2dHea
 from retinopathy.lib.models.ordinal import OrdinalEncoderHeadModel
 
 
-def get_model(model_name, num_classes, pretrained=True, dropout=0.5, **kwargs):
+def get_model(model_name, num_classes, pretrained=True, dropout=0.0, **kwargs):
     kind, encoder_name, head_name = model_name.split('_')
 
     ENCODERS = {

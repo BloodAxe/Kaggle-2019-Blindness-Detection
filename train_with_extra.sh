@@ -17,3 +17,6 @@ sleep 5
 
 python train_regression_baseline.py -m reg_efficientb4_rms -l wing_loss -a medium -f 0 -b 36 --fp16 -o Adam --balance -s multistep -lr 3e-4 -e 50 -es 10 -v --use-aptos1029 --use-idrid --use-messidor
 sleep 5
+
+python train_regression_baseline.py -m reg_resnet34_rms -l wing_loss -a medium -f 0 -b 60 --fp16 -o Adam --balance -s multistep -lr 3e-4 -e 50 -es 10 -v --use-aptos1029 --use-idrid --use-messidor
+sleep 5

@@ -180,7 +180,7 @@ def main():
         loaders["train"] = train_loader
         loaders["valid"] = valid_loader
 
-        prefix = f'regression/{model_name}/{checkpoint_prefix}'
+        prefix = f'regression/{model_name}/{current_time}/{checkpoint_prefix}'
 
         log_dir = os.path.join('runs', prefix)
         os.makedirs(log_dir, exist_ok=False)
