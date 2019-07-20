@@ -60,9 +60,11 @@ def main():
     parser.add_argument('--transfer', default=None, type=str, help='')
     parser.add_argument('--fp16', action='store_true')
     parser.add_argument('-s', '--scheduler', default='multistep', type=str, help='')
+    parser.add_argument('--size', default=512, type=int, help='Image size for training & inference')
     parser.add_argument('-wd', '--weight-decay', default=0, type=float, help='L2 weight decay')
     parser.add_argument('--warmup', default=0, type=int,
                         help='Number of warmup epochs with 0.1 of the initial LR and frozed encoder')
+
     # '--use-messidor --use-aptos2019 --use-idrid'
     args = parser.parse_args()
 
@@ -74,7 +76,7 @@ def main():
     early_stopping = args.early_stopping
     model_name = args.model
     optimizer_name = args.optimizer
-    image_size = (512, 512)
+    image_size = (args.size, args.size)
     fast = args.fast
     augmentations = args.augmentations
     fp16 = args.fp16
@@ -102,7 +104,7 @@ def main():
         folds = [None]
 
     for fold in folds:
-        checkpoint_prefix = f'{model_name}_{get_random_name()}_fold{fold}'
+        checkpoint_prefix = f'{model_name}_{args.size}_{get_random_name()}_fold{fold}'
         if use_aptos2019:
             checkpoint_prefix += '_aptos2019'
         if use_aptos2015:
