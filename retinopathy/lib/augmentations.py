@@ -134,7 +134,7 @@ def get_train_aug(image_size, augmentation=None, crop_black=True):
         ], p=float(augmentation > LIGHT)),
 
         A.Compose([
-            A.ShiftScaleRotate(shift_limit=0, scale_limit=0.05,
+            A.ShiftScaleRotate(shift_limit=0, scale_limit=0.1,
                                rotate_limit=45,
                                border_mode=cv2.BORDER_CONSTANT, value=0),
             A.ElasticTransform(alpha_affine=5, border_mode=cv2.BORDER_CONSTANT,
