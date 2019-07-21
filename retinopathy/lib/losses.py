@@ -114,6 +114,87 @@ class ClippedMSELoss(MSELoss):
         return super().forward(input, target)
 
 
+def quad_kappa_loss(input, targets, y_pow=1, eps=1e-15):
+    """
+    https://github.com/JeffreyDF/kaggle_diabetic_retinopathy/blob/master/losses.py#L22
+
+    :param input:
+    :param targets:
+    :param y_pow:
+    :param eps:
+    :return:
+    """
+    batch_size = input.size(0)
+    num_ratings = 5
+    assert input.size(1) == num_ratings
+    tmp = torch.arange(0, num_ratings).view((num_ratings, 1)).expand((-1, num_ratings)).float()
+    weights = (tmp - torch.transpose(tmp, 0, 1)) ** 2 / (num_ratings - 1) ** 2
+    weights = weights.type(targets.dtype).to(targets.device)
+
+    y_ = input ** y_pow
+    y_norm = y_ / (eps + y_.sum(dim=1).reshape((batch_size, 1)))
+
+    hist_rater_a = y_norm.sum(dim=0)
+    hist_rater_b = targets.sum(dim=0)
+
+    conf_mat = torch.mm(torch.transpose(y_norm, 0, 1), targets)
+
+    nom = torch.sum(weights * conf_mat)
+    denom = torch.sum(weights * torch.mm(hist_rater_a.reshape((num_ratings, 1)),
+                                         hist_rater_b.reshape((1, num_ratings))) / batch_size)
+
+    return - (1.0 - nom / denom)
+
+
+class CappaLoss(nn.Module):
+    # TODO: Test
+    def __init__(self, y_pow=1, eps=1e-15):
+        super().__init__()
+        self.y_pow = y_pow
+        self.eps = eps
+
+    def forward(self, input, target):
+        t = F.log_softmax(input).exp()
+        loss = quad_kappa_loss(target, t, self.y_pow, self.eps)
+        return loss
+
+
+class HybridCappaLoss(nn.Module):
+    # TODO: Test
+    # https://github.com/JeffreyDF/kaggle_diabetic_retinopathy/blob/master/losses.py#L51
+    def __init__(self, y_pow=1, log_scale=0.5, eps=1e-15, log_cutoff=0.9):
+        super().__init__()
+        self.y_pow = y_pow
+        self.log_scale = log_scale
+        self.log_cutoff = log_cutoff
+        self.eps = eps
+
+    def forward(self, input, target):
+        #     cross entropy loss, summed over classes, mean over batches
+        log_loss_res = F.cross_entropy(input, target, reduction='none').sum(dim=1).mean()
+
+        # second term
+        y = F.log_softmax(input).exp()
+        kappa_loss_res = quad_kappa_loss(y, target, y_pow=self.y_pow)
+
+        return kappa_loss_res + self.log_scale * torch.clamp(log_loss_res, self.log_cutoff, 10 ** 3)
+
+
+def test_quad_kappa_loss():
+    targets = torch.tensor(([[1, 0, 0, 0, 0],
+                             [0, 1, 0, 0, 0],
+                             [0, 0, 1, 0, 0],
+                             [0, 0, 0, 1, 0],
+                             [0, 0, 0, 0, 1]])).float()
+    predicted = torch.tensor([[1, 5, 1, 1, 1],
+                              [1, 10, 0, 0, 0],
+                              [0, 0, 9, 0, 0],
+                              [4, 3, 2, 1, 0],
+                              [1, 2, 3, 4, 5]]).float().softmax(dim=1)
+    loss = quad_kappa_loss(predicted, targets)
+    print(loss)
+
+
 def test_magnet_loss():
     margin = 2
     eps = 1e-4

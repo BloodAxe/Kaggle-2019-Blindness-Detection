@@ -2,7 +2,7 @@ import random
 
 import albumentations as A
 import cv2
-from albumentations.augmentations.functional import brightness_contrast_adjust
+from albumentations.augmentations.functional import brightness_contrast_adjust, center_crop, pad_with_params, gaussian_blur
 
 
 def crop_black(image, tolerance=5):
@@ -92,6 +92,55 @@ class IndependentRandomBrightnessContrast(A.ImageOnlyTransform):
             img[..., ch] = brightness_contrast_adjust(img[..., ch], alpha, beta)
 
         return img
+
+
+class ZeroTopAndBottom(A.ImageOnlyTransform):
+    """
+    Competition-specific augmentation erases top and bottom rows of the image.
+    This makes from 'full eye' photos a 'rectangular' version.
+    """
+
+    def __init__(self, aspect_ratio=(1.0, 1.4), p=0.5):
+        super().__init__(p=p)
+        self.aspect_ratio = aspect_ratio
+
+    def apply(self, img, aspect_ratio=1.0, **params):
+        height, width = img.shape[:2]
+        assert height == width
+        new_height = int(width / aspect_ratio)
+
+        h_pad_top = int((height - new_height) / 2.0)
+        h_pad_bottom = height - new_height - h_pad_top
+
+        img = img.copy()
+        img[0:h_pad_top] = (0, 0, 0)
+        img[height - h_pad_bottom:height] = (0, 0, 0)
+        return img
+
+    def get_params(self):
+        return {'aspect_ratio': random.uniform(self.aspect_ratio[0], self.aspect_ratio[1])}
+
+    def get_transform_init_args_names(self):
+        return ('max_aspect_ratio',)
+
+
+class DestroyImage(A.ImageOnlyTransform):
+    def __init__(self, p=0.5):
+        super().__init__(p=p)
+
+    @property
+    def targets(self):
+        return {'image': self.apply, 'diagnosis': self.apply_to_diagnosis}
+
+    def apply_to_diagnosis(self, diagnosis, **params):
+        return 0
+
+    def apply(self, img, blur_ksize=1.0, **params):
+        img = gaussian_blur(img, ksize=blur_ksize)
+        return img
+
+    def get_params(self):
+        return {'blur': random.uniform(8, 16) * 2 + 1}
 
 
 def get_train_aug(image_size, augmentation=None, crop_black=True):
