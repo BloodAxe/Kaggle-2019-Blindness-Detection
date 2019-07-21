@@ -55,8 +55,8 @@ class CropBlackRegions(A.ImageOnlyTransform):
 
 
 class UnsharpMask(A.ImageOnlyTransform):
-    def __init__(self):
-        super().__init__(always_apply=True, p=1)
+    def __init__(self, p=1.0):
+        super().__init__(p=p)
 
     def apply(self, img, **params):
         return unsharp_mask(img)
@@ -66,8 +66,8 @@ class UnsharpMask(A.ImageOnlyTransform):
 
 
 class ChannelIndependentCLAHE(A.ImageOnlyTransform):
-    def __init__(self):
-        super().__init__(always_apply=True, p=1)
+    def __init__(self, p=1.0):
+        super().__init__(p=p)
 
     def apply(self, img, **params):
         return clahe_preprocessing(img)
