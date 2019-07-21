@@ -247,7 +247,7 @@ class MixupRegressionCallback(MixupCallback):
         # y = y_a * self.lam + y_b * (1 - self.lam)
 
         # In case of regression, if we do mixup of images of DR of different stages, we assign the maximum stage as our target
-        mask = y_b < y_a
+        mask = y_b > y_a
         y = y_a.masked_scatter(mask, y_b[mask])
 
         loss = criterion(pred, y)

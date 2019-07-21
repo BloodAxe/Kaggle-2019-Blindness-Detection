@@ -569,27 +569,23 @@ class FourReluBlock(nn.Module):
 class HyperPoolHead(nn.Module):
     """Global average pooling classifier module"""
 
-    def __init__(self, features, num_classes, head_module=GlobalMaxAvgPool2dHead, head_block=nn.Linear, dropout=0.0):
+    def __init__(self, features, num_classes, head_block=nn.Linear, dropout=0.0):
         super().__init__()
-
-        heads = []
-        for f in features:
-            head = head_module(f, num_classes, head_block=head_block, dropout=dropout)
-            heads.append(head)
-
-        self.heads = nn.ModuleList(heads)
         self.features_size = sum(features)
+        self.max_pool = GlobalMaxPool2d()
+        self.dropout = nn.Dropout(dropout)
+        self.last_linear = head_block(self.features_size, num_classes)
 
     def forward(self, feature_maps):
         features = []
-        logits = []
-        for feature_map, head in zip(feature_maps, self.heads):
-            f, l = head([feature_map])
-            features.append(f)
-            logits.append(l)
+        for feature_map in feature_maps:
+            x = self.max_pool(feature_map)
+            x = x.view(x.size(0), -1)
+            features.append(x)
 
         features = torch.cat(features, dim=1)
-        logits = sum(logits)
+        x = self.dropout(features)
+        logits = self.last_linear(x)
         return features, logits
 
 
@@ -731,17 +727,24 @@ class ChannelIndependentCLAHE(A.ImageOnlyTransform):
         return tuple()
 
 
-def get_model(model_name, num_classes, pretrained=True, dropout=0.25, **kwargs):
+def get_model(model_name, num_classes, pretrained=True, dropout=0.0, **kwargs):
     kind, encoder_name, head_name = model_name.split('_')
 
     ENCODERS = {
         'resnet18': Resnet18Encoder,
+        'resnet34': Resnet34Encoder,
         'resnet50': Resnet50Encoder,
         'resnext50': SEResNeXt50Encoder,
         'resnext101': SEResNeXt101Encoder,
+        'efficientb0': EfficientNetB0Encoder,
+        'efficientb1': EfficientNetB1Encoder,
+        'efficientb2': EfficientNetB2Encoder,
+        'efficientb3': EfficientNetB3Encoder,
+        'efficientb5': EfficientNetB5Encoder,
+        'efficientb6': EfficientNetB6Encoder
     }
 
-    encoder = ENCODERS[encoder_name](layers=[1, 2, 3, 4], pretrained=pretrained)
+    encoder = ENCODERS[encoder_name](pretrained=pretrained)
 
     HEADS = {
         'gap': GlobalAvgPool2dHead,
@@ -837,6 +840,8 @@ def run_model_inference_via_dataset(model_checkpoint: str,
 
     with torch.no_grad():
         model = model.eval().cuda()
+        if torch.cuda.device_count() > 0:
+            model = nn.DataParallel(model)
 
         data_loader = DataLoader(dataset, batch_size,
                                  pin_memory=True,
@@ -855,7 +860,7 @@ def run_model_inference_via_dataset(model_checkpoint: str,
 
         predictions = pd.DataFrame.from_dict({'id_code': test_ids, 'diagnosis': test_preds})
 
-    del model, data_loader
+    del data_loader, model
     return predictions
 
 
@@ -879,11 +884,20 @@ def run_model_inference(model_checkpoint: str,
                                            workers=workers)
 
 
-def average_predictions(predictions):
-    accumulator = np.zeros_like(predictions[0]['diagnosis'].values)
-    for p in predictions:
-        accumulator += p['diagnosis']
-    accumulator /= len(predictions)
+def average_predictions(predictions, method='mean'):
+    if method == 'mean':
+        accumulator = np.zeros_like(predictions[0]['diagnosis'].values)
+        for p in predictions:
+            accumulator += p['diagnosis']
+        accumulator /= len(predictions)
+    elif method == 'geom':
+        accumulator = np.ones_like(predictions[0]['diagnosis'].values).astype(np.float32)
+        for p in predictions:
+            accumulator *= p['diagnosis'].values
+        accumulator = np.power(accumulator, 1. / len(predictions))
+    else:
+        raise KeyError(method)
+
     result = predictions[0].copy()
     result['diagnosis'] = accumulator
     return result
