@@ -47,6 +47,9 @@ Using only one model **seresnext50**.
 ### Other
 
 1. Catalyst config
+1. DestroyImage augmentation to make image totally useless (very blurry, dark)
+2. Augmentation to add retinopathy signs on image
+3. Augmentation to crop image from square to rect aspect and back 
 
 ## Results
 
