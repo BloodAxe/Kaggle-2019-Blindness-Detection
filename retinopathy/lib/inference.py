@@ -125,16 +125,22 @@ def reg_predictions_to_submission(predictions) -> pd.DataFrame:
     return predictions
 
 
-def average_predictions(predictions, method='mean'):
+def average_predictions(predictions, method='mean', min=None, max=None):
     if method == 'mean':
         accumulator = np.zeros_like(predictions[0]['diagnosis'].values)
         for p in predictions:
-            accumulator += p['diagnosis']
+            pred = p['diagnosis'].values
+            if min is not None or max is not None:
+                pred = np.clip(pred, min, max)
+            accumulator += pred
         accumulator /= len(predictions)
     elif method == 'geom':
         accumulator = np.ones_like(predictions[0]['diagnosis'].values).astype(np.float32)
         for p in predictions:
-            accumulator *= p['diagnosis'].values
+            pred = p['diagnosis'].values
+            if min is not None or max is not None:
+                pred = np.clip(pred, min, max)
+            accumulator *= pred
         accumulator = np.power(accumulator, 1. / len(predictions))
     else:
         raise KeyError(method)
