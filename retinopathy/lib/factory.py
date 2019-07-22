@@ -159,7 +159,8 @@ def get_scheduler(scheduler_name: str,
         return MultiStepLR(optimizer,
                            milestones=[
                                int(num_epochs * 0.3),
-                               int(num_epochs * 0.6),
+                               int(num_epochs * 0.5),
+                               int(num_epochs * 0.7),
                                int(num_epochs * 0.9)],
                            gamma=0.5)
 
