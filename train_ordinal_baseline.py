@@ -60,6 +60,7 @@ def main():
     parser.add_argument('-s', '--scheduler', default='multistep', type=str, help='')
     parser.add_argument('--size', default=512, type=int, help='Image size for training & inference')
     parser.add_argument('-wd', '--weight-decay', default=0, type=float, help='L2 weight decay')
+    parser.add_argument('-d', '--dropout', default=0.0, type=float, help='Dropout before head layer')
     parser.add_argument('--warmup', default=0, type=int,
                         help='Number of warmup epochs with 0.1 of the initial LR and frozed encoder')
 
@@ -93,6 +94,7 @@ def main():
     use_aptos2015 = args.use_aptos2015
     use_aptos2019 = args.use_aptos2019
     warmup = args.warmup
+    dropout = args.dropout
 
     assert use_aptos2015 or use_aptos2019 or use_idrid or use_messidor
 
@@ -113,8 +115,7 @@ def main():
             checkpoint_prefix += '_idrid'
 
         set_manual_seed(args.seed)
-        model = maybe_cuda(
-            get_model(model_name, num_classes=len(get_class_names())))
+        model = get_model(model_name, num_classes=len(get_class_names()), dropout=dropout).cuda()
 
         if args.transfer:
             transfer_checkpoint = fs.auto_file(args.transfer)
@@ -207,6 +208,7 @@ def main():
         print('  Parameters     :', count_parameters(model))
         print('  Image size     :', image_size)
         print('  Freeze encoder :', freeze_encoder)
+        print('  Dropout        :', dropout)
         print('Optimizer        :', optimizer_name)
         print('  Learning rate  :', learning_rate)
         print('  Batch size     :', batch_size)
