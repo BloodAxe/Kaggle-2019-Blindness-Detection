@@ -72,7 +72,7 @@ class CLSBlock(nn.Module):
         bottleneck = features // reduction
 
         self.bn1 = nn.BatchNorm1d(features)
-        self.fc1 = nn.Linear(features, bottleneck)
+        self.fc1 = nn.Linear(features, bottleneck, bias=False)
 
         self.bn2 = nn.BatchNorm1d(bottleneck)
         self.fc2 = nn.Linear(bottleneck, num_classes)
