@@ -67,7 +67,7 @@ class CLSBlock(nn.Module):
     Block used for making final classification predictions
     """
 
-    def __init__(self, features, num_classes, reduction=8, dropout=0.25):
+    def __init__(self, features, num_classes, reduction=8):
         super().__init__()
         bottleneck = features // reduction
 
