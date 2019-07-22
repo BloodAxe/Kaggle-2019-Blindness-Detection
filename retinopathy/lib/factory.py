@@ -17,7 +17,7 @@ from retinopathy.lib.losses import ClippedMSELoss, ClippedWingLoss, CumulativeLi
     SoftCrossEntropyLoss
 from retinopathy.lib.models.heads import GlobalAvgPool2dHead, GlobalMaxPool2dHead, GlobalWeightedAvgPool2dHead, \
     GlobalWeightedMaxPool2dHead, ObjectContextPoolHead, \
-    RMSPoolRegressionHead, GlobalMaxAvgPool2dHead, EncoderHeadModel, FourReluBlock, HyperPoolHead
+    RMSPoolRegressionHead, GlobalMaxAvgPool2dHead, EncoderHeadModel, FourReluBlock, HyperPoolHead, CLSBlock
 from retinopathy.lib.models.ordinal import OrdinalEncoderHeadModel
 
 
@@ -76,6 +76,8 @@ def get_model(model_name, num_classes, pretrained=True, dropout=0.0, **kwargs):
 
     if kind == 'reg' and head_name != 'rms':
         head_args['head_block'] = FourReluBlock
+    if kind == 'cls':
+        head_args['head_block'] = CLSBlock
 
     head = HEADS[head_name](encoder.output_filters, num_classes, **head_args)
     model = MODELS[kind](encoder, head)

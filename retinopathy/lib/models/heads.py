@@ -62,6 +62,32 @@ class FourReluBlock(nn.Module):
         return x
 
 
+class CLSBlock(nn.Module):
+    """
+    Block used for making final classification predictions
+    """
+
+    def __init__(self, features, num_classes, reduction=8, dropout=0.25):
+        super().__init__()
+        bottleneck = features // reduction
+
+        self.bn1 = nn.BatchNorm1d(features)
+        self.fc1 = nn.Linear(features, bottleneck)
+
+        self.bn2 = nn.BatchNorm1d(bottleneck)
+        self.fc2 = nn.Linear(bottleneck, num_classes)
+
+    def forward(self, x):
+        x = self.bn1(x)
+        x = F.relu(x, inplace=True)
+        x = self.fc1(x)
+
+        x = self.bn2(x)
+        x = F.relu(x, inplace=True)
+        x = self.fc2(x)
+        return x
+
+
 class GlobalAvgPool2dHead(nn.Module):
     """Global average pooling classifier module"""
 
