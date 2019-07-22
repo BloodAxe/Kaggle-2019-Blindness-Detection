@@ -1,5 +1,4 @@
 import torch
-from pytorch_toolbelt.modules.activations import swish
 from pytorch_toolbelt.modules.encoders import EncoderModule
 from pytorch_toolbelt.modules.pooling import GlobalAvgPool2d, GlobalMaxPool2d
 from torch import nn
@@ -36,30 +35,30 @@ class FourReluBlock(nn.Module):
     Block used for making final regression predictions
     """
 
-    def __init__(self, features, num_classes, dropout=0.1):
+    def __init__(self, features, num_classes, reduction=4):
         super().__init__()
-        self.fc1 = nn.Linear(features, features // 2)
-        self.fc2 = nn.Linear(features // 2, features // 4)
-        self.fc3 = nn.Linear(features // 4, features // 8)
-        self.fc4 = nn.Linear(features // 8, num_classes)
-        self.drop = nn.Dropout(dropout)
+        self.bn = nn.BatchNorm1d(features)
+
+        bottleneck = features // reduction
+        self.fc1 = nn.Linear(features, bottleneck)
+        self.fc2 = nn.Linear(bottleneck, bottleneck)
+        self.fc3 = nn.Linear(bottleneck, bottleneck)
+        self.fc4 = nn.Linear(bottleneck, num_classes)
 
     def forward(self, x):
+        x = self.bn(x)
+
         x = self.fc1(x)
         x = F.leaky_relu(x, inplace=True)
-        x = self.drop(x)
 
         x = self.fc2(x)
         x = F.leaky_relu(x, inplace=True)
-        x = self.drop(x)
 
         x = self.fc3(x)
         x = F.leaky_relu(x, inplace=True)
-        x = self.drop(x)
 
         x = self.fc4(x)
         x = F.leaky_relu(x, inplace=True)
-        x = self.drop(x)
         return x
 
 

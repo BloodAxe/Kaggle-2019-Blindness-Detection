@@ -50,7 +50,9 @@ def get_model(model_name, num_classes, pretrained=True, dropout=0.0, **kwargs):
 
     HEADS = {
         'gap': GlobalAvgPool2dHead,
+        'avg': GlobalAvgPool2dHead,
         'gmp': GlobalMaxPool2dHead,
+        'max': GlobalMaxPool2dHead,
         'gwap': GlobalWeightedAvgPool2dHead,
         'gwmp': GlobalWeightedMaxPool2dHead,
         'ocp': partial(ObjectContextPoolHead, oc_features=encoder.output_filters[-1] // 4),
@@ -73,7 +75,7 @@ def get_model(model_name, num_classes, pretrained=True, dropout=0.0, **kwargs):
     }
 
     if kind == 'reg' and head_name != 'rms':
-        head_args['head_block'] = partial(FourReluBlock, dropout=dropout)
+        head_args['head_block'] = FourReluBlock
 
     head = HEADS[head_name](encoder.output_filters, num_classes, **head_args)
     model = MODELS[kind](encoder, head)
