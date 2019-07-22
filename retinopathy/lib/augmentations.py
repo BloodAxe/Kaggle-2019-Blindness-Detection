@@ -43,8 +43,8 @@ def clahe_preprocessing(image, clip_limit=4.0, tile_grid_size=(18, 18)):
 
 
 class CropBlackRegions(A.ImageOnlyTransform):
-    def __init__(self, tolerance=5):
-        super().__init__(always_apply=True, p=1)
+    def __init__(self, tolerance=5, p=1.):
+        super().__init__(p=p)
         self.tolerance = tolerance
 
     def apply(self, img, **params):
