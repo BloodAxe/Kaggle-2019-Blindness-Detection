@@ -539,30 +539,56 @@ class FourReluBlock(nn.Module):
     Block used for making final regression predictions
     """
 
-    def __init__(self, features, num_classes, dropout=0.1):
+    def __init__(self, features, num_classes, reduction=4):
         super().__init__()
-        self.fc1 = nn.Linear(features, features // 2)
-        self.fc2 = nn.Linear(features // 2, features // 4)
-        self.fc3 = nn.Linear(features // 4, features // 8)
-        self.fc4 = nn.Linear(features // 8, num_classes)
-        self.drop = nn.Dropout(dropout)
+        self.bn = nn.BatchNorm1d(features)
+
+        bottleneck = features // reduction
+        self.fc1 = nn.Linear(features, bottleneck)
+        self.fc2 = nn.Linear(bottleneck, bottleneck)
+        self.fc3 = nn.Linear(bottleneck, bottleneck)
+        self.fc4 = nn.Linear(bottleneck, num_classes)
 
     def forward(self, x):
+        x = self.bn(x)
+
         x = self.fc1(x)
         x = F.leaky_relu(x, inplace=True)
-        x = self.drop(x)
 
         x = self.fc2(x)
         x = F.leaky_relu(x, inplace=True)
-        x = self.drop(x)
 
         x = self.fc3(x)
         x = F.leaky_relu(x, inplace=True)
-        x = self.drop(x)
 
         x = self.fc4(x)
         x = F.leaky_relu(x, inplace=True)
-        x = self.drop(x)
+        return x
+
+
+class CLSBlock(nn.Module):
+    """
+    Block used for making final classification predictions
+    """
+
+    def __init__(self, features, num_classes, reduction=8):
+        super().__init__()
+        bottleneck = features // reduction
+
+        self.bn1 = nn.BatchNorm1d(features)
+        self.fc1 = nn.Linear(features, bottleneck, bias=False)
+
+        self.bn2 = nn.BatchNorm1d(bottleneck)
+        self.fc2 = nn.Linear(bottleneck, num_classes)
+
+    def forward(self, x):
+        x = self.bn1(x)
+        x = F.relu(x, inplace=True)
+        x = self.fc1(x)
+
+        x = self.bn2(x)
+        x = F.relu(x, inplace=True)
+        x = self.fc2(x)
         return x
 
 
@@ -693,8 +719,8 @@ def crop_black(image, tolerance=5):
 
 
 class CropBlackRegions(A.ImageOnlyTransform):
-    def __init__(self, tolerance=5):
-        super().__init__(always_apply=True, p=1)
+    def __init__(self, tolerance=5, p=1.):
+        super().__init__(p=p)
         self.tolerance = tolerance
 
     def apply(self, img, **params):
@@ -717,8 +743,8 @@ def clahe_preprocessing(image, clip_limit=4.0, tile_grid_size=(18, 18)):
 
 
 class ChannelIndependentCLAHE(A.ImageOnlyTransform):
-    def __init__(self):
-        super().__init__(always_apply=True, p=1)
+    def __init__(self, p=1.0):
+        super().__init__(p=p)
 
     def apply(self, img, **params):
         return clahe_preprocessing(img)
@@ -748,7 +774,9 @@ def get_model(model_name, num_classes, pretrained=True, dropout=0.0, **kwargs):
 
     HEADS = {
         'gap': GlobalAvgPool2dHead,
+        'avg': GlobalAvgPool2dHead,
         'gmp': GlobalMaxPool2dHead,
+        'max': GlobalMaxPool2dHead,
         'gwap': GlobalWeightedAvgPool2dHead,
         'gwmp': GlobalWeightedMaxPool2dHead,
         'ocp': partial(ObjectContextPoolHead, oc_features=encoder.output_filters[-1] // 4),
@@ -771,7 +799,9 @@ def get_model(model_name, num_classes, pretrained=True, dropout=0.0, **kwargs):
     }
 
     if kind == 'reg' and head_name != 'rms':
-        head_args['head_block'] = partial(FourReluBlock, dropout=dropout)
+        head_args['head_block'] = FourReluBlock
+    if kind == 'cls':
+        head_args['head_block'] = CLSBlock
 
     head = HEADS[head_name](encoder.output_filters, num_classes, **head_args)
     model = MODELS[kind](encoder, head)
@@ -884,16 +914,22 @@ def run_model_inference(model_checkpoint: str,
                                            workers=workers)
 
 
-def average_predictions(predictions, method='mean'):
+def average_predictions(predictions, method='mean', min=None, max=None):
     if method == 'mean':
         accumulator = np.zeros_like(predictions[0]['diagnosis'].values)
         for p in predictions:
-            accumulator += p['diagnosis']
+            pred = p['diagnosis'].values
+            if min is not None or max is not None:
+                pred = np.clip(pred, min, max)
+            accumulator += pred
         accumulator /= len(predictions)
     elif method == 'geom':
         accumulator = np.ones_like(predictions[0]['diagnosis'].values).astype(np.float32)
         for p in predictions:
-            accumulator *= p['diagnosis'].values
+            pred = p['diagnosis'].values
+            if min is not None or max is not None:
+                pred = np.clip(pred, min, max)
+            accumulator *= pred
         accumulator = np.power(accumulator, 1. / len(predictions))
     else:
         raise KeyError(method)
