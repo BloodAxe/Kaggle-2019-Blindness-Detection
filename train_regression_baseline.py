@@ -127,6 +127,22 @@ def main():
                   transfer_checkpoint)
             checkpoint = load_checkpoint(transfer_checkpoint)
             pretrained_dict = checkpoint['model_state_dict']
+            checkpoint_epoch = checkpoint['epoch']
+
+            print('Loaded model weights from:', args.checkpoint)
+            print('Epoch                    :', checkpoint_epoch)
+            print('Metrics (Train):',
+                  'cappa:',
+                  checkpoint['epoch_metrics']['train']['kappa_score'],
+                  'accuracy:',
+                  checkpoint['epoch_metrics']['train'].get('accuracy', 'n/a'),
+                  'loss:', checkpoint['epoch_metrics']['train']['loss'])
+            print('Metrics (Valid):',
+                  'cappa:',
+                  checkpoint['epoch_metrics']['valid']['kappa_score'],
+                  'accuracy:',
+                  checkpoint['epoch_metrics']['valid'].get('accuracy', 'n/a'),
+                  'loss:', checkpoint['epoch_metrics']['valid']['loss'])
 
             for name, value in pretrained_dict.items():
                 try:

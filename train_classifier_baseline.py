@@ -134,6 +134,22 @@ def main():
                 except Exception as e:
                     print(e)
 
+            checkpoint_epoch = checkpoint['epoch']
+            print('Loaded model weights from:', args.checkpoint)
+            print('Epoch                    :', checkpoint_epoch)
+            print('Metrics (Train):',
+                  'cappa:',
+                  checkpoint['epoch_metrics']['train']['kappa_score'],
+                  'accuracy01:',
+                  checkpoint['epoch_metrics']['train'].get('accuracy01', 'n/a'),
+                  'loss:', checkpoint['epoch_metrics']['train']['loss'])
+            print('Metrics (Valid):',
+                  'cappa:',
+                  checkpoint['epoch_metrics']['valid']['kappa_score'],
+                  'accuracy01:',
+                  checkpoint['epoch_metrics']['valid'].get('accuracy01', 'n/a'),
+                  'loss:', checkpoint['epoch_metrics']['valid']['loss'])
+
         checkpoint = None
         if args.checkpoint:
             checkpoint = load_checkpoint(fs.auto_file(args.checkpoint))
