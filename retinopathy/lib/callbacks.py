@@ -1,7 +1,10 @@
 import os
+from typing import List
 
 import numpy as np
+import pandas as pd
 import torch
+import torch.nn.functional as F
 from catalyst.dl import MetricCallback, RunnerState, Callback, CriterionCallback
 from catalyst.dl.callbacks import MixupCallback
 from pytorch_toolbelt.utils.catalyst import get_tensorboard_logger
@@ -10,9 +13,7 @@ from pytorch_toolbelt.utils.visualization import plot_confusion_matrix, render_f
 from sklearn.metrics import cohen_kappa_score, confusion_matrix
 from torch import nn
 from torch.nn import Module
-import pandas as pd
-from typing import List
-import torch.nn.functional as F
+
 from retinopathy.lib.models.ordinal import LogisticCumulativeLink
 from retinopathy.lib.models.regression import regression_to_class
 
@@ -335,6 +336,7 @@ class UnsupervisedCriterionCallback(CriterionCallback):
             output_key='logits',
             target_key='targets',
             on_train_only=True,
+            unsupervised_label=-100,
             **kwargs
     ):
         """
@@ -352,37 +354,43 @@ class UnsupervisedCriterionCallback(CriterionCallback):
         super().__init__(**kwargs)
 
         self.on_train_only = on_train_only
-        self.input_key=input_key,
+        self.input_key = input_key
         self.target_key = target_key
         self.output_key = output_key
-        self.lam = 1
-        self.index = None
         self.is_needed = True
+        self.unsupervised_label = unsupervised_label
 
     def on_loader_start(self, state: RunnerState):
         self.is_needed = not self.on_train_only or \
                          state.loader_name.startswith("train")
 
     def on_batch_end(self, state: RunnerState):
+
         targets = state.input[self.target_key]
-        if not (targets == -1).any():
+        mask = targets == self.unsupervised_label
+        if not mask.any() or not self.is_needed:
             # If batch contains no unsupervised samples - quit
+            state.metrics.add_batch_value(metrics_dict={
+                self.prefix: 0,
+            })
+
             return
 
-        input = state.input[self.input_key]
-        output = state.model(input)[self.output_key]
+        input = state.input[self.input_key][mask]
 
-        augmented_log_prob = F.log_softmax(state.output[self.output_key], dim=1)
+        state.model.eval()
+        output = state.model(input)[self.output_key]
+        state.model.train()
+        augmented_log_prob = F.log_softmax(state.output[self.output_key][mask], dim=1)
         original_prob = F.softmax(output, dim=1)
 
-        loss = F.kl_div(augmented_log_prob, original_prob)
+        loss = F.kl_div(augmented_log_prob, original_prob, reduction='batchmean')
 
         state.metrics.add_batch_value(metrics_dict={
             self.prefix: loss.item(),
         })
 
         self._add_loss_to_state(state, loss)
-
 
 
 class AscensionCallback(Callback):

@@ -98,7 +98,7 @@ class RetinopathyDatasetV2(Dataset):
         if targets is not None:
             targets = np.array(targets)
             unique_targets = set(targets)
-            if len(unique_targets.difference({0, 1, 2, 3, 4})):
+            if len(unique_targets.difference({0, 1, 2, 3, 4, -100})):
                 raise ValueError('Unexpected targets in Y ' + str(unique_targets))
 
         self.meta_features = meta_features
@@ -118,10 +118,10 @@ class RetinopathyDatasetV2(Dataset):
 
         height, width = image.shape[:2]
 
-        image = self.transform(image=image)['image']
         original = self.normalize(image=image)['image']
+        transformed = self.transform(image=image)['image']
 
-        data = {'image': tensor_from_rgb_image(image),
+        data = {'image': tensor_from_rgb_image(transformed),
                 'original': tensor_from_rgb_image(original),
                 'image_id': id_from_fname(self.images[item])}
 
