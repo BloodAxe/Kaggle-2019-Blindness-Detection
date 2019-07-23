@@ -148,8 +148,6 @@ class RetinopathyDatasetV2(Dataset):
                 data['targets'] = np.array([target])
             else:
                 data['targets'] = target
-        else:
-            data['targets'] = -1
 
         return data
 
@@ -336,7 +334,7 @@ def get_datasets(
 
         trainset_sizes.append(len(tx))
         train_x.extend(tx)
-        train_y.extend([-1] * len(tx))
+        train_y.extend([-100] * len(tx))
         valid_x.extend(vx)
         valid_y.extend(vy)
 
