@@ -17,7 +17,7 @@ from pytorch_toolbelt.utils.random import set_manual_seed, get_random_name
 from pytorch_toolbelt.utils.torch_utils import count_parameters, \
     set_trainable
 
-from retinopathy.lib.callbacks import CappaScoreCallback, NegativeMiningCallback
+from retinopathy.lib.callbacks import CappaScoreCallback, NegativeMiningCallback, MixupSameLabelCallback
 from retinopathy.lib.dataset import get_class_names, \
     get_datasets, get_dataloaders
 from retinopathy.lib.factory import get_model, get_loss, get_optimizer, \
@@ -275,7 +275,7 @@ def main():
             del optimizer
 
         if mixup:
-            callbacks += [MixupCallback(fields=['image'])]
+            callbacks += [MixupSameLabelCallback(fields=['image'])]
 
         if early_stopping:
             callbacks += [

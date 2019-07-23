@@ -18,7 +18,7 @@ from pytorch_toolbelt.utils.torch_utils import maybe_cuda, count_parameters, \
 
 from retinopathy.lib.callbacks import CappaScoreCallbackFromRegression, \
     AccuracyCallbackFromRegression, ConfusionMatrixCallbackFromRegression, \
-    MixupRegressionCallback, NegativeMiningCallback
+    MixupRegressionCallback, NegativeMiningCallback, MixupSameLabelCallback
 from retinopathy.lib.dataset import get_class_names, \
     get_datasets, get_dataloaders
 from retinopathy.lib.factory import get_model, get_loss, get_optimizer, \
@@ -277,6 +277,7 @@ def main():
             del optimizer
 
         if mixup:
+            # callbacks += [MixupSameLabelCallback(fields=['image'])]
             callbacks += [MixupRegressionCallback(fields=['image'])]
 
         if early_stopping:
