@@ -35,30 +35,38 @@ class FourReluBlock(nn.Module):
     Block used for making final regression predictions
     """
 
-    def __init__(self, features, num_classes, reduction=4):
+    def __init__(self, features, num_classes, reduction=4, dropout=0.0):
         super().__init__()
         self.bn = nn.BatchNorm1d(features)
 
         bottleneck = features // reduction
         self.fc1 = nn.Linear(features, bottleneck)
+        self.act1 = nn.LeakyReLU(inplace=True)
+
         self.fc2 = nn.Linear(bottleneck, bottleneck)
+        self.act2 = nn.LeakyReLU(inplace=True)
+
         self.fc3 = nn.Linear(bottleneck, bottleneck)
+        self.act3 = nn.LeakyReLU(inplace=True)
+
         self.fc4 = nn.Linear(bottleneck, num_classes)
+        self.act4 = nn.LeakyReLU(inplace=True)
 
     def forward(self, x):
         x = self.bn(x)
 
         x = self.fc1(x)
-        x = F.leaky_relu(x, inplace=True)
+        x = self.act1(x)
 
         x = self.fc2(x)
-        x = F.leaky_relu(x, inplace=True)
+        x = self.act2(x)
 
         x = self.fc3(x)
-        x = F.leaky_relu(x, inplace=True)
+        x = self.act3(x)
 
         x = self.fc4(x)
-        x = F.leaky_relu(x, inplace=True)
+        x = self.act4(x)
+
         return x
 
 
@@ -295,8 +303,14 @@ class RMSPoolRegressionHead(nn.Module):
         bottleneck = features // reduction
 
         self.fc1 = nn.Linear(features, bottleneck)
+        self.act1 = nn.ReLU(inplace=True)
+
         self.fc2 = nn.Linear(bottleneck, bottleneck)
+        self.act2 = nn.ReLU(inplace=True)
+
         self.fc3 = nn.Linear(bottleneck, bottleneck)
+        self.act3 = nn.ReLU(inplace=True)
+
         self.fc4 = nn.Linear(bottleneck, output_classes)
 
     def forward(self, feature_maps):
@@ -306,15 +320,9 @@ class RMSPoolRegressionHead(nn.Module):
 
         x = self.bn(features)
         x = self.drop(x)
-        x = self.fc1(x)
-        x = F.leaky_relu(x, inplace=True)
-
-        x = self.fc2(x)
-        x = F.leaky_relu(x, inplace=True)
-
-        x = self.fc3(x)
-        x = F.leaky_relu(x, inplace=True)
-
+        x = self.act1(self.fc1(x))
+        x = self.act2(self.fc2(x))
+        x = self.act3(self.fc3(x))
         logits = self.fc4(x)
         return features, logits
 

@@ -33,6 +33,7 @@ def main():
     parser.add_argument('--fast', action='store_true')
     parser.add_argument('--mixup', action='store_true')
     parser.add_argument('--balance', action='store_true')
+    parser.add_argument('--balance-datasets', action='store_true')
     parser.add_argument('--swa', action='store_true')
     parser.add_argument('--show', action='store_true')
     parser.add_argument('--use-idrid', action='store_true')
@@ -86,6 +87,7 @@ def main():
     folds = args.fold
     mixup = args.mixup
     balance = args.balance
+    balance_datasets = args.balance_datasets
     use_swa = args.swa
     show_batches = args.show
     scheduler_name = args.scheduler
@@ -169,9 +171,9 @@ def main():
         train_loader, valid_loader = get_dataloaders(train_ds, valid_ds,
                                                      batch_size=batch_size,
                                                      num_workers=num_workers,
-                                                     oversample_factor=2 if not_using_extra_data else 1,
                                                      train_sizes=train_sizes,
-                                                     balance=balance)
+                                                     balance=balance,
+                                                     balance_datasets=balance_datasets)
 
         if use_swa:
             from torchcontrib.optim import SWA
@@ -199,7 +201,8 @@ def main():
         print('  FP16 mode      :', fp16)
         print('  Fast mode      :', fast)
         print('  Mixup          :', mixup)
-        print('  Balance        :', balance)
+        print('  Balance cls.   :', balance)
+        print('  Balance ds.    :', balance_datasets)
         print('  Warmup epoch   :', warmup)
         print('  Train epochs   :', num_epochs)
         print('  Workers        :', num_workers)

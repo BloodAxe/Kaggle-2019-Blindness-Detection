@@ -8,7 +8,7 @@ import pandas as pd
 from pytorch_toolbelt.utils.fs import id_from_fname
 from pytorch_toolbelt.utils.torch_utils import tensor_from_rgb_image
 from sklearn.model_selection import StratifiedKFold, train_test_split
-from sklearn.utils import compute_sample_weight, compute_class_weight
+from sklearn.utils import compute_class_weight
 from torch.utils.data import Dataset, DataLoader, WeightedRandomSampler
 
 from retinopathy.lib.augmentations import get_train_aug, get_test_aug
@@ -303,28 +303,36 @@ def get_datasets(
 def get_dataloaders(train_ds, valid_ds,
                     batch_size,
                     num_workers,
-                    oversample_factor=1,
                     fast=False,
                     train_sizes=None,
-                    balance=False):
+                    balance=False,
+                    balance_datasets=False):
     sampler = None
+    weights = None
 
     if balance:
-        class_weights = compute_class_weight('balanced', np.arange(5), train_ds.targets)
-        weights = compute_sample_weight('balanced', train_ds.targets)
+        # class_weights = compute_class_weight('balanced', np.arange(5), train_ds.targets)
+        class_weights = np.array([1, 0.5, 0.5, 0.5, 0.5])
+        weights = class_weights[train_ds.targets]
+        # weights = compute_sample_weight('balanced', train_ds.targets)
 
-        if train_sizes is not None:
-            dataset_balancing_term = []
+    if balance_datasets:
+        assert train_sizes is not None
+        dataset_balancing_term = []
 
-            for subset_size in train_sizes:
-                full_dataset_size = float(sum(train_sizes))
-                dataset_balancing_term.extend([full_dataset_size / subset_size] * subset_size)
+        for subset_size in train_sizes:
+            full_dataset_size = float(sum(train_sizes))
+            dataset_balancing_term.extend([full_dataset_size / subset_size] * subset_size)
 
-            dataset_balancing_term = np.array(dataset_balancing_term)
-            weights = weights * dataset_balancing_term
+        dataset_balancing_term = np.array(dataset_balancing_term)
+        if weights is None:
+            weights = np.ones(len(train_ds.targets))
 
-        # If we do balancing, let's go for fixed number of batches
-        sampler = WeightedRandomSampler(weights, batch_size * 256)
+        weights = weights * dataset_balancing_term
+
+    # If we do balancing, let's go for fixed number of batches (half of dataset)
+    if weights is not None:
+        sampler = WeightedRandomSampler(weights, len(weights) // 2)
 
     if fast:
         weights = np.ones(len(train_ds))
