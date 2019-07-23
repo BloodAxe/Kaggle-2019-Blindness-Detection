@@ -7,7 +7,7 @@ import os
 from datetime import datetime
 from functools import partial
 
-from catalyst.dl import SupervisedRunner, EarlyStoppingCallback
+from catalyst.dl import SupervisedRunner, EarlyStoppingCallback, CriterionCallback
 from catalyst.dl.callbacks import AccuracyCallback, MixupCallback
 from catalyst.utils import load_checkpoint, unpack_checkpoint
 from pytorch_toolbelt.utils import fs
@@ -17,7 +17,7 @@ from pytorch_toolbelt.utils.random import set_manual_seed, get_random_name
 from pytorch_toolbelt.utils.torch_utils import count_parameters, \
     set_trainable
 
-from retinopathy.lib.callbacks import CappaScoreCallback, NegativeMiningCallback, MixupSameLabelCallback
+from retinopathy.lib.callbacks import CappaScoreCallback, NegativeMiningCallback, MixupSameLabelCallback, UnsupervisedCriterionCallback
 from retinopathy.lib.dataset import get_class_names, \
     get_datasets, get_dataloaders
 from retinopathy.lib.factory import get_model, get_loss, get_optimizer, \
@@ -286,6 +286,11 @@ def main():
             callbacks += [
                 ShowPolarBatchesCallback(visualization_fn, metric='accuracy01',
                                          minimize=False)]
+
+        if use_aptos2015:
+            callbacks += [
+                CriterionCallback(prefix='supervised_loss', loss_key='supervised_loss'),
+                UnsupervisedCriterionCallback(prefix='unsupervised_loss', loss_key='unsupervised_loss')]
 
         # Main train
         set_trainable(model.encoder, True, False)

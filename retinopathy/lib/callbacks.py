@@ -12,7 +12,7 @@ from torch import nn
 from torch.nn import Module
 import pandas as pd
 from typing import List
-
+import torch.nn.functional as F
 from retinopathy.lib.models.ordinal import LogisticCumulativeLink
 from retinopathy.lib.models.regression import regression_to_class
 
@@ -323,6 +323,66 @@ class MixupRegressionCallback(MixupCallback):
 
         loss = criterion(pred, y)
         return loss
+
+
+class UnsupervisedCriterionCallback(CriterionCallback):
+    """
+    """
+
+    def __init__(
+            self,
+            input_key='original',
+            output_key='logits',
+            target_key='targets',
+            on_train_only=True,
+            **kwargs
+    ):
+        """
+        Args:
+            fields (List[str]): list of features which must be affected.
+            alpha (float): beta distribution a=b parameters.
+                Must be >=0. The more alpha closer to zero
+                the less effect of the mixup.
+            on_train_only (bool): Apply to train only.
+                As the mixup use the proxy inputs, the targets are also proxy.
+                We are not interested in them, are we?
+                So, if on_train_only is True, use a standard output/metric
+                for validation.
+        """
+        super().__init__(**kwargs)
+
+        self.on_train_only = on_train_only
+        self.input_key=input_key,
+        self.target_key = target_key
+        self.output_key = output_key
+        self.lam = 1
+        self.index = None
+        self.is_needed = True
+
+    def on_loader_start(self, state: RunnerState):
+        self.is_needed = not self.on_train_only or \
+                         state.loader_name.startswith("train")
+
+    def on_batch_end(self, state: RunnerState):
+        targets = state.input[self.target_key]
+        if not (targets == -1).any():
+            # If batch contains no unsupervised samples - quit
+            return
+
+        input = state.input[self.input_key]
+        output = state.model(input)[self.output_key]
+
+        augmented_log_prob = F.log_softmax(state.output[self.output_key], dim=1)
+        original_prob = F.softmax(output, dim=1)
+
+        loss = F.kl_div(augmented_log_prob, original_prob)
+
+        state.metrics.add_batch_value(metrics_dict={
+            self.prefix: loss.item(),
+        })
+
+        self._add_loss_to_state(state, loss)
+
 
 
 class AscensionCallback(Callback):

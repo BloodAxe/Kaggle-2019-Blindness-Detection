@@ -84,6 +84,76 @@ class RetinopathyDataset(Dataset):
         return data
 
 
+class RetinopathyDatasetV2(Dataset):
+    """
+    Implementation of dataset for use with unsupervised learning
+    """
+
+    def __init__(self, images, targets,
+                 transform: A.Compose,
+                 normalize: A.Compose,
+                 target_as_array=False,
+                 dtype=int,
+                 meta_features=False):
+        if targets is not None:
+            targets = np.array(targets)
+            unique_targets = set(targets)
+            if len(unique_targets.difference({0, 1, 2, 3, 4})):
+                raise ValueError('Unexpected targets in Y ' + str(unique_targets))
+
+        self.meta_features = meta_features
+        self.images = np.array(images)
+        self.targets = targets
+        self.transform = transform
+        self.normalize = normalize
+        self.target_as_array = target_as_array
+        self.dtype = dtype
+
+    def __len__(self):
+        return len(self.images)
+
+    def __getitem__(self, item):
+        image = cv2.imread(self.images[item])  # Read with OpenCV instead PIL. It's faster
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
+        height, width = image.shape[:2]
+
+        image = self.transform(image=image)['image']
+        original = self.normalize(image=image)['image']
+
+        data = {'image': tensor_from_rgb_image(image),
+                'original': tensor_from_rgb_image(original),
+                'image_id': id_from_fname(self.images[item])}
+
+        if self.meta_features:
+            log_height = math.log(height)
+            log_width = math.log(width)
+            aspect_ratio = log_height / log_width
+            mean = np.mean(image, axis=(0, 1))
+
+            meta_features = np.array([
+                log_height,
+                log_width,
+                aspect_ratio,
+                mean[0],
+                mean[1],
+                mean[2]
+            ])
+
+            data['meta_features'] = meta_features
+
+        if self.targets is not None:
+            target = self.dtype(self.targets[item])
+            if self.target_as_array:
+                data['targets'] = np.array([target])
+            else:
+                data['targets'] = target
+        else:
+            data['targets'] = -1
+
+        return data
+
+
 def get_aptos2019(data_dir,
                   random_state=42,
                   fold=None,
@@ -266,7 +336,7 @@ def get_datasets(
 
         trainset_sizes.append(len(tx))
         train_x.extend(tx)
-        train_y.extend(ty)
+        train_y.extend([-1] * len(tx))
         valid_x.extend(vx)
         valid_y.extend(vy)
 
@@ -290,9 +360,15 @@ def get_datasets(
         valid_x.extend(vx)
         valid_y.extend(vy)
 
-    train_ds = RetinopathyDataset(train_x, train_y,
-                                  transform=get_train_aug(image_size, augmentation, crop_black=False),
-                                  dtype=target_dtype)
+    if use_aptos2015:
+        train_ds = RetinopathyDatasetV2(train_x, train_y,
+                                        transform=get_train_aug(image_size, augmentation, crop_black=False),
+                                        normalize=get_test_aug(image_size, crop_black=False),
+                                        dtype=target_dtype)
+    else:
+        train_ds = RetinopathyDataset(train_x, train_y,
+                                      transform=get_train_aug(image_size, augmentation, crop_black=False),
+                                      dtype=target_dtype)
 
     valid_ds = RetinopathyDataset(valid_x, valid_y,
                                   transform=get_test_aug(image_size, crop_black=False),
