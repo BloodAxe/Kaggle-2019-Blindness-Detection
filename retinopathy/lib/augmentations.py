@@ -167,20 +167,8 @@ def get_train_aug(image_size, augmentation=None, crop_black=True):
         A.LongestMaxSize(longest_size, interpolation=cv2.INTER_CUBIC),
         ChannelIndependentCLAHE(),
 
-        A.Compose([
-            A.CoarseDropout(max_height=32, max_width=32, min_height=8, min_width=8),
-        ], p=float(augmentation > LIGHT)),
-
         A.PadIfNeeded(image_size[0], image_size[1],
                       border_mode=cv2.BORDER_CONSTANT, value=0),
-
-        A.OneOf([
-            A.ISONoise(),
-            A.GaussNoise(),
-            A.GaussianBlur(),
-            A.IAASharpen(),
-            A.NoOp()
-        ], p=float(augmentation > LIGHT)),
 
         A.Compose([
             A.ShiftScaleRotate(shift_limit=0, scale_limit=0.1,
@@ -190,6 +178,13 @@ def get_train_aug(image_size, augmentation=None, crop_black=True):
                                value=0),
             A.OpticalDistortion(border_mode=cv2.BORDER_CONSTANT, value=0),
         ], p=float(augmentation == HARD)),
+
+        ZeroTopAndBottom(p=0.3),
+
+        A.OneOf([
+            A.ISONoise(),
+            A.NoOp()
+        ], p=float(augmentation > LIGHT)),
 
         A.OneOf([
             A.RandomBrightnessContrast(),
