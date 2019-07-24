@@ -137,7 +137,7 @@ def main():
                     print(e)
 
             checkpoint_epoch = checkpoint['epoch']
-            print('Loaded model weights from:', args.checkpoint)
+            print('Loaded model weights from:', transfer_checkpoint)
             print('Epoch                    :', checkpoint_epoch)
             print('Metrics (Train):',
                   'kappa:', checkpoint['epoch_metrics']['train']['kappa_score'],
