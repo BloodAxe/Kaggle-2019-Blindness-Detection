@@ -12,7 +12,7 @@ from torch.optim.lr_scheduler import MultiStepLR
 from torch.optim.rmsprop import RMSprop
 
 from retinopathy.lib.losses import ClippedMSELoss, ClippedWingLoss, CumulativeLinkLoss, LabelSmoothingLoss, \
-    SoftCrossEntropyLoss
+    SoftCrossEntropyLoss, ClippedHuber
 from retinopathy.lib.models.heads import GlobalAvgPool2dHead, GlobalMaxPool2dHead, \
     ObjectContextPoolHead, \
     GlobalMaxAvgPool2dHead, EncoderHeadModel, RMSPoolHead
@@ -87,9 +87,7 @@ def get_loss(loss_name: str, **kwargs):
         return MSELoss()
 
     if loss_name.lower() == 'huber':
-        if 'ignore_index' in kwargs and kwargs['ignore_index'] is not None:
-            raise ValueError(f'Loss {loss_name} does not support ignore_index')
-        return SmoothL1Loss()
+        return ClippedHuber(min=0, max=4, **kwargs)
 
     if loss_name.lower() == 'wing_loss':
         return ClippedWingLoss(width=2, curvature=0.1, min=0, max=4, **kwargs)

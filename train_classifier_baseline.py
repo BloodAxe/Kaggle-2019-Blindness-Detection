@@ -135,20 +135,18 @@ def main():
                     print(e)
 
             checkpoint_epoch = checkpoint['epoch']
-            print('Loaded model weights from:', args.checkpoint)
+            print('Loaded model weights from:', transfer_checkpoint)
             print('Epoch                    :', checkpoint_epoch)
             print('Metrics (Train):',
-                  'cappa:',
-                  checkpoint['epoch_metrics']['train']['kappa_score'],
-                  'accuracy01:',
-                  checkpoint['epoch_metrics']['train'].get('accuracy01', 'n/a'),
-                  'loss:', checkpoint['epoch_metrics']['train']['loss'])
+                  'kappa:', checkpoint['epoch_metrics']['train']['kappa_score'],
+                  'accuracy:', checkpoint['epoch_metrics']['train'].get('accuracy', 'n/a'),
+                  'accuracy:', checkpoint['epoch_metrics']['train'].get('accuracy01', 'n/a'),
+                  'loss:', checkpoint['epoch_metrics']['train'].get('loss', 'n/a'))
             print('Metrics (Valid):',
-                  'cappa:',
-                  checkpoint['epoch_metrics']['valid']['kappa_score'],
-                  'accuracy01:',
-                  checkpoint['epoch_metrics']['valid'].get('accuracy01', 'n/a'),
-                  'loss:', checkpoint['epoch_metrics']['valid']['loss'])
+                  'kappa:', checkpoint['epoch_metrics']['valid']['kappa_score'],
+                  'accuracy:', checkpoint['epoch_metrics']['valid'].get('accuracy', 'n/a'),
+                  'accuracy:', checkpoint['epoch_metrics']['valid'].get('accuracy01', 'n/a'),
+                  'loss:', checkpoint['epoch_metrics']['valid'].get('n/a'))
 
         checkpoint = None
         if args.checkpoint:
@@ -159,17 +157,15 @@ def main():
             print('Loaded model weights from:', args.checkpoint)
             print('Epoch                    :', checkpoint_epoch)
             print('Metrics (Train):',
-                  'cappa:',
-                  checkpoint['epoch_metrics']['train']['kappa_score'],
-                  'accuracy01:',
-                  checkpoint['epoch_metrics']['train']['accuracy01'],
-                  'loss:', checkpoint['epoch_metrics']['train']['loss'])
+                  'kappa:', checkpoint['epoch_metrics']['train']['kappa_score'],
+                  'accuracy:', checkpoint['epoch_metrics']['train'].get('accuracy', 'n/a'),
+                  'accuracy:', checkpoint['epoch_metrics']['train'].get('accuracy01', 'n/a'),
+                  'loss:', checkpoint['epoch_metrics']['train'].get('loss', 'n/a'))
             print('Metrics (Valid):',
-                  'cappa:',
-                  checkpoint['epoch_metrics']['valid']['kappa_score'],
-                  'accuracy01:',
-                  checkpoint['epoch_metrics']['valid']['accuracy01'],
-                  'loss:', checkpoint['epoch_metrics']['valid']['loss'])
+                  'kappa:', checkpoint['epoch_metrics']['valid']['kappa_score'],
+                  'accuracy:', checkpoint['epoch_metrics']['valid'].get('accuracy', 'n/a'),
+                  'accuracy:', checkpoint['epoch_metrics']['valid'].get('accuracy01', 'n/a'),
+                  'loss:', checkpoint['epoch_metrics']['valid'].get('n/a'))
 
         train_ds, valid_ds, train_sizes = get_datasets(data_dir=data_dir,
                                                        use_aptos2019=use_aptos2019,

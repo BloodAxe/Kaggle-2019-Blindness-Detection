@@ -387,11 +387,11 @@ class UnsupervisedCriterionCallback(CriterionCallback):
             return
 
         with torch.no_grad():
-            input: torch.Tensor = state.input[self.input_key][mask].detach()
+            orig_input: torch.Tensor = state.input[self.input_key].detach()
 
             # Compute target probability distribution
             state.model.eval()
-            output = state.model(input)[self.output_key]
+            output = state.model(orig_input)[self.output_key][mask]
             state.model.train()
             original_prob: torch.Tensor = F.log_softmax(output, dim=1).exp()
 

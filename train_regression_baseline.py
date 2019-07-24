@@ -159,10 +159,12 @@ def main():
             print('Metrics (Train):',
                   'kappa:', checkpoint['epoch_metrics']['train']['kappa_score'],
                   'accuracy:', checkpoint['epoch_metrics']['train'].get('accuracy', 'n/a'),
+                  'accuracy:', checkpoint['epoch_metrics']['train'].get('accuracy01', 'n/a'),
                   'loss:', checkpoint['epoch_metrics']['train'].get('loss', 'n/a'))
             print('Metrics (Valid):',
                   'kappa:', checkpoint['epoch_metrics']['valid']['kappa_score'],
                   'accuracy:', checkpoint['epoch_metrics']['valid'].get('accuracy', 'n/a'),
+                  'accuracy:', checkpoint['epoch_metrics']['valid'].get('accuracy01', 'n/a'),
                   'loss:', checkpoint['epoch_metrics']['valid'].get('n/a'))
 
         train_ds, valid_ds, train_sizes = get_datasets(data_dir=data_dir,
