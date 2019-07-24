@@ -19,7 +19,11 @@ from retinopathy.lib.models.regression import regression_to_class
 
 
 class CappaScoreCallback(Callback):
-    def __init__(self, input_key: str = "targets", output_key: str = "logits", prefix: str = "kappa_score"):
+    def __init__(self,
+                 input_key: str = "targets",
+                 output_key: str = "logits",
+                 prefix: str = "kappa_score",
+                 ignore_index=-100):
         """
         :param input_key: input key to use for precision calculation; specifies our `y_true`.
         :param output_key: output key to use for precision calculation; specifies our `y_pred`.
@@ -29,6 +33,7 @@ class CappaScoreCallback(Callback):
         self.input_key = input_key
         self.targets = []
         self.predictions = []
+        self.ignore_index = ignore_index
 
     def on_loader_start(self, state):
         self.targets = []
@@ -38,8 +43,9 @@ class CappaScoreCallback(Callback):
         outputs = to_numpy(state.output[self.output_key].detach())
         targets = to_numpy(state.input[self.input_key].detach())
 
-        self.targets.extend(targets)
-        self.predictions.extend(np.argmax(outputs, axis=1))
+        mask = targets != self.ignore_index
+        self.targets.extend(targets[mask])
+        self.predictions.extend(np.argmax(outputs, axis=1)[mask])
 
     def on_loader_end(self, state):
         score = cohen_kappa_score(self.predictions, self.targets, weights='quadratic')
@@ -47,7 +53,11 @@ class CappaScoreCallback(Callback):
 
 
 class CappaScoreCallbackFromRegression(Callback):
-    def __init__(self, input_key: str = "targets", output_key: str = "logits", prefix: str = "kappa_score"):
+    def __init__(self,
+                 input_key: str = "targets",
+                 output_key: str = "logits",
+                 prefix: str = "kappa_score",
+                 ignore_index=-100):
         """
         :param input_key: input key to use for precision calculation; specifies our `y_true`.
         :param output_key: output key to use for precision calculation; specifies our `y_pred`.
@@ -57,6 +67,7 @@ class CappaScoreCallbackFromRegression(Callback):
         self.input_key = input_key
         self.targets = []
         self.predictions = []
+        self.ignore_index = ignore_index
 
     def on_loader_start(self, state):
         self.targets = []
@@ -66,8 +77,9 @@ class CappaScoreCallbackFromRegression(Callback):
         outputs = to_numpy(regression_to_class(state.output[self.output_key].detach()))
         targets = to_numpy(state.input[self.input_key].detach())
 
-        self.targets.extend(targets)
-        self.predictions.extend(outputs)
+        mask = targets != self.ignore_index
+        self.targets.extend(targets[mask])
+        self.predictions.extend(outputs[mask])
 
     def on_loader_end(self, state):
         score = cohen_kappa_score(self.predictions, self.targets, weights='quadratic')
