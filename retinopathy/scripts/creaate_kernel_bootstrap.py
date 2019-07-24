@@ -7,17 +7,16 @@ from pytorch_toolbelt.utils.torch_utils import tensor_from_rgb_image
 
 from retinopathy.lib.augmentations import CropBlackRegions, get_test_aug, crop_black, ChannelIndependentCLAHE, \
     clahe_preprocessing
-from retinopathy.lib.dataset import RetinopathyDataset, get_class_names
+from retinopathy.lib.dataset import RetinopathyDataset, get_class_names, UNLABELED_CLASS
 from retinopathy.lib.factory import get_model
 from retinopathy.lib.inference import PickModelOutput, run_model_inference, cls_predictions_to_submission, \
     average_predictions, reg_predictions_to_submission, run_model_inference_via_dataset
 from retinopathy.lib.models.heads import RMSPool2d, EncoderHeadModel, GlobalAvgPool2d, GlobalAvgPool2dHead, \
-    GlobalWeightedAvgPool2dHead, GlobalWeightedMaxPool2dHead, GlobalMaxAvgPool2dHead, RMSPoolRegressionHead, \
-    GlobalMaxPool2dHead, ObjectContextPoolHead, FourReluBlock, Flatten, HyperPoolHead, CLSBlock
+    GlobalMaxAvgPool2dHead, \
+    GlobalMaxPool2dHead, ObjectContextPoolHead, FourReluBlock, Flatten, CLSBlock, RMSPoolHead
 from retinopathy.lib.models.oc import ASP_OC_Module, BaseOC_Context_Module, SelfAttentionBlock2D, _SelfAttentionBlock
 from retinopathy.lib.models.ordinal import OrdinalEncoderHeadModel, LogisticCumulativeLink
 from retinopathy.lib.models.regression import regression_to_class
-
 
 def encode_archive(archive_name):
     with open(archive_name, "rb") as f:
@@ -43,7 +42,7 @@ def main():
         lines.append('\n')
 
     # Install packages
-    for file in ['deps/pytorch_toolbelt-0.1.2.tar.gz']:
+    for file in ['deps/pytorch_toolbelt-0.1.3.tar.gz']:
         file_name = os.path.basename(file)
         content = encode_archive(file)
         lines.append(f'decode_archive(\'{file_name}\', \'{content}\')\n')
@@ -85,10 +84,7 @@ def main():
         RMSPool2d,
         GlobalAvgPool2d,
         GlobalAvgPool2dHead,
-        GlobalWeightedAvgPool2dHead,
-        GlobalWeightedMaxPool2dHead,
         GlobalMaxPool2dHead,
-        RMSPoolRegressionHead,
         GlobalMaxAvgPool2dHead,
         ObjectContextPoolHead,
         _SelfAttentionBlock,
@@ -96,9 +92,9 @@ def main():
         BaseOC_Context_Module,
         OrdinalEncoderHeadModel,
         LogisticCumulativeLink,
+        RMSPoolHead,
         FourReluBlock,
         CLSBlock,
-        HyperPoolHead,
         ASP_OC_Module,
         Flatten,
         EncoderHeadModel,
@@ -121,7 +117,7 @@ def main():
     for import_statement in imports:
         lines.append(import_statement + '\n')
     lines.append('\n')
-
+    lines.append(f'UNLABELED_CLASS = {UNLABELED_CLASS}\n')
     lines.append('# Functions\n')
     for function in functions:
         source = inspect.getsource(function)

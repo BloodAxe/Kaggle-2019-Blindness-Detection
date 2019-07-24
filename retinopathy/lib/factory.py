@@ -3,8 +3,6 @@ from functools import partial
 import torch
 from catalyst.contrib.schedulers import OneCycleLR, ExponentialLR
 from pytorch_toolbelt.losses import FocalLoss
-from pytorch_toolbelt.modules.activations import ACT_LEAKY_RELU
-from pytorch_toolbelt.modules.backbone.efficient_net import efficient_net_b4
 from pytorch_toolbelt.modules.encoders import *
 from pytorch_toolbelt.utils.torch_utils import to_numpy
 from torch import nn
@@ -14,18 +12,10 @@ from torch.optim.lr_scheduler import MultiStepLR
 from torch.optim.rmsprop import RMSprop
 
 from retinopathy.lib.losses import ClippedMSELoss, ClippedWingLoss, CumulativeLinkLoss, LabelSmoothingLoss, \
-    SoftCrossEntropyLoss
-from retinopathy.lib.models.heads import GlobalAvgPool2dHead, GlobalMaxPool2dHead, GlobalWeightedAvgPool2dHead, \
-    GlobalWeightedMaxPool2dHead, ObjectContextPoolHead, \
-    RMSPoolRegressionHead, GlobalMaxAvgPool2dHead, EncoderHeadModel, FourReluBlock, HyperPoolHead, CLSBlock
-from retinopathy.lib.models.ordinal import OrdinalEncoderHeadModel
-
-
-class EfficientNetB4ReluEncoder(EfficientNetEncoder):
-    def __init__(self, layers=[1, 2, 4, 6], **kwargs):
-        super().__init__(efficient_net_b4(num_classes=1, abn_params={'activation': ACT_LEAKY_RELU
-                                                                     }), [24, 32, 56, 112, 160, 272, 448],
-                         [2, 4, 8, 16, 16, 32, 32], layers)
+    SoftCrossEntropyLoss, ClippedHuber
+from retinopathy.lib.models.heads import GlobalAvgPool2dHead, GlobalMaxPool2dHead, \
+    ObjectContextPoolHead, \
+    GlobalMaxAvgPool2dHead, EncoderHeadModel, RMSPoolHead
 
 
 def get_model(model_name, num_classes, pretrained=True, dropout=0.0, **kwargs):
@@ -37,49 +27,27 @@ def get_model(model_name, num_classes, pretrained=True, dropout=0.0, **kwargs):
         'resnet50': Resnet50Encoder,
         'resnext50': SEResNeXt50Encoder,
         'resnext101': SEResNeXt101Encoder,
-        'efficientb0': EfficientNetB0Encoder,
-        'efficientb1': EfficientNetB1Encoder,
-        'efficientb2': EfficientNetB2Encoder,
-        'efficientb3': EfficientNetB3Encoder,
-        'efficientb4': EfficientNetB4ReluEncoder,
-        'efficientb5': EfficientNetB5Encoder,
-        'efficientb6': EfficientNetB6Encoder
     }
 
     encoder = ENCODERS[encoder_name](pretrained=pretrained)
 
-    HEADS = {
+    POOLING = {
         'gap': GlobalAvgPool2dHead,
         'avg': GlobalAvgPool2dHead,
         'gmp': GlobalMaxPool2dHead,
         'max': GlobalMaxPool2dHead,
-        'gwap': GlobalWeightedAvgPool2dHead,
-        'gwmp': GlobalWeightedMaxPool2dHead,
         'ocp': partial(ObjectContextPoolHead, oc_features=encoder.output_filters[-1] // 4),
-        'rms': RMSPoolRegressionHead,
+        'rms': RMSPoolHead,
         'maxavg': GlobalMaxAvgPool2dHead,
-        'hyp': HyperPoolHead,
     }
 
     MODELS = {
         'reg': EncoderHeadModel,
         'cls': EncoderHeadModel,
-        'ord': partial(OrdinalEncoderHeadModel, num_classes=num_classes)
+        'ord': EncoderHeadModel
     }
 
-    if kind == 'reg' or kind == 'ord':
-        num_classes = 1
-
-    head_args = {
-        'dropout': dropout
-    }
-
-    if kind == 'reg' and head_name != 'rms':
-        head_args['head_block'] = FourReluBlock
-    if kind == 'cls':
-        head_args['head_block'] = CLSBlock
-
-    head = HEADS[head_name](encoder.output_filters, num_classes, **head_args)
+    head = POOLING[head_name](encoder.output_filters)
     model = MODELS[kind](encoder, head)
     return model
 
@@ -114,19 +82,21 @@ def get_loss(loss_name: str, **kwargs):
         return FocalLoss(**kwargs)
 
     if loss_name.lower() == 'mse':
+        if 'ignore_index' in kwargs and kwargs['ignore_index'] is not None:
+            raise ValueError(f'Loss {loss_name} does not support ignore_index')
         return MSELoss()
 
     if loss_name.lower() == 'huber':
-        return SmoothL1Loss()
+        return ClippedHuber(min=0, max=4, **kwargs)
 
     if loss_name.lower() == 'wing_loss':
-        return ClippedWingLoss(width=2, curvature=0.1, min=0, max=4)
+        return ClippedWingLoss(width=2, curvature=0.1, min=0, max=4, **kwargs)
 
     if loss_name.lower() == 'clipped_huber':
         raise NotImplementedError(loss_name)
 
     if loss_name.lower() == 'clipped_mse':
-        return ClippedMSELoss(min=0, max=4)
+        return ClippedMSELoss(min=0, max=4, **kwargs)
 
     if loss_name.lower() == 'link':
         return CumulativeLinkLoss()

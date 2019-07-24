@@ -29,6 +29,7 @@ class PickModelOutput(nn.Module):
 
 def run_model_inference_via_dataset(model_checkpoint: str,
                                     dataset: RetinopathyDataset,
+                                    output_key='logits',
                                     model_name=None,
                                     batch_size=None,
                                     tta=None,
@@ -51,7 +52,7 @@ def run_model_inference_via_dataset(model_checkpoint: str,
     model = get_model(model_name, pretrained=False, num_classes=num_classes)
     model.load_state_dict(checkpoint['model_state_dict'])
 
-    model = nn.Sequential(model, PickModelOutput('logits'))
+    model = nn.Sequential(model, PickModelOutput(output_key))
 
     if apply_softmax:
         model = nn.Sequential(model, nn.Softmax(dim=1))
@@ -94,6 +95,7 @@ def run_model_inference_via_dataset(model_checkpoint: str,
 def run_model_inference(model_checkpoint: str,
                         test_csv: pd.DataFrame,
                         data_dir,
+                        output_key='logits',
                         model_name=None,
                         batch_size=None,
                         image_size=(512, 512),
@@ -105,6 +107,7 @@ def run_model_inference(model_checkpoint: str,
     test_ds = RetinopathyDataset(image_fnames, None, get_test_aug(image_size))
     return run_model_inference_via_dataset(model_checkpoint, test_ds,
                                            model_name=model_name,
+                                           output_key=output_key,
                                            batch_size=batch_size,
                                            tta=tta,
                                            apply_softmax=apply_softmax,

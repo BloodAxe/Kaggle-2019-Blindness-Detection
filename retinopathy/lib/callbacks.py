@@ -1,4 +1,5 @@
 import os
+from functools import partial
 from typing import List
 
 import numpy as np
@@ -12,7 +13,7 @@ from pytorch_toolbelt.utils.torch_utils import to_numpy
 from pytorch_toolbelt.utils.visualization import plot_confusion_matrix, render_figure_to_tensor
 from sklearn.metrics import cohen_kappa_score, confusion_matrix
 from torch import nn
-from torch.nn import Module
+from torch.nn import Module, KLDivLoss
 
 from retinopathy.lib.models.ordinal import LogisticCumulativeLink
 from retinopathy.lib.models.regression import regression_to_class
@@ -23,6 +24,7 @@ class CappaScoreCallback(Callback):
                  input_key: str = "targets",
                  output_key: str = "logits",
                  prefix: str = "kappa_score",
+                 from_regression=False,
                  ignore_index=-100):
         """
         :param input_key: input key to use for precision calculation; specifies our `y_true`.
@@ -34,66 +36,54 @@ class CappaScoreCallback(Callback):
         self.targets = []
         self.predictions = []
         self.ignore_index = ignore_index
+        self.from_regression = from_regression
 
     def on_loader_start(self, state):
         self.targets = []
         self.predictions = []
 
     def on_batch_end(self, state: RunnerState):
-        outputs = to_numpy(state.output[self.output_key].detach())
+
         targets = to_numpy(state.input[self.input_key].detach())
 
-        mask = targets != self.ignore_index
-        self.targets.extend(targets[mask])
-        self.predictions.extend(np.argmax(outputs, axis=1)[mask])
+        outputs = state.output[self.output_key].detach()
+        if self.from_regression:
+            outputs = to_numpy(regression_to_class(outputs))
+        else:
+            outputs = to_numpy(outputs)
+            outputs = np.argmax(outputs, axis=1)
+
+        if self.ignore_index is not None:
+            mask = targets != self.ignore_index
+            outputs = outputs[mask]
+            targets = targets[mask]
+
+        self.targets.extend(targets)
+        self.predictions.extend(outputs)
 
     def on_loader_end(self, state):
         score = cohen_kappa_score(self.predictions, self.targets, weights='quadratic')
         state.metrics.epoch_values[state.loader_name][self.prefix] = score
 
 
-class CappaScoreCallbackFromRegression(Callback):
-    def __init__(self,
-                 input_key: str = "targets",
-                 output_key: str = "logits",
-                 prefix: str = "kappa_score",
-                 ignore_index=-100):
-        """
-        :param input_key: input key to use for precision calculation; specifies our `y_true`.
-        :param output_key: output key to use for precision calculation; specifies our `y_pred`.
-        """
-        self.prefix = prefix
-        self.output_key = output_key
-        self.input_key = input_key
-        self.targets = []
-        self.predictions = []
-        self.ignore_index = ignore_index
-
-    def on_loader_start(self, state):
-        self.targets = []
-        self.predictions = []
-
-    def on_batch_end(self, state: RunnerState):
-        outputs = to_numpy(regression_to_class(state.output[self.output_key].detach()))
-        targets = to_numpy(state.input[self.input_key].detach())
-
-        mask = targets != self.ignore_index
-        self.targets.extend(targets[mask])
-        self.predictions.extend(outputs[mask])
-
-    def on_loader_end(self, state):
-        score = cohen_kappa_score(self.predictions, self.targets, weights='quadratic')
-        state.metrics.epoch_values[state.loader_name][self.prefix] = score
-
-
-def accuracy_from_regression(outputs, targets):
+def accuracy_from_regression(outputs, targets, ignore_index=None):
     """
     Computes the accuracy@k for the specified values of k
     """
-    batch_size = targets.size(0)
+    outputs = outputs.detach()
+    targets = targets.detach()
 
-    outputs = regression_to_class(outputs.detach()).float()
-    correct = outputs.eq(targets.detach())
+    if ignore_index is not None:
+        mask = targets != ignore_index
+        outputs = outputs[mask]
+        targets = targets[mask]
+
+    batch_size = targets.size(0)
+    if batch_size == 0:
+        return np.nan
+
+    outputs = regression_to_class(outputs).long()
+    correct = outputs.eq(targets.long())
 
     acc = correct.float().sum() / batch_size
     return acc
@@ -109,6 +99,7 @@ class AccuracyCallbackFromRegression(MetricCallback):
             input_key: str = "targets",
             output_key: str = "logits",
             prefix: str = "accuracy",
+            ignore_index=None
     ):
         """
         Args:
@@ -119,7 +110,7 @@ class AccuracyCallbackFromRegression(MetricCallback):
         """
         super().__init__(
             prefix=prefix,
-            metric_fn=accuracy_from_regression,
+            metric_fn=partial(accuracy_from_regression, ignore_index=ignore_index),
             input_key=input_key,
             output_key=output_key
         )
@@ -136,7 +127,8 @@ class ConfusionMatrixCallbackFromRegression(Callback):
             input_key: str = "targets",
             output_key: str = "logits",
             prefix: str = "confusion_matrix",
-            class_names=None
+            class_names=None,
+            ignore_index=None
     ):
         """
         :param input_key: input key to use for precision calculation;
@@ -150,14 +142,20 @@ class ConfusionMatrixCallbackFromRegression(Callback):
         self.input_key = input_key
         self.outputs = []
         self.targets = []
+        self.ignore_index = ignore_index
 
     def on_loader_start(self, state):
         self.outputs = []
         self.targets = []
 
     def on_batch_end(self, state: RunnerState):
-        outputs = to_numpy(regression_to_class(state.output[self.output_key]))
+        outputs = to_numpy(regression_to_class(state.output[self.output_key].detach()))
         targets = to_numpy(state.input[self.input_key])
+
+        if self.ignore_index is not None:
+            mask = targets != self.ignore_index
+            outputs = outputs[mask]
+            targets = targets[mask]
 
         self.outputs.extend(outputs)
         self.targets.extend(targets)
@@ -377,9 +375,9 @@ class UnsupervisedCriterionCallback(CriterionCallback):
                          state.loader_name.startswith("train")
 
     def on_batch_end(self, state: RunnerState):
-
         targets = state.input[self.target_key]
         mask = targets == self.unsupervised_label
+
         if not mask.any() or not self.is_needed:
             # If batch contains no unsupervised samples - quit
             state.metrics.add_batch_value(metrics_dict={
@@ -388,15 +386,18 @@ class UnsupervisedCriterionCallback(CriterionCallback):
 
             return
 
-        input: torch.Tensor = state.input[self.input_key][mask]
+        with torch.no_grad():
+            orig_input: torch.Tensor = state.input[self.input_key].detach()
 
-        state.model.eval()
-        output = state.model(input.detach())[self.output_key]
-        state.model.train()
-        
+            # Compute target probability distribution
+            state.model.eval()
+            output = state.model(orig_input)[self.output_key][mask]
+            state.model.train()
+            original_prob: torch.Tensor = F.log_softmax(output, dim=1).exp()
+
         augmented_log_prob = F.log_softmax(state.output[self.output_key][mask], dim=1)
-        original_prob: torch.Tensor = F.softmax(output, dim=1)
-        loss = F.kl_div(augmented_log_prob, original_prob.detach(), reduction='batchmean')
+
+        loss = F.kl_div(augmented_log_prob, original_prob, reduction='batchmean')
 
         state.metrics.add_batch_value(metrics_dict={
             self.prefix: loss.item(),
