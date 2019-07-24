@@ -133,6 +133,24 @@ class ClippedMSELoss(MSELoss):
 
 
 @registry.Criterion
+class CustomMSE(nn.MSELoss):
+    def __init__(self, size_average=None, reduce=None, reduction='mean', ignore_index=None):
+        super(CustomMSE, self).__init__(size_average, reduce, reduction)
+        self.ignore_index = ignore_index
+
+    def forward(self, input, target):
+        if self.ignore_index is not None:
+            mask = target != self.ignore_index
+            target = target[mask]
+            input = input[mask]
+
+        if not len(target):
+            return torch.tensor(0.).to(input.device)
+
+        return super().forward(input, target.float())
+
+
+@registry.Criterion
 class ClippedHuber(SmoothL1Loss):
     def __init__(self, min=0, max=4, size_average=None, reduce=None, reduction='mean', ignore_index=None):
         super(ClippedHuber, self).__init__(size_average, reduce, reduction)
