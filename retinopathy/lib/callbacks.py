@@ -13,7 +13,7 @@ from pytorch_toolbelt.utils.torch_utils import to_numpy
 from pytorch_toolbelt.utils.visualization import plot_confusion_matrix, render_figure_to_tensor
 from sklearn.metrics import cohen_kappa_score, confusion_matrix
 from torch import nn
-from torch.nn import Module
+from torch.nn import Module, KLDivLoss
 
 from retinopathy.lib.models.ordinal import LogisticCumulativeLink
 from retinopathy.lib.models.regression import regression_to_class
@@ -393,9 +393,10 @@ class UnsupervisedCriterionCallback(CriterionCallback):
             state.model.eval()
             output = state.model(input)[self.output_key]
             state.model.train()
-            original_prob: torch.Tensor = F.softmax(output, dim=1)
+            original_prob: torch.Tensor = F.log_softmax(output, dim=1).exp()
 
         augmented_log_prob = F.log_softmax(state.output[self.output_key][mask], dim=1)
+
         loss = F.kl_div(augmented_log_prob, original_prob, reduction='batchmean')
 
         state.metrics.add_batch_value(metrics_dict={
