@@ -309,6 +309,7 @@ def get_datasets(
         use_aptos2015=False,
         use_idrid=False,
         use_messidor=False,
+        use_unsupervised=False,
         target_dtype=int,
         random_state=42,
         fold=None,
@@ -358,7 +359,7 @@ def get_datasets(
         valid_x.extend(vx)
         valid_y.extend(vy)
 
-    if use_aptos2015:
+    if use_unsupervised:
         train_ds = RetinopathyDatasetV2(train_x, train_y,
                                         transform=get_train_aug(image_size, augmentation, crop_black=False),
                                         normalize=get_test_aug(image_size, crop_black=False),

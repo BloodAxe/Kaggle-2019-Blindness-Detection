@@ -98,6 +98,7 @@ def main():
     use_aptos2019 = args.use_aptos2019
     warmup = args.warmup
     dropout = args.dropout
+    use_unsupervised = True
 
     assert use_aptos2015 or use_aptos2019 or use_idrid or use_messidor
 
@@ -176,6 +177,7 @@ def main():
                                                        use_aptos2015=use_aptos2015,
                                                        use_idrid=use_idrid,
                                                        use_messidor=use_messidor,
+                                                       use_unsupervised=True,
                                                        image_size=image_size,
                                                        augmentation=augmentations,
                                                        target_dtype=int,
@@ -242,10 +244,10 @@ def main():
                                    class_names=get_class_names())
 
         callbacks = [
-            AccuracyCallback(),
+            # AccuracyCallback(),
             CappaScoreCallback(),
-            ConfusionMatrixCallback(class_names=get_class_names()),
-            NegativeMiningCallback()
+            # ConfusionMatrixCallback(class_names=get_class_names()),
+            # NegativeMiningCallback()
         ]
 
         criterion = get_loss(criterion_name)
@@ -287,7 +289,7 @@ def main():
                 ShowPolarBatchesCallback(visualization_fn, metric='accuracy01',
                                          minimize=False)]
 
-        if use_aptos2015:
+        if use_unsupervised:
             callbacks += [
                 CriterionCallback(prefix='supervised_loss', loss_key='supervised_loss'),
                 UnsupervisedCriterionCallback(prefix='unsupervised_loss', loss_key='unsupervised_loss')]

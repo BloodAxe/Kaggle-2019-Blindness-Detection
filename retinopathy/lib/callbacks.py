@@ -388,15 +388,15 @@ class UnsupervisedCriterionCallback(CriterionCallback):
 
             return
 
-        input = state.input[self.input_key][mask]
+        input: torch.Tensor = state.input[self.input_key][mask]
 
         state.model.eval()
-        output = state.model(input)[self.output_key]
+        output = state.model(input.detach())[self.output_key]
         state.model.train()
+        
         augmented_log_prob = F.log_softmax(state.output[self.output_key][mask], dim=1)
-        original_prob = F.softmax(output, dim=1)
-
-        loss = F.kl_div(augmented_log_prob, original_prob, reduction='batchmean')
+        original_prob: torch.Tensor = F.softmax(output, dim=1)
+        loss = F.kl_div(augmented_log_prob, original_prob.detach(), reduction='batchmean')
 
         state.metrics.add_batch_value(metrics_dict={
             self.prefix: loss.item(),
