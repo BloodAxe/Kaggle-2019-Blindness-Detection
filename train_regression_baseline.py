@@ -258,7 +258,8 @@ def main():
 
             # AccuracyCallbackFromRegression(),
             CappaScoreCallback(output_key='regression', ignore_index=UNLABELED_CLASS, from_regression=True),
-            ConfusionMatrixCallbackFromRegression(class_names=get_class_names(), ignore_index=UNLABELED_CLASS),
+            ConfusionMatrixCallbackFromRegression(output_key='regression', class_names=get_class_names(),
+                                                  ignore_index=UNLABELED_CLASS),
             # NegativeMiningCallback(from_regression=True)
         ]
 
