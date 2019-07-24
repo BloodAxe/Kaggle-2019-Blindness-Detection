@@ -36,7 +36,7 @@ class RetinopathyDataset(Dataset):
         if targets is not None:
             targets = np.array(targets)
             unique_targets = set(targets)
-            if len(unique_targets.difference({0, 1, 2, 3, 4})):
+            if len(unique_targets.difference({0, 1, 2, 3, 4, UNLABELED_CLASS})):
                 raise ValueError('Unexpected targets in Y ' + str(unique_targets))
 
         self.meta_features = meta_features
