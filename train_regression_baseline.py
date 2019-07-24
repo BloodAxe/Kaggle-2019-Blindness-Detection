@@ -17,7 +17,7 @@ from pytorch_toolbelt.utils.torch_utils import count_parameters, \
 
 from retinopathy.lib.callbacks import ConfusionMatrixCallbackFromRegression, \
     MixupRegressionCallback, UnsupervisedCriterionCallback, \
-    CappaScoreCallback
+    CappaScoreCallback, AccuracyCallbackFromRegression
 from retinopathy.lib.dataset import get_class_names, \
     get_datasets, get_dataloaders, UNLABELED_CLASS
 from retinopathy.lib.factory import get_model, get_loss, get_optimizer, \
@@ -165,7 +165,6 @@ def main():
                   'accuracy:', checkpoint['epoch_metrics']['valid'].get('accuracy', 'n/a'),
                   'loss:', checkpoint['epoch_metrics']['valid'].get('n/a'))
 
-
         train_ds, valid_ds, train_sizes = get_datasets(data_dir=data_dir,
                                                        use_aptos2019=use_aptos2019,
                                                        use_aptos2015=use_aptos2015,
@@ -249,7 +248,7 @@ def main():
                               criterion_key='classification',
                               multiplier=0.5),
 
-            # AccuracyCallbackFromRegression(),
+            AccuracyCallbackFromRegression(output_key='regression', ignore_index=UNLABELED_CLASS),
             CappaScoreCallback(output_key='regression', ignore_index=UNLABELED_CLASS, from_regression=True),
             ConfusionMatrixCallbackFromRegression(output_key='regression', class_names=get_class_names(),
                                                   ignore_index=UNLABELED_CLASS),

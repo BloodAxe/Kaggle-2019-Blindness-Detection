@@ -186,6 +186,38 @@ def get_aptos2019(data_dir,
     return train_x, valid_x, train_y, valid_y
 
 
+def get_aptos2019_test(data_dir,
+                       random_state=42,
+                       fold=None,
+                       folds=4):
+    aptos2019_test = pd.read_csv(os.path.join(data_dir, 'test.csv'))
+    x = np.array(aptos2019_test['id_code'].apply(lambda x: os.path.join(data_dir, 'test_images_768', f'{x}.png')))
+    y = np.array([UNLABELED_CLASS] * len(x), dtype=int)
+
+    train_x, train_y = [], []
+    valid_x, valid_y = [], []
+
+    if fold is not None:
+        assert 0 <= fold < folds
+        skf = StratifiedKFold(n_splits=folds, random_state=random_state, shuffle=True)
+
+        for fold_index, (train_index, test_index) in enumerate(skf.split(x, y)):
+            if fold_index == fold:
+                train_x = x[train_index]
+                train_y = y[train_index]
+                valid_x = x[test_index]
+                valid_y = y[test_index]
+                break
+    else:
+        train_x, valid_x, train_y, valid_y = train_test_split(x, y,
+                                                              random_state=random_state,
+                                                              test_size=0.1,
+                                                              shuffle=True,
+                                                              stratify=y)
+
+    return train_x, valid_x, train_y, valid_y
+
+
 def get_aptos2015(dataset_dir,
                   random_state=42,
                   fold=None,
@@ -361,18 +393,30 @@ def get_datasets(
         valid_x.extend(vx)
         valid_y.extend(vy)
 
+    train_transform = get_train_aug(image_size, augmentation, crop_black=False)
+    valid_transform = get_test_aug(image_size, crop_black=False)
+
     if use_unsupervised:
+        dataset_dir = os.path.join(data_dir, 'aptos-2019')
+        tx, vx, ty, vy = get_aptos2019_test(dataset_dir, random_state, fold, folds)
+
+        trainset_sizes.append(len(tx))
+        train_x.extend(tx)
+        train_y.extend(ty)
+        train_x.extend(vx)  # We append all data to train set
+        train_y.extend(vy)  # We append all data to train set
+
         train_ds = RetinopathyDatasetV2(train_x, train_y,
-                                        transform=get_train_aug(image_size, augmentation, crop_black=False),
-                                        normalize=get_test_aug(image_size, crop_black=False),
+                                        transform=train_transform,
+                                        normalize=valid_transform,
                                         dtype=target_dtype)
     else:
         train_ds = RetinopathyDataset(train_x, train_y,
-                                      transform=get_train_aug(image_size, augmentation, crop_black=False),
+                                      transform=train_transform,
                                       dtype=target_dtype)
 
     valid_ds = RetinopathyDataset(valid_x, valid_y,
-                                  transform=get_test_aug(image_size, crop_black=False),
+                                  transform=valid_transform,
                                   dtype=target_dtype)
     return train_ds, valid_ds, trainset_sizes
 

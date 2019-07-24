@@ -1,4 +1,5 @@
 import os
+from functools import partial
 from typing import List
 
 import numpy as np
@@ -65,14 +66,24 @@ class CappaScoreCallback(Callback):
         state.metrics.epoch_values[state.loader_name][self.prefix] = score
 
 
-def accuracy_from_regression(outputs, targets):
+def accuracy_from_regression(outputs, targets, ignore_index=None):
     """
     Computes the accuracy@k for the specified values of k
     """
-    batch_size = targets.size(0)
+    outputs = outputs.detach()
+    targets = targets.detach()
 
-    outputs = regression_to_class(outputs.detach()).float()
-    correct = outputs.eq(targets.detach())
+    if ignore_index is not None:
+        mask = targets != ignore_index
+        outputs = outputs[mask]
+        targets = targets[mask]
+
+    batch_size = targets.size(0)
+    if batch_size == 0:
+        return np.nan
+
+    outputs = regression_to_class(outputs).long()
+    correct = outputs.eq(targets.long())
 
     acc = correct.float().sum() / batch_size
     return acc
@@ -88,6 +99,7 @@ class AccuracyCallbackFromRegression(MetricCallback):
             input_key: str = "targets",
             output_key: str = "logits",
             prefix: str = "accuracy",
+            ignore_index=None
     ):
         """
         Args:
@@ -98,7 +110,7 @@ class AccuracyCallbackFromRegression(MetricCallback):
         """
         super().__init__(
             prefix=prefix,
-            metric_fn=accuracy_from_regression,
+            metric_fn=partial(accuracy_from_regression, ignore_index=ignore_index),
             input_key=input_key,
             output_key=output_key
         )

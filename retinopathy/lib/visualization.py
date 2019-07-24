@@ -49,7 +49,7 @@ def draw_regression_predictions(input: dict,
                                 image_key='image',
                                 image_id_key='image_id',
                                 targets_key='targets',
-                                outputs_key='logits',
+                                outputs_key='regression',
                                 mean=(0.485, 0.456, 0.406),
                                 std=(0.229, 0.224, 0.225)):
     images = []
