@@ -7,7 +7,7 @@ import torch.nn.functional as F
 from catalyst.contrib import registry
 from pytorch_toolbelt.losses import WingLoss
 from torch import nn
-from torch.nn.modules.loss import MSELoss
+from torch.nn.modules.loss import MSELoss, SmoothL1Loss
 
 
 @registry.Criterion
@@ -107,8 +107,8 @@ class ClippedWingLoss(WingLoss):
         if not len(target):
             return torch.tensor(0.).to(input.device)
 
-        input, target = clip_regression(input, target.float(), self.min, self.max)
-        return super().forward(input, target)
+        input, target = clip_regression(input, target, self.min, self.max)
+        return super().forward(input, target.float())
 
 
 @registry.Criterion
@@ -126,10 +126,31 @@ class ClippedMSELoss(MSELoss):
             input = input[mask]
 
         if not len(target):
-            return 0
+            return torch.tensor(0.).to(input.device)
 
         input, target = clip_regression(input, target.float(), self.min, self.max)
-        return super().forward(input, target)
+        return super().forward(input, target.float())
+
+
+@registry.Criterion
+class ClippedHuber(SmoothL1Loss):
+    def __init__(self, min=0, max=4, size_average=None, reduce=None, reduction='mean', ignore_index=None):
+        super(ClippedHuber, self).__init__(size_average, reduce, reduction)
+        self.min = min
+        self.max = max
+        self.ignore_index = ignore_index
+
+    def forward(self, input, target):
+        if self.ignore_index is not None:
+            mask = target != self.ignore_index
+            target = target[mask]
+            input = input[mask]
+
+        if not len(target):
+            return torch.tensor(0.).to(input.device)
+
+        input, target = clip_regression(input, target.float(), self.min, self.max)
+        return super().forward(input, target.float())
 
 
 def quad_kappa_loss(input, targets, y_pow=1, eps=1e-15):
