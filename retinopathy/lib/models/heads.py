@@ -5,6 +5,7 @@ from torch import nn
 from torch.nn import functional as F
 
 from retinopathy.lib.models.oc import ASP_OC_Module
+from retinopathy.lib.models.ordinal import LogisticCumulativeLink
 
 
 class Flatten(nn.Module):
@@ -99,130 +100,41 @@ class CLSBlock(nn.Module):
 class GlobalAvgPool2dHead(nn.Module):
     """Global average pooling classifier module"""
 
-    def __init__(self, features, num_classes, head_block=nn.Linear, dropout=0.0):
+    def __init__(self, features):
         super().__init__()
         if isinstance(features, list):
             features = features[-1]
 
         self.features_size = features
         self.avg_pool = GlobalAvgPool2d()
-        self.dropout = nn.Dropout(dropout)
-        self.last_linear = head_block(features, num_classes)
 
     def forward(self, feature_maps):
         x = feature_maps[-1]
         x = self.avg_pool(x)
         x = x.view(x.size(0), -1)
-        features = x
-        x = self.dropout(x)
-        logits = self.last_linear(x)
-        return features, logits
+        return x
 
 
 class GlobalMaxPool2dHead(nn.Module):
     """Global max pooling classifier module"""
 
-    def __init__(self, features, num_classes, head_block=nn.Linear, dropout=0.0):
+    def __init__(self, features):
         super().__init__()
         if isinstance(features, list):
             features = features[-1]
 
         self.features_size = features
         self.max_pool = GlobalMaxPool2d()
-        self.dropout = nn.Dropout(dropout)
-        self.logits = head_block(features, num_classes)
 
     def forward(self, feature_maps):
         x = feature_maps[-1]
         x = self.max_pool(x)
         x = x.view(x.size(0), -1)
-        features = x
-        x = self.dropout(x)
-        logits = self.logits(x)
-        return features, logits
-
-
-class GlobalWeightedAvgPool2dHead(nn.Module):
-    """
-    Global Weighted Average Pooling from paper "Global Weighted Average Pooling Bridges Pixel-level Localization and Image-level Classification"
-    """
-
-    def __init__(self, features, num_classes, head_block=nn.Linear, dropout=0.0, **kwargs):
-        super().__init__()
-        if isinstance(features, list):
-            features = features[-1]
-
-        self.features_size = features
-        self.conv = nn.Conv2d(features, 1, kernel_size=1, bias=True)
-        self.dropout = nn.Dropout(dropout)
-        self.logits = head_block(features, num_classes)
-
-    def fscore(self, x):
-        m = self.conv(x)
-        m = m.sigmoid().exp()
-        return m
-
-    def norm(self, x: torch.Tensor):
-        return x / x.sum(dim=[2, 3], keepdim=True)
-
-    def forward(self, feature_maps):
-        x = feature_maps[-1]
-
-        input_x = x
-        x = self.fscore(x)
-        x = self.norm(x)
-        x = x * input_x
-        x = x.sum(dim=[2, 3])
-        features = x
-        x = self.dropout(x)
-        logits = self.logits(x)
-        return features, logits
-
-
-class GlobalWeightedMaxPool2dHead(nn.Module):
-    """
-    Global Weighted Max Pooling from paper "Global Weighted Average Pooling Bridges Pixel-level Localization and Image-level Classification"
-    """
-
-    def __init__(self, features, num_classes, head_block=nn.Linear, dropout=0.0, **kwargs):
-        super().__init__()
-        if isinstance(features, list):
-            features = features[-1]
-
-        self.features_size = features
-        self.conv = nn.Conv2d(features, 1, kernel_size=1, bias=True)
-        self.dropout = nn.Dropout(dropout)
-        self.max_pool = GlobalMaxPool2d()
-        self.logits = head_block(features, num_classes)
-
-    def fscore(self, x):
-        m = self.conv(x)
-        m = m.sigmoid().exp()
-        return m
-
-    def norm(self, x: torch.Tensor):
-        return x / x.sum(dim=[2, 3], keepdim=True)
-
-    def forward(self, feature_maps):
-        x = feature_maps[-1]
-
-        input_x = x
-        x = self.fscore(x)
-        x = self.norm(x)
-        x = x * input_x
-        x = self.max_pool(x)
-        x = x.view(x.size(0), -1)
-        features = x
-        x = self.dropout(x)
-        logits = self.logits(x)
-        return features, logits
+        return x
 
 
 class ObjectContextPoolHead(nn.Module):
-    """
-    """
-
-    def __init__(self, features, num_classes, oc_features, head_block=nn.Linear, dropout=0.0, **kwargs):
+    def __init__(self, features, oc_features, dropout=0.0):
         super().__init__()
         if isinstance(features, list):
             features = features[-1]
@@ -230,101 +142,45 @@ class ObjectContextPoolHead(nn.Module):
         self.features_size = oc_features
         self.oc = ASP_OC_Module(features, oc_features, dropout=dropout, dilations=(3, 5, 7))
         self.max_pool = GlobalMaxPool2d()
-        self.logits = head_block(oc_features, num_classes)
 
     def forward(self, feature_maps):
         x = feature_maps[-1]
         x = self.oc(x)
         x = self.max_pool(x)
-        features = x.view(x.size(0), -1)
-        logits = self.logits(features)
-        return features, logits
+        return x
 
 
 class GlobalMaxAvgPool2dHead(nn.Module):
-    """Global average pooling classifier module"""
-
-    def __init__(self, features, num_classes, head_block=nn.Linear, dropout=0.0):
+    def __init__(self, features):
         super().__init__()
         if isinstance(features, list):
             features = features[-1]
 
-        self.features_size = features
+        self.features_size = features * 2
         self.avg_pool = GlobalAvgPool2d()
         self.max_pool = GlobalMaxPool2d()
-        self.dropout = nn.Dropout(dropout)
-        self.last_linear = head_block(features, num_classes)
 
     def forward(self, feature_maps):
         x = feature_maps[-1]
-        x = self.avg_pool(x) + self.max_pool(x)
+        x = torch.cat([self.avg_pool(x), self.max_pool(x)], dim=1)
         x = x.view(x.size(0), -1)
-        features = x
-        x = self.dropout(x)
-        logits = self.last_linear(x)
-        return features, logits
+        return x
 
 
-class HyperPoolHead(nn.Module):
-    """Global average pooling classifier module"""
-
-    def __init__(self, features, num_classes, head_block=nn.Linear, dropout=0.0):
-        super().__init__()
-        self.features_size = sum(features)
-        self.max_pool = GlobalMaxPool2d()
-        self.dropout = nn.Dropout(dropout)
-        self.last_linear = head_block(self.features_size, num_classes)
-
-    def forward(self, feature_maps):
-        features = []
-        for feature_map in feature_maps:
-            x = self.max_pool(feature_map)
-            x = x.view(x.size(0), -1)
-            features.append(x)
-
-        features = torch.cat(features, dim=1)
-        x = self.dropout(features)
-        logits = self.last_linear(x)
-        return features, logits
-
-
-class RMSPoolRegressionHead(nn.Module):
-    def __init__(self, features, output_classes, reduction=4, dropout=0.25):
+class RMSPoolHead(nn.Module):
+    def __init__(self, features):
         super().__init__()
         if isinstance(features, list):
             features = features[-1]
 
         self.features_size = features
         self.rms_pool = RMSPool2d()
-        self.bn = nn.BatchNorm1d(features)
-        self.drop = nn.Dropout(dropout, inplace=True)
-        self.output_classes = output_classes
-
-        bottleneck = features // reduction
-
-        self.fc1 = nn.Linear(features, bottleneck)
-        self.act1 = nn.ReLU(inplace=True)
-
-        self.fc2 = nn.Linear(bottleneck, bottleneck)
-        self.act2 = nn.ReLU(inplace=True)
-
-        self.fc3 = nn.Linear(bottleneck, bottleneck)
-        self.act3 = nn.ReLU(inplace=True)
-
-        self.fc4 = nn.Linear(bottleneck, output_classes)
 
     def forward(self, feature_maps):
         x = feature_maps[-1]
         x = self.rms_pool(x)
-        features = x.view(x.size(0), -1)
-
-        x = self.bn(features)
-        x = self.drop(x)
-        x = self.act1(self.fc1(x))
-        x = self.act2(self.fc2(x))
-        x = self.act3(self.fc3(x))
-        logits = self.fc4(x)
-        return features, logits
+        x = x.view(x.size(0), -1)
+        return x
 
 
 def regression_to_class(value: torch.Tensor, min=0, max=4):
@@ -334,10 +190,21 @@ def regression_to_class(value: torch.Tensor, min=0, max=4):
 
 
 class EncoderHeadModel(nn.Module):
-    def __init__(self, encoder: EncoderModule, head):
+    def __init__(self, encoder: EncoderModule, head: nn.Module, num_classes=5,
+                 num_regression_dims=1,
+                 dropout=0.0,
+                 reduction=8):
         super().__init__()
         self.encoder = encoder
         self.head = head
+        bottleneck_features = head.features_size // reduction
+        self.dropout = nn.Dropout(dropout)
+        self.bottleneck = nn.Linear(head.features_size, bottleneck_features)
+
+        self.regressor = FourReluBlock(bottleneck_features, num_regression_dims, reduction=1)
+        self.logits = nn.Linear(bottleneck_features, num_classes)
+        # self.ordinal = nn.Sequential(nn.Linear(bottleneck_features, num_classes),
+        #                              LogisticCumulativeLink(num_classes, init_cutpoints='ordered'))
 
     @property
     def features_size(self):
@@ -345,9 +212,20 @@ class EncoderHeadModel(nn.Module):
 
     def forward(self, input):
         feature_maps = self.encoder(input)
-        features, logits = self.head(feature_maps)
+        features = self.head(feature_maps)
+        features = self.dropout(features)
+        features = self.bottleneck(features)
 
-        if logits.size(1) == 1:
-            logits = logits.squeeze(1)
+        logits = self.logits(features)
+        regression = self.regressor(features)
+        # ordinal = self.ordinal(features)
 
-        return {'features': features, 'logits': logits}
+        if regression.size(1) == 1:
+            regression = regression.squeeze(1)
+
+        return {
+            'features': features,
+            'logits': logits,
+            'regression': regression,
+            # 'ordinal': ordinal
+        }

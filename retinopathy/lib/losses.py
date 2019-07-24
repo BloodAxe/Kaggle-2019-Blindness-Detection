@@ -98,7 +98,7 @@ class ClippedWingLoss(WingLoss):
         self.max = max
 
     def forward(self, input, target):
-        input, target = clip_regression(input, target, self.min, self.max)
+        input, target = clip_regression(input, target.float(), self.min, self.max)
         return super().forward(input, target)
 
 
@@ -110,7 +110,7 @@ class ClippedMSELoss(MSELoss):
         self.max = max
 
     def forward(self, input, target):
-        input, target = clip_regression(input, target, self.min, self.max)
+        input, target = clip_regression(input, target.float(), self.min, self.max)
         return super().forward(input, target)
 
 

@@ -7,20 +7,19 @@ import os
 from datetime import datetime
 from functools import partial
 
-import numpy as np
-from catalyst.dl import SupervisedRunner, EarlyStoppingCallback
+from catalyst.dl import SupervisedRunner, EarlyStoppingCallback, CriterionCallback
 from catalyst.utils import load_checkpoint, unpack_checkpoint
 from pytorch_toolbelt.utils import fs
 from pytorch_toolbelt.utils.catalyst import ShowPolarBatchesCallback
 from pytorch_toolbelt.utils.random import set_manual_seed, get_random_name
-from pytorch_toolbelt.utils.torch_utils import maybe_cuda, count_parameters, \
+from pytorch_toolbelt.utils.torch_utils import count_parameters, \
     set_trainable
 
-from retinopathy.lib.callbacks import CappaScoreCallbackFromRegression, \
-    AccuracyCallbackFromRegression, ConfusionMatrixCallbackFromRegression, \
-    MixupRegressionCallback, NegativeMiningCallback, MixupSameLabelCallback
+from retinopathy.lib.callbacks import ConfusionMatrixCallbackFromRegression, \
+    MixupRegressionCallback, UnsupervisedCriterionCallback, \
+    CappaScoreCallback
 from retinopathy.lib.dataset import get_class_names, \
-    get_datasets, get_dataloaders
+    get_datasets, get_dataloaders, UNLABELED_CLASS
 from retinopathy.lib.factory import get_model, get_loss, get_optimizer, \
     get_optimizable_parameters, get_scheduler
 from retinopathy.lib.visualization import draw_regression_predictions
@@ -40,6 +39,7 @@ def main():
     parser.add_argument('--use-messidor', action='store_true')
     parser.add_argument('--use-aptos2015', action='store_true')
     parser.add_argument('--use-aptos2019', action='store_true')
+    parser.add_argument('--unsupervised', action='store_true')
     parser.add_argument('-v', '--verbose', action='store_true')
     parser.add_argument('-acc', '--accumulation-steps', type=int, default=1, help='Number of batches to process')
     parser.add_argument('-dd', '--data-dir', type=str, default='data', help='Data directory')
@@ -99,6 +99,7 @@ def main():
     use_aptos2019 = args.use_aptos2019
     warmup = args.warmup
     dropout = args.dropout
+    use_unsupervised = args.unsupervised
 
     assert use_aptos2015 or use_aptos2019 or use_idrid or use_messidor
 
@@ -108,7 +109,7 @@ def main():
         folds = [None]
 
     for fold in folds:
-        checkpoint_prefix = f'{model_name}_{args.size}_{get_random_name()}_fold{fold}'
+        checkpoint_prefix = f'{model_name}_{args.size}_fold{fold}_{get_random_name()}'
         if use_aptos2019:
             checkpoint_prefix += '_aptos2019'
         if use_aptos2015:
@@ -127,8 +128,15 @@ def main():
                   transfer_checkpoint)
             checkpoint = load_checkpoint(transfer_checkpoint)
             pretrained_dict = checkpoint['model_state_dict']
-            checkpoint_epoch = checkpoint['epoch']
 
+            for name, value in pretrained_dict.items():
+                try:
+                    model.load_state_dict(
+                        collections.OrderedDict([(name, value)]), strict=False)
+                except Exception as e:
+                    print(e)
+
+            checkpoint_epoch = checkpoint['epoch']
             print('Loaded model weights from:', args.checkpoint)
             print('Epoch                    :', checkpoint_epoch)
             print('Metrics (Train):',
@@ -143,13 +151,6 @@ def main():
                   'accuracy:',
                   checkpoint['epoch_metrics']['valid'].get('accuracy', 'n/a'),
                   'loss:', checkpoint['epoch_metrics']['valid']['loss'])
-
-            for name, value in pretrained_dict.items():
-                try:
-                    model.load_state_dict(
-                        collections.OrderedDict([(name, value)]), strict=False)
-                except Exception as e:
-                    print(e)
 
         checkpoint = None
         if args.checkpoint:
@@ -177,13 +178,13 @@ def main():
                                                        use_aptos2015=use_aptos2015,
                                                        use_idrid=use_idrid,
                                                        use_messidor=use_messidor,
+                                                       use_unsupervised=use_unsupervised,
                                                        image_size=image_size,
                                                        augmentation=augmentations,
-                                                       target_dtype=np.float32,
+                                                       target_dtype=int,
                                                        fold=fold,
                                                        folds=4)
 
-        not_using_extra_data = not (use_idrid and use_messidor and use_aptos2015)
         train_loader, valid_loader = get_dataloaders(train_ds, valid_ds,
                                                      batch_size=batch_size,
                                                      num_workers=num_workers,
@@ -201,7 +202,7 @@ def main():
         loaders["train"] = train_loader
         loaders["valid"] = valid_loader
 
-        prefix = f'regression/{model_name}/{current_time}/{checkpoint_prefix}'
+        prefix = f'reg/{model_name}/{current_time}/{checkpoint_prefix}'
 
         log_dir = os.path.join('runs', prefix)
         os.makedirs(log_dir, exist_ok=False)
@@ -213,6 +214,7 @@ def main():
         print('  Aptos 2015     :', use_aptos2015)
         print('  IDRID          :', use_idrid)
         print('  Messidor       :', use_messidor)
+        print('  Unsupervised   :', use_unsupervised)
         print('Train session    :', prefix)
         print('  FP16 mode      :', fp16)
         print('  Fast mode      :', fast)
@@ -243,14 +245,28 @@ def main():
                                    class_names=get_class_names())
 
         callbacks = [
-            AccuracyCallbackFromRegression(),
-            CappaScoreCallbackFromRegression(),
-            ConfusionMatrixCallbackFromRegression(
-                class_names=get_class_names()),
-            NegativeMiningCallback(from_regression=True)
+            # Regression loss is main
+            CriterionCallback(prefix='reg', loss_key='reg',
+                              output_key='regression',
+                              criterion_key='regression',
+                              multiplier=1.0),
+            # Classification loss is complementary
+            CriterionCallback(prefix='cls', loss_key='cls',
+                              output_key='logits',
+                              criterion_key='classification',
+                              multiplier=0.5),
+
+            # AccuracyCallbackFromRegression(),
+            CappaScoreCallback(output_key='regression', ignore_index=UNLABELED_CLASS, from_regression=True),
+            ConfusionMatrixCallbackFromRegression(class_names=get_class_names(), ignore_index=UNLABELED_CLASS),
+            # NegativeMiningCallback(from_regression=True)
         ]
 
-        criterion = get_loss(criterion_name)
+        criterion = {
+            'classification': get_loss('ce', ignore_index=UNLABELED_CLASS),
+            'regression': get_loss(criterion_name, ignore_index=UNLABELED_CLASS)
+        }
+
         runner = SupervisedRunner(input_key='image')
         # Pretrain/warmup
         if warmup:
@@ -289,6 +305,11 @@ def main():
             callbacks += [
                 ShowPolarBatchesCallback(visualization_fn, metric='accuracy',
                                          minimize=False)]
+
+        if use_unsupervised:
+            callbacks += [
+                UnsupervisedCriterionCallback(prefix='unsupervised', loss_key='unsupervised',
+                                              unsupervised_label=UNLABELED_CLASS)]
 
         # Main train
         set_trainable(model.encoder, True, False)

@@ -8,7 +8,6 @@ import pandas as pd
 from pytorch_toolbelt.utils.fs import id_from_fname
 from pytorch_toolbelt.utils.torch_utils import tensor_from_rgb_image
 from sklearn.model_selection import StratifiedKFold, train_test_split
-from sklearn.utils import compute_class_weight
 from torch.utils.data import Dataset, DataLoader, WeightedRandomSampler
 
 from retinopathy.lib.augmentations import get_train_aug, get_test_aug
@@ -23,6 +22,9 @@ def get_class_names():
         'Proliferative DR'
     ]
     return CLASS_NAMES
+
+
+UNLABELED_CLASS = -100
 
 
 class RetinopathyDataset(Dataset):

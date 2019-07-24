@@ -8,18 +8,16 @@ from datetime import datetime
 from functools import partial
 
 from catalyst.dl import SupervisedRunner, EarlyStoppingCallback, CriterionCallback
-from catalyst.dl.callbacks import AccuracyCallback, MixupCallback
 from catalyst.utils import load_checkpoint, unpack_checkpoint
 from pytorch_toolbelt.utils import fs
-from pytorch_toolbelt.utils.catalyst import ShowPolarBatchesCallback, \
-    ConfusionMatrixCallback
+from pytorch_toolbelt.utils.catalyst import ShowPolarBatchesCallback, ConfusionMatrixCallback
 from pytorch_toolbelt.utils.random import set_manual_seed, get_random_name
 from pytorch_toolbelt.utils.torch_utils import count_parameters, \
     set_trainable
 
-from retinopathy.lib.callbacks import CappaScoreCallback, NegativeMiningCallback, MixupSameLabelCallback, UnsupervisedCriterionCallback
+from retinopathy.lib.callbacks import CappaScoreCallback, MixupSameLabelCallback, UnsupervisedCriterionCallback
 from retinopathy.lib.dataset import get_class_names, \
-    get_datasets, get_dataloaders
+    get_datasets, get_dataloaders, UNLABELED_CLASS
 from retinopathy.lib.factory import get_model, get_loss, get_optimizer, \
     get_optimizable_parameters, get_scheduler
 from retinopathy.lib.visualization import draw_classification_predictions
@@ -39,6 +37,7 @@ def main():
     parser.add_argument('--use-messidor', action='store_true')
     parser.add_argument('--use-aptos2015', action='store_true')
     parser.add_argument('--use-aptos2019', action='store_true')
+    parser.add_argument('--unsupervised', action='store_true')
     parser.add_argument('-v', '--verbose', action='store_true')
     parser.add_argument('-acc', '--accumulation-steps', type=int, default=1, help='Number of batches to process')
     parser.add_argument('-dd', '--data-dir', type=str, default='data', help='Data directory')
@@ -98,7 +97,7 @@ def main():
     use_aptos2019 = args.use_aptos2019
     warmup = args.warmup
     dropout = args.dropout
-    use_unsupervised = True
+    use_unsupervised = args.unsupervised
 
     assert use_aptos2015 or use_aptos2019 or use_idrid or use_messidor
 
@@ -108,7 +107,7 @@ def main():
         folds = [None]
 
     for fold in folds:
-        checkpoint_prefix = f'{model_name}_{args.size}_{get_random_name()}_fold{fold}'
+        checkpoint_prefix = f'{model_name}_{args.size}_fold{fold}_{get_random_name()}'
         if use_aptos2019:
             checkpoint_prefix += '_aptos2019'
         if use_aptos2015:
@@ -177,14 +176,13 @@ def main():
                                                        use_aptos2015=use_aptos2015,
                                                        use_idrid=use_idrid,
                                                        use_messidor=use_messidor,
-                                                       use_unsupervised=True,
+                                                       use_unsupervised=use_unsupervised,
                                                        image_size=image_size,
                                                        augmentation=augmentations,
                                                        target_dtype=int,
                                                        fold=fold,
                                                        folds=4)
 
-        not_using_extra_data = not (use_idrid and use_messidor and use_aptos2015)
         train_loader, valid_loader = get_dataloaders(train_ds, valid_ds,
                                                      batch_size=batch_size,
                                                      num_workers=num_workers,
@@ -202,7 +200,7 @@ def main():
         loaders["train"] = train_loader
         loaders["valid"] = valid_loader
 
-        prefix = f'classification/{model_name}/{current_time}/{checkpoint_prefix}'
+        prefix = f'cls/{model_name}/{current_time}/{checkpoint_prefix}'
 
         log_dir = os.path.join('runs', prefix)
         os.makedirs(log_dir, exist_ok=False)
@@ -214,6 +212,7 @@ def main():
         print('  Aptos 2015     :', use_aptos2015)
         print('  IDRID          :', use_idrid)
         print('  Messidor       :', use_messidor)
+        print('  Unsupervised   :', use_unsupervised)
         print('Train session    :', prefix)
         print('  FP16 mode      :', fp16)
         print('  Fast mode      :', fast)
@@ -244,13 +243,28 @@ def main():
                                    class_names=get_class_names())
 
         callbacks = [
+            # Classification loss is main
+            CriterionCallback(prefix='cls', loss_key='cls',
+                              output_key='logits',
+                              criterion_key='classification',
+                              multiplier=1.0),
+            # Regression loss is complementary
+            CriterionCallback(prefix='reg', loss_key='reg',
+                              output_key='regression',
+                              criterion_key='regression',
+                              multiplier=0.5),
+
             # AccuracyCallback(),
-            CappaScoreCallback(),
-            # ConfusionMatrixCallback(class_names=get_class_names()),
+            CappaScoreCallback(output_key='logits', ignore_index=UNLABELED_CLASS, from_regression=False),
+            ConfusionMatrixCallback(class_names=get_class_names(), ignore_index=UNLABELED_CLASS),
             # NegativeMiningCallback()
         ]
 
-        criterion = get_loss(criterion_name)
+        criterion = {
+            'classification': get_loss(criterion_name, ignore_index=UNLABELED_CLASS),
+            'regression': get_loss('wing_loss', ignore_index=UNLABELED_CLASS)
+        }
+
         runner = SupervisedRunner(input_key='image')
         # Pretrain/warmup
         if warmup:
@@ -291,8 +305,8 @@ def main():
 
         if use_unsupervised:
             callbacks += [
-                CriterionCallback(prefix='supervised_loss', loss_key='supervised_loss'),
-                UnsupervisedCriterionCallback(prefix='unsupervised_loss', loss_key='unsupervised_loss')]
+                UnsupervisedCriterionCallback(prefix='unsupervised', loss_key='unsupervised',
+                                              unsupervised_label=UNLABELED_CLASS)]
 
         # Main train
         set_trainable(model.encoder, True, False)

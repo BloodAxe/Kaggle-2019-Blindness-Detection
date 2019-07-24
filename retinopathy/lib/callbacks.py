@@ -23,6 +23,7 @@ class CappaScoreCallback(Callback):
                  input_key: str = "targets",
                  output_key: str = "logits",
                  prefix: str = "kappa_score",
+                 from_regression=False,
                  ignore_index=-100):
         """
         :param input_key: input key to use for precision calculation; specifies our `y_true`.
@@ -34,52 +35,30 @@ class CappaScoreCallback(Callback):
         self.targets = []
         self.predictions = []
         self.ignore_index = ignore_index
+        self.from_regression = from_regression
 
     def on_loader_start(self, state):
         self.targets = []
         self.predictions = []
 
     def on_batch_end(self, state: RunnerState):
-        outputs = to_numpy(state.output[self.output_key].detach())
+
         targets = to_numpy(state.input[self.input_key].detach())
 
-        mask = targets != self.ignore_index
-        self.targets.extend(targets[mask])
-        self.predictions.extend(np.argmax(outputs, axis=1)[mask])
+        outputs = state.output[self.output_key].detach()
+        if self.from_regression:
+            outputs = to_numpy(regression_to_class(outputs))
+        else:
+            outputs = to_numpy(outputs)
+            outputs = np.argmax(outputs, axis=1)
 
-    def on_loader_end(self, state):
-        score = cohen_kappa_score(self.predictions, self.targets, weights='quadratic')
-        state.metrics.epoch_values[state.loader_name][self.prefix] = score
+        if self.ignore_index is not None:
+            mask = targets != self.ignore_index
+            outputs = outputs[mask]
+            targets = targets[mask]
 
-
-class CappaScoreCallbackFromRegression(Callback):
-    def __init__(self,
-                 input_key: str = "targets",
-                 output_key: str = "logits",
-                 prefix: str = "kappa_score",
-                 ignore_index=-100):
-        """
-        :param input_key: input key to use for precision calculation; specifies our `y_true`.
-        :param output_key: output key to use for precision calculation; specifies our `y_pred`.
-        """
-        self.prefix = prefix
-        self.output_key = output_key
-        self.input_key = input_key
-        self.targets = []
-        self.predictions = []
-        self.ignore_index = ignore_index
-
-    def on_loader_start(self, state):
-        self.targets = []
-        self.predictions = []
-
-    def on_batch_end(self, state: RunnerState):
-        outputs = to_numpy(regression_to_class(state.output[self.output_key].detach()))
-        targets = to_numpy(state.input[self.input_key].detach())
-
-        mask = targets != self.ignore_index
-        self.targets.extend(targets[mask])
-        self.predictions.extend(outputs[mask])
+        self.targets.extend(targets)
+        self.predictions.extend(outputs)
 
     def on_loader_end(self, state):
         score = cohen_kappa_score(self.predictions, self.targets, weights='quadratic')
@@ -136,7 +115,8 @@ class ConfusionMatrixCallbackFromRegression(Callback):
             input_key: str = "targets",
             output_key: str = "logits",
             prefix: str = "confusion_matrix",
-            class_names=None
+            class_names=None,
+            ignore_index=None
     ):
         """
         :param input_key: input key to use for precision calculation;
@@ -150,14 +130,20 @@ class ConfusionMatrixCallbackFromRegression(Callback):
         self.input_key = input_key
         self.outputs = []
         self.targets = []
+        self.ignore_index = ignore_index
 
     def on_loader_start(self, state):
         self.outputs = []
         self.targets = []
 
     def on_batch_end(self, state: RunnerState):
-        outputs = to_numpy(regression_to_class(state.output[self.output_key]))
+        outputs = to_numpy(regression_to_class(state.output[self.output_key].detach()))
         targets = to_numpy(state.input[self.input_key])
+
+        if self.ignore_index is not None:
+            mask = targets != self.ignore_index
+            outputs = outputs[mask]
+            targets = targets[mask]
 
         self.outputs.extend(outputs)
         self.targets.extend(targets)
@@ -377,9 +363,10 @@ class UnsupervisedCriterionCallback(CriterionCallback):
                          state.loader_name.startswith("train")
 
     def on_batch_end(self, state: RunnerState):
-
         targets = state.input[self.target_key]
-        mask = targets == self.unsupervised_label
+        # mask = targets == self.unsupervised_label
+        mask = targets != self.unsupervised_label  # TODO: Hack to process all samples
+
         if not mask.any() or not self.is_needed:
             # If batch contains no unsupervised samples - quit
             state.metrics.add_batch_value(metrics_dict={
@@ -388,15 +375,17 @@ class UnsupervisedCriterionCallback(CriterionCallback):
 
             return
 
-        input: torch.Tensor = state.input[self.input_key][mask]
+        with torch.no_grad():
+            input: torch.Tensor = state.input[self.input_key][mask].detach()
 
-        state.model.eval()
-        output = state.model(input.detach())[self.output_key]
-        state.model.train()
-        
+            # Compute target probability distribution
+            state.model.eval()
+            output = state.model(input)[self.output_key]
+            state.model.train()
+            original_prob: torch.Tensor = F.softmax(output, dim=1)
+
         augmented_log_prob = F.log_softmax(state.output[self.output_key][mask], dim=1)
-        original_prob: torch.Tensor = F.softmax(output, dim=1)
-        loss = F.kl_div(augmented_log_prob, original_prob.detach(), reduction='batchmean')
+        loss = F.kl_div(augmented_log_prob, original_prob, reduction='batchmean')
 
         state.metrics.add_batch_value(metrics_dict={
             self.prefix: loss.item(),
