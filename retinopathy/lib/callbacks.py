@@ -364,8 +364,7 @@ class UnsupervisedCriterionCallback(CriterionCallback):
 
     def on_batch_end(self, state: RunnerState):
         targets = state.input[self.target_key]
-        # mask = targets == self.unsupervised_label
-        mask = targets != self.unsupervised_label  # TODO: Hack to process all samples
+        mask = targets == self.unsupervised_label
 
         if not mask.any() or not self.is_needed:
             # If batch contains no unsupervised samples - quit

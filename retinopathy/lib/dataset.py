@@ -337,7 +337,7 @@ def get_datasets(
 
         trainset_sizes.append(len(tx))
         train_x.extend(tx)
-        train_y.extend([-100] * len(tx))
+        train_y.extend([UNLABELED_CLASS] * len(tx))
         valid_x.extend(vx)
         valid_y.extend(vy)
 

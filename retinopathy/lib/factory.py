@@ -82,19 +82,23 @@ def get_loss(loss_name: str, **kwargs):
         return FocalLoss(**kwargs)
 
     if loss_name.lower() == 'mse':
+        if 'ignore_index' in kwargs and kwargs['ignore_index'] is not None:
+            raise ValueError(f'Loss {loss_name} does not support ignore_index')
         return MSELoss()
 
     if loss_name.lower() == 'huber':
+        if 'ignore_index' in kwargs and kwargs['ignore_index'] is not None:
+            raise ValueError(f'Loss {loss_name} does not support ignore_index')
         return SmoothL1Loss()
 
     if loss_name.lower() == 'wing_loss':
-        return ClippedWingLoss(width=2, curvature=0.1, min=0, max=4)
+        return ClippedWingLoss(width=2, curvature=0.1, min=0, max=4, **kwargs)
 
     if loss_name.lower() == 'clipped_huber':
         raise NotImplementedError(loss_name)
 
     if loss_name.lower() == 'clipped_mse':
-        return ClippedMSELoss(min=0, max=4)
+        return ClippedMSELoss(min=0, max=4, **kwargs)
 
     if loss_name.lower() == 'link':
         return CumulativeLinkLoss()
