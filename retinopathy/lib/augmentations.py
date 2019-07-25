@@ -2,7 +2,8 @@ import random
 
 import albumentations as A
 import cv2
-from albumentations.augmentations.functional import brightness_contrast_adjust, center_crop, pad_with_params, gaussian_blur
+from albumentations.augmentations.functional import brightness_contrast_adjust, center_crop, pad_with_params, \
+    gaussian_blur
 
 
 def crop_black(image, tolerance=5):
@@ -174,38 +175,46 @@ def get_train_aug(image_size, augmentation=None, crop_black=True):
             A.ShiftScaleRotate(shift_limit=0.05, scale_limit=0.1,
                                rotate_limit=45,
                                border_mode=cv2.BORDER_CONSTANT, value=0),
+        ], p=float(augmentation >= MEDIUM)),
+
+        A.Compose([
             A.ElasticTransform(alpha_affine=5, border_mode=cv2.BORDER_CONSTANT,
                                value=0),
             A.OpticalDistortion(border_mode=cv2.BORDER_CONSTANT, value=0),
         ], p=float(augmentation == HARD)),
 
-        ZeroTopAndBottom(p=0.3),
+        A.Compose([
+            ZeroTopAndBottom(p=0.3),
+        ], p=float(augmentation >= MEDIUM)),
 
         A.OneOf([
             A.ISONoise(),
             A.NoOp()
-        ], p=float(augmentation > LIGHT)),
+        ], p=float(augmentation == HARD)),
 
         A.OneOf([
             A.RandomBrightnessContrast(),
             IndependentRandomBrightnessContrast(),
             A.RandomGamma(),
-            A.HueSaturationValue(hue_shift_limit=5),
             A.CLAHE(),
+            A.HueSaturationValue(hue_shift_limit=5),
             A.RGBShift(r_shift_limit=20, b_shift_limit=10, g_shift_limit=10)
         ], p=float(augmentation >= MEDIUM)),
 
         # Just flips
         A.Compose([
-            A.HorizontalFlip(),
-            A.VerticalFlip()
-        ], p=float(augmentation == LIGHT)),
+            A.HorizontalFlip(p=0.5),
+        ], p=float(augmentation >= LIGHT)),
+
+        A.Compose([
+            A.VerticalFlip(p=0.5)
+        ], p=float(augmentation >= MEDIUM)),
 
         # D4
         A.Compose([
             A.RandomRotate90(),
             A.Transpose()
-        ], p=float(augmentation >= MEDIUM)),
+        ], p=float(augmentation == HARD)),
 
         A.Normalize()
     ])
