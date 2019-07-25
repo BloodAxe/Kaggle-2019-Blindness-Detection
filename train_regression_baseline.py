@@ -109,7 +109,7 @@ def main():
         folds = [None]
 
     for fold in folds:
-        checkpoint_prefix = f'{model_name}_{args.size}_fold{fold}_{get_random_name()}'
+        checkpoint_prefix = f'{model_name}_{args.size}_fold{fold}_{augmentations}_{get_random_name()}'
         if use_aptos2019:
             checkpoint_prefix += '_aptos2019'
         if use_aptos2015:
@@ -251,7 +251,11 @@ def main():
                               multiplier=0.5),
 
             AccuracyCallbackFromRegression(output_key='regression', ignore_index=UNLABELED_CLASS),
-            CappaScoreCallback(output_key='regression', ignore_index=UNLABELED_CLASS, from_regression=True),
+            CappaScoreCallback(prefix='kappa_score', output_key='regression', ignore_index=UNLABELED_CLASS,
+                               from_regression=True),
+            CappaScoreCallback(prefix='kappa_score_aux', output_key='logits', ignore_index=UNLABELED_CLASS,
+                               from_regression=False),
+
             ConfusionMatrixCallbackFromRegression(output_key='regression', class_names=get_class_names(),
                                                   ignore_index=UNLABELED_CLASS),
             # NegativeMiningCallback(from_regression=True)
