@@ -52,8 +52,11 @@ def get_model(model_name, num_classes, pretrained=True, dropout=0.0, **kwargs):
         'resnet18': Resnet18Encoder,
         'resnet34': Resnet34Encoder,
         'resnet50': Resnet50Encoder,
-        'resnext50': SEResNeXt50Encoder,
-        'resnext101': SEResNeXt101Encoder,
+        'resnet101': Resnet101Encoder,
+        'resnet152': Resnet152Encoder,
+        'seresnext50': SEResNeXt50Encoder,
+        'seresnext101': SEResNeXt101Encoder,
+        'seresnet152': SEResnet152Encoder,
         'densenet121': DenseNet121Encoder,
         'densenet169': DenseNet169Encoder,
         'inceptionv4': InceptionV4Encoder
