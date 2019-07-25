@@ -18,6 +18,7 @@ from retinopathy.lib.losses import ClippedMSELoss, ClippedWingLoss, CumulativeLi
 from retinopathy.lib.models.heads import GlobalAvgPool2dHead, GlobalMaxPool2dHead, \
     ObjectContextPoolHead, \
     GlobalMaxAvgPool2dHead, EncoderHeadModel, RMSPoolHead
+from retinopathy.lib.models.inceptionv4 import InceptionV4Encoder
 
 
 class DenseNet121Encoder(EncoderModule):
@@ -55,6 +56,7 @@ def get_model(model_name, num_classes, pretrained=True, dropout=0.0, **kwargs):
         'resnext101': SEResNeXt101Encoder,
         'densenet121': DenseNet121Encoder,
         'densenet169': DenseNet169Encoder,
+        'inceptionv4': InceptionV4Encoder
     }
 
     encoder = ENCODERS[encoder_name](pretrained=pretrained)
