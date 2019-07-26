@@ -11,7 +11,7 @@ from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss
 from torch.optim import SGD, Adam
 from torch.optim.lr_scheduler import MultiStepLR
 from torch.optim.rmsprop import RMSprop
-from torchvision.models import densenet169, densenet121
+from torchvision.models import densenet169, densenet121, densenet201
 
 from retinopathy.lib.losses import ClippedMSELoss, ClippedWingLoss, CumulativeLinkLoss, LabelSmoothingLoss, \
     SoftCrossEntropyLoss, ClippedHuber, CustomMSE
@@ -45,6 +45,18 @@ class DenseNet169Encoder(EncoderModule):
         return [x]
 
 
+class DenseNet201Encoder(EncoderModule):
+    def __init__(self, pretrained=True):
+        densenet = densenet201(pretrained=pretrained)
+        super().__init__([1920], [32], [0])
+        self.features = densenet.features
+
+    def forward(self, x):
+        x = self.features(x)
+        x = F.relu(x, inplace=True)
+        return [x]
+
+
 def get_model(model_name, num_classes, pretrained=True, dropout=0.0, **kwargs):
     kind, encoder_name, head_name = model_name.split('_')
 
@@ -59,6 +71,7 @@ def get_model(model_name, num_classes, pretrained=True, dropout=0.0, **kwargs):
         'seresnet152': SEResnet152Encoder,
         'densenet121': DenseNet121Encoder,
         'densenet169': DenseNet169Encoder,
+        'densenet201': DenseNet201Encoder,
         'inceptionv4': InceptionV4Encoder
     }
 

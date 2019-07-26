@@ -8,15 +8,18 @@ from pytorch_toolbelt.utils.torch_utils import tensor_from_rgb_image
 from retinopathy.lib.augmentations import CropBlackRegions, get_test_aug, crop_black, ChannelIndependentCLAHE, \
     clahe_preprocessing
 from retinopathy.lib.dataset import RetinopathyDataset, get_class_names, UNLABELED_CLASS
-from retinopathy.lib.factory import get_model
+from retinopathy.lib.factory import get_model, DenseNet121Encoder, DenseNet201Encoder, DenseNet169Encoder
 from retinopathy.lib.inference import PickModelOutput, run_model_inference, cls_predictions_to_submission, \
     average_predictions, reg_predictions_to_submission, run_model_inference_via_dataset
 from retinopathy.lib.models.heads import RMSPool2d, EncoderHeadModel, GlobalAvgPool2d, GlobalAvgPool2dHead, \
     GlobalMaxAvgPool2dHead, \
     GlobalMaxPool2dHead, ObjectContextPoolHead, FourReluBlock, Flatten, CLSBlock, RMSPoolHead
+from retinopathy.lib.models.inceptionv4 import InceptionV4Encoder, inceptionv4, InceptionV4, Inception_B, Inception_A, \
+    Inception_C, Reduction_A, Mixed_5a, Mixed_3a, Mixed_4a, BasicConv2d, Reduction_B
 from retinopathy.lib.models.oc import ASP_OC_Module, BaseOC_Context_Module, SelfAttentionBlock2D, _SelfAttentionBlock
 from retinopathy.lib.models.ordinal import OrdinalEncoderHeadModel, LogisticCumulativeLink
 from retinopathy.lib.models.regression import regression_to_class
+
 
 def encode_archive(archive_name):
     with open(archive_name, "rb") as f:
@@ -73,7 +76,9 @@ def main():
         'from pytorch_toolbelt.modules.scse import *',
         'import torch.nn.functional as F',
         'from pytorch_toolbelt.modules import ABN',
-        'from torch.autograd import Variable'
+        'from torch.autograd import Variable',
+        'from torchvision.models import densenet169, densenet121, densenet201',
+        'import torch.utils.model_zoo as model_zoo'
     ]
     functions = [
         tensor_from_rgb_image,
@@ -87,6 +92,21 @@ def main():
         GlobalMaxPool2dHead,
         GlobalMaxAvgPool2dHead,
         ObjectContextPoolHead,
+        DenseNet121Encoder,
+        DenseNet169Encoder,
+        DenseNet201Encoder,
+        BasicConv2d,
+        Mixed_3a,
+        Mixed_4a,
+        Mixed_5a,
+        Reduction_A,
+        Inception_A,
+        Inception_B,
+        Reduction_B,
+        Inception_C,
+        InceptionV4,
+        inceptionv4,
+        InceptionV4Encoder,
         _SelfAttentionBlock,
         SelfAttentionBlock2D,
         BaseOC_Context_Module,
@@ -118,6 +138,7 @@ def main():
         lines.append(import_statement + '\n')
     lines.append('\n')
     lines.append(f'UNLABELED_CLASS = {UNLABELED_CLASS}\n')
+    lines.append('pretrained_settings = None\n')
     lines.append('# Functions\n')
     for function in functions:
         source = inspect.getsource(function)

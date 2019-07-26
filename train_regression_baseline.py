@@ -7,6 +7,7 @@ import os
 from datetime import datetime
 from functools import partial
 
+import torch
 from catalyst.dl import SupervisedRunner, EarlyStoppingCallback, CriterionCallback
 from catalyst.utils import load_checkpoint, unpack_checkpoint
 from pytorch_toolbelt.utils import fs
@@ -109,6 +110,7 @@ def main():
         folds = [None]
 
     for fold in folds:
+        torch.cuda.empty_cache()
         checkpoint_prefix = f'{model_name}_{args.size}_fold{fold}_{augmentations}_{get_random_name()}'
         if use_aptos2019:
             checkpoint_prefix += '_aptos2019'
@@ -271,7 +273,7 @@ def main():
         if warmup:
             set_trainable(model.encoder, False, False)
             optimizer = get_optimizer(optimizer_name, get_optimizable_parameters(model),
-                                      learning_rate=learning_rate * 0.1,
+                                      learning_rate=learning_rate,
                                       weight_decay=weight_decay)
             runner.train(
                 fp16=fp16,
