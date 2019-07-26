@@ -8,6 +8,7 @@ import pandas as pd
 from pytorch_toolbelt.utils.fs import id_from_fname
 from pytorch_toolbelt.utils.torch_utils import tensor_from_rgb_image
 from sklearn.model_selection import StratifiedKFold, train_test_split
+from sklearn.utils import compute_class_weight, compute_sample_weight
 from torch.utils.data import Dataset, DataLoader, WeightedRandomSampler
 
 from retinopathy.lib.augmentations import get_train_aug, get_test_aug
@@ -432,10 +433,7 @@ def get_dataloaders(train_ds, valid_ds,
     weights = None
 
     if balance:
-        # class_weights = compute_class_weight('balanced', np.arange(5), train_ds.targets)
-        class_weights = np.array([1, 0.5, 0.5, 0.5, 0.5])
-        weights = class_weights[train_ds.targets]
-        # weights = compute_sample_weight('balanced', train_ds.targets)
+        weights = compute_sample_weight('balanced', train_ds.targets)
 
     if balance_datasets:
         assert train_sizes is not None
