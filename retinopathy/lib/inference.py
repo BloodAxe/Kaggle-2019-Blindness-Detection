@@ -46,9 +46,6 @@ def run_model_inference_via_dataset(model_checkpoint: str,
         batch_size = checkpoint['checkpoint_data']['cmd_args']['batch_size']
 
     num_classes = len(get_class_names())
-    if str.startswith(model_name, 'reg_'):
-        num_classes = 1
-
     model = get_model(model_name, pretrained=False, num_classes=num_classes)
     model.load_state_dict(checkpoint['model_state_dict'])
 
