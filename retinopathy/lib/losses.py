@@ -171,6 +171,35 @@ class ClippedHuber(SmoothL1Loss):
         return super().forward(input, target.float())
 
 
+def quad_kappa_loss_v2(predictions, labels, y_pow=2, eps=1e-9):
+    # with tf.name_scope(name):
+    #     labels = tf.to_float(labels)
+    #     repeat_op = tf.to_float(
+    #         tf.tile(tf.reshape(tf.range(0, num_ratings), [num_ratings, 1]), [1, num_ratings]))
+    #     repeat_op_sq = tf.square((repeat_op - tf.transpose(repeat_op)))
+    #     weights = repeat_op_sq / tf.to_float((num_ratings - 1) ** 2)
+
+    batch_size = predictions.size(0)
+    num_ratings = predictions.size(1)
+    assert predictions.size(1) == num_ratings
+
+    tmp = torch.arange(0, num_ratings).view((num_ratings, 1)).expand((-1, num_ratings)).float()
+    weights = (tmp - torch.transpose(tmp, 0, 1)) ** 2 / (num_ratings - 1) ** 2
+    weights = weights.type(labels.dtype).to(labels.device)
+
+    pred_ = predictions ** y_pow
+    pred_norm = pred_ / (eps + torch.sum(pred_, 1).view(-1, 1))
+
+    hist_rater_a = torch.sum(pred_norm, 0)
+    hist_rater_b = torch.sum(labels, 0)
+
+    conf_mat = torch.matmul(pred_norm.t(), labels)
+
+    nom = torch.sum(weights * conf_mat)
+    denom = torch.sum(weights * torch.matmul(hist_rater_a.view(num_ratings, 1), hist_rater_b.view(1, num_ratings)) / batch_size)
+    return -(1.0 - nom / (denom + eps))
+
+
 def quad_kappa_loss(input, targets, y_pow=1, eps=1e-15):
     """
     https://github.com/JeffreyDF/kaggle_diabetic_retinopathy/blob/master/losses.py#L22
@@ -188,13 +217,14 @@ def quad_kappa_loss(input, targets, y_pow=1, eps=1e-15):
     weights = (tmp - torch.transpose(tmp, 0, 1)) ** 2 / (num_ratings - 1) ** 2
     weights = weights.type(targets.dtype).to(targets.device)
 
-    y_ = input ** y_pow
-    y_norm = y_ / (eps + y_.sum(dim=1).reshape((batch_size, 1)))
+    # y_ = input ** y_pow
+    # y_norm = y_ / (eps + y_.sum(dim=1).reshape((batch_size, 1)))
 
-    hist_rater_b = y_norm.sum(dim=0)
+    hist_rater_b = input.sum(dim=0)
+    # hist_rater_b = y_norm.sum(dim=0)
     hist_rater_a = targets.sum(dim=0)
 
-    O = torch.mm(y_norm.t(), targets)
+    O = torch.mm(input.t(), targets)
     O = O / O.sum()
     E = torch.mm(hist_rater_a.reshape((num_ratings, 1)),
                  hist_rater_b.reshape((1, num_ratings)))
@@ -238,17 +268,17 @@ class HybridCappaLoss(nn.Module):
 
         # Second term
         y = F.log_softmax(input, dim=1).exp()
-        kappa_loss = quad_kappa_loss(y, target_one_hot, y_pow=self.y_pow, eps=self.eps)
+        kappa_loss = quad_kappa_loss_v2(y, target_one_hot, y_pow=self.y_pow, eps=self.eps)
 
         return kappa_loss + self.log_scale * clamped_log_loss
 
 
 def test_quad_kappa_loss():
     criterion = HybridCappaLoss()
-    target = torch.tensor([0]).long()
-    loss_worst = criterion(torch.tensor([[0, 0, 0, 0, 10]]).float(), target)
-    loss_bad = criterion(torch.tensor([[10, 10, 0, 0, 0]]).float(), target)
-    loss_ideal = criterion(torch.tensor([[10, 0, 0, 0, 0]]).float(), target)
+    target = torch.tensor([0, 1]).long()
+    loss_worst = criterion(torch.tensor([[0, 0, 0, 0, 10], [0, 10, 0, 0, 0]]).float(), target)
+    loss_bad = criterion(torch.tensor([[10, 10, 0, 0, 0], [0, 10, 0, 0, 0]]).float(), target)
+    loss_ideal = criterion(torch.tensor([[10, 0, 0, 0, 0], [0, 10, 0, 0, 0]]).float(), target)
     assert loss_ideal < loss_bad < loss_worst
 
 

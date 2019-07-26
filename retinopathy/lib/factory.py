@@ -14,7 +14,7 @@ from torch.optim.rmsprop import RMSprop
 from torchvision.models import densenet169, densenet121, densenet201
 
 from retinopathy.lib.losses import ClippedMSELoss, ClippedWingLoss, CumulativeLinkLoss, LabelSmoothingLoss, \
-    SoftCrossEntropyLoss, ClippedHuber, CustomMSE
+    SoftCrossEntropyLoss, ClippedHuber, CustomMSE, HybridCappaLoss
 from retinopathy.lib.models.heads import GlobalAvgPool2dHead, GlobalMaxPool2dHead, \
     ObjectContextPoolHead, \
     GlobalMaxAvgPool2dHead, EncoderHeadModel, RMSPoolHead
@@ -150,6 +150,9 @@ def get_loss(loss_name: str, **kwargs):
 
     if loss_name.lower() == 'soft_ce':
         return SoftCrossEntropyLoss()
+
+    if loss_name.lower() == 'hybrid_kappa':
+        return HybridCappaLoss()
 
     raise KeyError(loss_name)
 
