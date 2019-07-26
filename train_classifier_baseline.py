@@ -15,7 +15,7 @@ from pytorch_toolbelt.utils.random import set_manual_seed, get_random_name
 from pytorch_toolbelt.utils.torch_utils import count_parameters, \
     set_trainable
 
-from retinopathy.lib.callbacks import CappaScoreCallback, MixupSameLabelCallback, UnsupervisedCriterionCallback
+from retinopathy.lib.callbacks import CappaScoreCallback, MixupSameLabelCallback, UnsupervisedCriterionCallback, NegativeMiningCallback
 from retinopathy.lib.dataset import get_class_names, \
     get_datasets, get_dataloaders, UNLABELED_CLASS
 from retinopathy.lib.factory import get_model, get_loss, get_optimizer, \
@@ -253,7 +253,7 @@ def main():
             # AccuracyCallback(),
             CappaScoreCallback(output_key='logits', ignore_index=UNLABELED_CLASS, from_regression=False),
             ConfusionMatrixCallback(class_names=get_class_names(), ignore_index=UNLABELED_CLASS),
-            # NegativeMiningCallback()
+            NegativeMiningCallback(ignore_index=UNLABELED_CLASS)
         ]
 
         criterion = {
