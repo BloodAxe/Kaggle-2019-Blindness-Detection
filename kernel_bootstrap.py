@@ -1095,7 +1095,7 @@ def run_model_inference_via_dataset(model_checkpoint: str,
 
     with torch.no_grad():
         model = model.eval().cuda()
-        if torch.cuda.device_count() > 0:
+        if torch.cuda.device_count() > 1:
             model = nn.DataParallel(model)
 
         data_loader = DataLoader(dataset, batch_size,
