@@ -448,7 +448,8 @@ class NegativeMiningCallback(Callback):
             self,
             input_key: str = "targets",
             output_key: str = "logits",
-            from_regression=False
+            from_regression=False,
+            ignore_index=None
     ):
         """
         :param input_key: input key to use for precision calculation;
@@ -462,6 +463,7 @@ class NegativeMiningCallback(Callback):
         self.image_ids = []
         self.y_preds = []
         self.y_trues = []
+        self.ignore_index = ignore_index
 
     def on_loader_start(self, state: RunnerState):
         self.image_ids = []
@@ -490,8 +492,17 @@ class NegativeMiningCallback(Callback):
 
         y_pred = to_numpy(y_pred).astype(int)
         y_true = to_numpy(y_true).astype(int)
-        negatives = y_true != y_pred
         image_ids = np.array(state.input['image_id'])
+
+        if self.ignore_index is not None:
+            mask = y_true != self.ignore_index
+            y_pred = y_pred[mask]
+            y_true = y_true[mask]
+            image_ids = image_ids[mask]
+            if len(y_true) == 0:
+                return
+
+        negatives = y_true != y_pred
 
         self.image_ids.extend(image_ids[negatives])
         self.y_preds.extend(y_pred[negatives])

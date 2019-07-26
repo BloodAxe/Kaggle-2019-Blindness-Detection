@@ -18,7 +18,7 @@ from pytorch_toolbelt.utils.torch_utils import count_parameters, \
 
 from retinopathy.lib.callbacks import ConfusionMatrixCallbackFromRegression, \
     MixupRegressionCallback, UnsupervisedCriterionCallback, \
-    CappaScoreCallback, AccuracyCallbackFromRegression
+    CappaScoreCallback, AccuracyCallbackFromRegression, NegativeMiningCallback
 from retinopathy.lib.dataset import get_class_names, \
     get_datasets, get_dataloaders, UNLABELED_CLASS
 from retinopathy.lib.factory import get_model, get_loss, get_optimizer, \
@@ -260,7 +260,7 @@ def main():
 
             ConfusionMatrixCallbackFromRegression(output_key='regression', class_names=get_class_names(),
                                                   ignore_index=UNLABELED_CLASS),
-            # NegativeMiningCallback(from_regression=True)
+            NegativeMiningCallback(from_regression=True, ignore_index=UNLABELED_CLASS)
         ]
 
         criterion = {
