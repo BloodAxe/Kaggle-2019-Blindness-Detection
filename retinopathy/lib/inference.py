@@ -27,6 +27,25 @@ class PickModelOutput(nn.Module):
         return input[self.target_key]
 
 
+def compute_cdf(targets):
+    hist = np.bincount(targets)
+    overall_cdf_valid = np.cumsum(hist) / float(sum(hist))
+    return overall_cdf_valid
+
+
+def regression_getScore(pred, cdf, valid=False):
+    num = pred.shape[0]
+    output = np.asarray([5] * num, dtype=int)
+    rank = pred.argsort()
+    output[rank[:int(num * cdf[0] - 1)]] = 1
+    output[rank[int(num * cdf[0]):int(num * cdf[1] - 1)]] = 2
+    output[rank[int(num * cdf[1]):int(num * cdf[2] - 1)]] = 3
+    cutoff = [pred[rank[int(num * cdf[i] - 1)]] for i in range(4)]
+    if valid:
+        return output, cutoff
+    return output
+
+
 def run_model_inference_via_dataset(model_checkpoint: str,
                                     dataset: RetinopathyDataset,
                                     output_key='logits',
@@ -121,6 +140,14 @@ def reg_predictions_to_submission(predictions) -> pd.DataFrame:
     predictions = predictions.copy()
     x = torch.from_numpy(predictions['diagnosis'].values)
     x = regression_to_class(x)
+    predictions['diagnosis'] = to_numpy(x)
+    return predictions
+
+
+def reg_cdf_predictions_to_submission(predictions, cdf) -> pd.DataFrame:
+    predictions = predictions.copy()
+    x = torch.from_numpy(predictions['diagnosis'].values)
+    x = regression_getScore(x, cdf)
     predictions['diagnosis'] = to_numpy(x)
     return predictions
 
