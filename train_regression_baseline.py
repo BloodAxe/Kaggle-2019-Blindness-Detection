@@ -260,7 +260,7 @@ def main():
 
             ConfusionMatrixCallbackFromRegression(output_key='regression', class_names=get_class_names(),
                                                   ignore_index=UNLABELED_CLASS),
-            NegativeMiningCallback(from_regression=True, ignore_index=UNLABELED_CLASS)
+            NegativeMiningCallback(from_regression=True, output_key='regression', ignore_index=UNLABELED_CLASS)
         ]
 
         criterion = {
