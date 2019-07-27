@@ -10,7 +10,7 @@ from pytorch_toolbelt.utils.torch_utils import tensor_from_rgb_image
 from sklearn.model_selection import StratifiedKFold, train_test_split
 from sklearn.utils import compute_class_weight, compute_sample_weight
 from torch.utils.data import Dataset, DataLoader, WeightedRandomSampler
-from typing import Tuple
+from typing import Tuple, List
 
 from retinopathy.lib.augmentations import get_train_aug, get_test_aug
 
@@ -349,7 +349,7 @@ def get_datasets(
         target_dtype=int,
         random_state=42,
         fold=None,
-        folds=4) -> Tuple[RetinopathyDataset, RetinopathyDataset]:
+        folds=4) -> Tuple[RetinopathyDataset, RetinopathyDataset, List]:
     assert use_aptos2019 or use_aptos2015 or use_idrid or use_messidor
     trainset_sizes = []
     train_x, train_y = [], []
