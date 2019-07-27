@@ -266,7 +266,7 @@ def main():
         ]
 
         criterion = {
-            'classification': get_loss('hybrid_kappa', ignore_index=UNLABELED_CLASS),
+            'classification': get_loss('ce', ignore_index=UNLABELED_CLASS),
             'regression': get_loss(criterion_name, ignore_index=UNLABELED_CLASS)
         }
 
@@ -359,4 +359,5 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    with torch.autograd.detect_anomaly():
+        main()

@@ -245,10 +245,10 @@ def main():
                               criterion_key='classification',
                               multiplier=1.0),
             # Regression loss is complementary
-            CriterionCallback(prefix='reg', loss_key='reg',
-                              output_key='regression',
-                              criterion_key='regression',
-                              multiplier=0.5),
+            # CriterionCallback(prefix='reg', loss_key='reg',
+            #                   output_key='regression',
+            #                   criterion_key='regression',
+            #                   multiplier=0.5),
 
             # AccuracyCallback(),
             CappaScoreCallback(output_key='logits', ignore_index=UNLABELED_CLASS, from_regression=False),
