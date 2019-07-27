@@ -10,7 +10,7 @@ from pytorch_toolbelt.utils.torch_utils import tensor_from_rgb_image
 from sklearn.model_selection import StratifiedKFold, train_test_split
 from sklearn.utils import compute_class_weight, compute_sample_weight
 from torch.utils.data import Dataset, DataLoader, WeightedRandomSampler
-from typing import Tuple
+from typing import Tuple, List
 
 from retinopathy.lib.augmentations import get_train_aug, get_test_aug
 
@@ -349,7 +349,7 @@ def get_datasets(
         target_dtype=int,
         random_state=42,
         fold=None,
-        folds=4) -> Tuple[RetinopathyDataset, RetinopathyDataset]:
+        folds=4) -> Tuple[RetinopathyDataset, RetinopathyDataset, List]:
     assert use_aptos2019 or use_aptos2015 or use_idrid or use_messidor
     trainset_sizes = []
     train_x, train_y = [], []
@@ -372,8 +372,10 @@ def get_datasets(
         trainset_sizes.append(len(tx))
         train_x.extend(tx)
         train_y.extend([UNLABELED_CLASS] * len(tx))
-        valid_x.extend(vx)
-        valid_y.extend(vy)
+
+        if not use_unsupervised:
+            valid_x.extend(vx)
+            valid_y.extend(vy)
 
     if use_idrid:
         dataset_dir = os.path.join(data_dir, 'idrid')
@@ -429,12 +431,20 @@ def get_dataloaders(train_ds, valid_ds,
                     fast=False,
                     train_sizes=None,
                     balance=False,
-                    balance_datasets=False):
+                    balance_datasets=False,
+                    balance_unlabeled=False):
     sampler = None
     weights = None
+    num_samples = 0
+
+    if balance_unlabeled:
+        labeled_mask = (train_ds.targets != UNLABELED_CLASS).astype(np.uint8)
+        weights = compute_sample_weight('balanced', labeled_mask)
+        num_samples = int(2 * np.sum(labeled_mask))
 
     if balance:
         weights = compute_sample_weight('balanced', train_ds.targets)
+        num_samples = train_ds.targets
 
     if balance_datasets:
         assert train_sizes is not None
@@ -449,10 +459,11 @@ def get_dataloaders(train_ds, valid_ds,
             weights = np.ones(len(train_ds.targets))
 
         weights = weights * dataset_balancing_term
+        num_samples = int(np.mean(train_sizes))
 
     # If we do balancing, let's go for fixed number of batches (half of dataset)
     if weights is not None:
-        sampler = WeightedRandomSampler(weights, len(weights) // 2)
+        sampler = WeightedRandomSampler(weights, num_samples)
 
     if fast:
         weights = np.ones(len(train_ds))

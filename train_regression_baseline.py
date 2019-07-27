@@ -120,6 +120,8 @@ def main():
             checkpoint_prefix += '_messidor'
         if use_idrid:
             checkpoint_prefix += '_idrid'
+        if use_unsupervised:
+            checkpoint_prefix += '_unsup'
 
         set_manual_seed(args.seed)
         model = get_model(model_name, num_classes=len(get_class_names()), dropout=dropout).cuda()
@@ -240,7 +242,27 @@ def main():
         visualization_fn = partial(draw_regression_predictions,
                                    class_names=get_class_names())
 
-        callbacks = [
+        if mixup:
+            callbacks = [MixupRegressionCallback(fields=['image'],
+                                                 prefix='reg',
+                                                 loss_key='reg',
+                                                 output_key='regression',
+                                                 criterion_key='regression',
+                                                 multiplier=1.0)]
+        else:
+            callbacks = [
+                # Regression loss is main
+                CriterionCallback(prefix='reg', loss_key='reg',
+                                  output_key='regression',
+                                  criterion_key='regression',
+                                  multiplier=1.0),
+                # Classification loss is complementary
+                CriterionCallback(prefix='cls', loss_key='cls',
+                                  output_key='logits',
+                                  criterion_key='classification',
+                                  multiplier=0.5)]
+
+        callbacks += [
             # Regression loss is main
             CriterionCallback(prefix='reg', loss_key='reg',
                               output_key='regression',
@@ -260,11 +282,11 @@ def main():
 
             ConfusionMatrixCallbackFromRegression(output_key='regression', class_names=get_class_names(),
                                                   ignore_index=UNLABELED_CLASS),
-            NegativeMiningCallback(from_regression=True, ignore_index=UNLABELED_CLASS)
+            NegativeMiningCallback(from_regression=True, output_key='regression', ignore_index=UNLABELED_CLASS)
         ]
 
         criterion = {
-            'classification': get_loss('hybrid_kappa', ignore_index=UNLABELED_CLASS),
+            'classification': get_loss('ce', ignore_index=UNLABELED_CLASS),
             'regression': get_loss(criterion_name, ignore_index=UNLABELED_CLASS)
         }
 
@@ -292,10 +314,6 @@ def main():
             )
 
             del optimizer
-
-        if mixup:
-            # callbacks += [MixupSameLabelCallback(fields=['image'])]
-            callbacks += [MixupRegressionCallback(fields=['image'])]
 
         if early_stopping:
             callbacks += [
@@ -357,4 +375,5 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    with torch.autograd.detect_anomaly():
+        main()

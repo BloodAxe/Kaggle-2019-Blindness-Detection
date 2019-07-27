@@ -13,7 +13,7 @@ from pytorch_toolbelt.utils.torch_utils import to_numpy
 from pytorch_toolbelt.utils.visualization import plot_confusion_matrix, render_figure_to_tensor
 from sklearn.metrics import cohen_kappa_score, confusion_matrix
 from torch import nn
-from torch.nn import Module, KLDivLoss
+from torch.nn import Module
 
 from retinopathy.lib.models.ordinal import LogisticCumulativeLink
 from retinopathy.lib.models.regression import regression_to_class
@@ -328,7 +328,8 @@ class MixupRegressionCallback(MixupCallback):
         y_b: torch.Tensor = state.input[self.input_key][self.index]
         # y = max(y_a, y_b)
 
-        # In case of regression, if we do mixup of images of DR of different stages, we assign the maximum stage as our target
+        # In case of regression, if we do mixup of images of DR of different stages,
+        # we assign the maximum stage as our target
         mask = y_b > y_a
         y = y_a.masked_scatter(mask, y_b[mask])
 
@@ -462,11 +463,13 @@ class NegativeMiningCallback(Callback):
         self.from_regression = from_regression
         self.image_ids = []
         self.y_preds = []
+        self.y_preds_raw = []
         self.y_trues = []
         self.ignore_index = ignore_index
 
     def on_loader_start(self, state: RunnerState):
         self.image_ids = []
+        self.y_preds_raw = []
         self.y_preds = []
         self.y_trues = []
 
@@ -474,7 +477,8 @@ class NegativeMiningCallback(Callback):
         df = pd.DataFrame.from_dict({
             'image_id': self.image_ids,
             'y_true': self.y_trues,
-            'y_pred': self.y_preds
+            'y_pred': self.y_preds,
+            'y_pred_raw': self.y_preds_raw
         })
 
         fname = os.path.join(state.logdir, 'negatives', state.loader_name, f'epoch_{state.epoch}.csv')
@@ -483,19 +487,21 @@ class NegativeMiningCallback(Callback):
 
     def on_batch_end(self, state: RunnerState):
         y_true = state.input[self.input_key].detach()
-        y_pred = state.output[self.output_key].detach()
+        y_pred_raw = state.output[self.output_key].detach()
 
         if self.from_regression:
-            y_pred = regression_to_class(y_pred)
+            y_pred = regression_to_class(y_pred_raw)
         else:
-            y_pred = torch.argmax(y_pred, dim=1)
+            y_pred = torch.argmax(y_pred_raw, dim=1)
 
+        y_pred_raw = to_numpy(y_pred_raw)
         y_pred = to_numpy(y_pred).astype(int)
         y_true = to_numpy(y_true).astype(int)
         image_ids = np.array(state.input['image_id'])
 
         if self.ignore_index is not None:
             mask = y_true != self.ignore_index
+            y_pred_raw = y_pred_raw[mask]
             y_pred = y_pred[mask]
             y_true = y_true[mask]
             image_ids = image_ids[mask]
@@ -505,6 +511,7 @@ class NegativeMiningCallback(Callback):
         negatives = y_true != y_pred
 
         self.image_ids.extend(image_ids[negatives])
+        self.y_preds_raw.extend(y_pred_raw[negatives])
         self.y_preds.extend(y_pred[negatives])
         self.y_trues.extend(y_true[negatives])
 

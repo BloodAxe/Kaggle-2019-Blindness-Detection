@@ -196,7 +196,8 @@ def quad_kappa_loss_v2(predictions, labels, y_pow=2, eps=1e-9):
     conf_mat = torch.matmul(pred_norm.t(), labels)
 
     nom = torch.sum(weights * conf_mat)
-    denom = torch.sum(weights * torch.matmul(hist_rater_a.view(num_ratings, 1), hist_rater_b.view(1, num_ratings)) / batch_size)
+    denom = torch.sum(
+        weights * torch.matmul(hist_rater_a.view(num_ratings, 1), hist_rater_b.view(1, num_ratings)) / batch_size)
     return -(1.0 - nom / (denom + eps))
 
 
@@ -251,26 +252,35 @@ class CappaLoss(nn.Module):
 class HybridCappaLoss(nn.Module):
     # TODO: Test
     # https://github.com/JeffreyDF/kaggle_diabetic_retinopathy/blob/master/losses.py#L51
-    def __init__(self, y_pow=2, log_scale=0.5, eps=1e-15, log_cutoff=0.9):
+    def __init__(self, y_pow=2, log_scale=0.5, eps=1e-15, log_cutoff=0.9, ignore_index=None):
         super().__init__()
         self.y_pow = y_pow
         self.log_scale = log_scale
         self.log_cutoff = log_cutoff
         self.eps = eps
+        self.ignore_index = ignore_index
 
     def forward(self, input: torch.Tensor, target: torch.Tensor):
+        if self.ignore_index is not None:
+            mask = target != self.ignore_index
+            target = target[mask]
+            input = input[mask]
+
+        if not len(target):
+            return torch.tensor(0.).to(input.device)
+
         target_one_hot = F.one_hot(target, input.size(1)).float()
 
         # Cross entropy loss, summed over classes, mean over batches
         log_loss = F.cross_entropy(input, target, reduction='none')
         log_loss = log_loss.mean()
-        clamped_log_loss = torch.clamp(log_loss, self.log_cutoff, 10 ** 3)
+        # clamped_log_loss = torch.clamp(log_loss, self.log_cutoff, 10 ** 3)
 
         # Second term
         y = F.log_softmax(input, dim=1).exp()
         kappa_loss = quad_kappa_loss_v2(y, target_one_hot, y_pow=self.y_pow, eps=self.eps)
 
-        return kappa_loss + self.log_scale * clamped_log_loss
+        return kappa_loss + self.log_scale * log_loss
 
 
 def test_quad_kappa_loss():
