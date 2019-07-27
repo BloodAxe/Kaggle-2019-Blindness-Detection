@@ -68,7 +68,7 @@ Using only one model **seresnext50**.
 |-------------------------|-----------------|------------|-----------------------|------------|---------|
 | Baseline regression     | 0.9128 ± 0.0066 | 0.799      | reg_seresnext50_rms   | Yes        | 4 folds |
 | Baseline regression     | 0.8992 ± 0.0041 |            | reg_seresnext101_rms  | Yes        | 4 folds |
-| Baseline regression     | 0.9018 ± 0.0079 |            | reg_densenet201_rms   | Yes        | 4 folds |
+| Baseline regression     | 0.9018 ± 0.0079 | 0.774      | reg_densenet201_rms   | Yes        | 4 folds |
 | Baseline regression     | 0.9053 ± 0.0053 | 0.761      | reg_inceptionv4_rms   | Yes        | 4 folds |
 |-------------------------|-----------------|------------|-----------------------|------------|---------|
 
