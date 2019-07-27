@@ -264,13 +264,13 @@ class HybridCappaLoss(nn.Module):
         # Cross entropy loss, summed over classes, mean over batches
         log_loss = F.cross_entropy(input, target, reduction='none')
         log_loss = log_loss.mean()
-        clamped_log_loss = torch.clamp(log_loss, self.log_cutoff, 10 ** 3)
+        # clamped_log_loss = torch.clamp(log_loss, self.log_cutoff, 10 ** 3)
 
         # Second term
         y = F.log_softmax(input, dim=1).exp()
         kappa_loss = quad_kappa_loss_v2(y, target_one_hot, y_pow=self.y_pow, eps=self.eps)
 
-        return kappa_loss + self.log_scale * clamped_log_loss
+        return kappa_loss + self.log_scale * log_loss
 
 
 def test_quad_kappa_loss():
