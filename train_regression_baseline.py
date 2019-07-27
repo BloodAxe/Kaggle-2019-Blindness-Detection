@@ -120,6 +120,8 @@ def main():
             checkpoint_prefix += '_messidor'
         if use_idrid:
             checkpoint_prefix += '_idrid'
+        if use_unsupervised:
+            checkpoint_prefix += '_unsup'
 
         set_manual_seed(args.seed)
         model = get_model(model_name, num_classes=len(get_class_names()), dropout=dropout).cuda()
