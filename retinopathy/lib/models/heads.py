@@ -21,14 +21,15 @@ class RMSPool2d(nn.Module):
     Root mean square pooling
     """
 
-    def __init__(self):
+    def __init__(self, eps=1e-5):
         super().__init__()
+        self.eps = eps
         self.avg_pool = GlobalAvgPool2d()
 
     def forward(self, x):
         x_mean = torch.mean(x, dim=[2, 3], keepdim=True)
         avg_pool = self.avg_pool((x - x_mean) ** 2)
-        return avg_pool.sqrt()
+        return (avg_pool + self.eps).sqrt()
 
 
 class FourReluBlock(nn.Module):
