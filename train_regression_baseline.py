@@ -263,17 +263,6 @@ def main():
                                   multiplier=0.5)]
 
         callbacks += [
-            # Regression loss is main
-            CriterionCallback(prefix='reg', loss_key='reg',
-                              output_key='regression',
-                              criterion_key='regression',
-                              multiplier=1.0),
-            # Classification loss is complementary
-            CriterionCallback(prefix='cls', loss_key='cls',
-                              output_key='logits',
-                              criterion_key='classification',
-                              multiplier=0.5),
-
             AccuracyCallbackFromRegression(output_key='regression', ignore_index=UNLABELED_CLASS),
             CappaScoreCallback(prefix='kappa_score', output_key='regression', ignore_index=UNLABELED_CLASS,
                                from_regression=True),
