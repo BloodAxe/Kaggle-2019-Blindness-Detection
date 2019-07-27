@@ -242,7 +242,27 @@ def main():
         visualization_fn = partial(draw_regression_predictions,
                                    class_names=get_class_names())
 
-        callbacks = [
+        if mixup:
+            callbacks = [MixupRegressionCallback(fields=['image'],
+                                                 prefix='reg',
+                                                 loss_key='reg',
+                                                 output_key='regression',
+                                                 criterion_key='regression',
+                                                 multiplier=1.0)]
+        else:
+            callbacks = [
+                # Regression loss is main
+                CriterionCallback(prefix='reg', loss_key='reg',
+                                  output_key='regression',
+                                  criterion_key='regression',
+                                  multiplier=1.0),
+                # Classification loss is complementary
+                CriterionCallback(prefix='cls', loss_key='cls',
+                                  output_key='logits',
+                                  criterion_key='classification',
+                                  multiplier=0.5)]
+
+        callbacks += [
             # Regression loss is main
             CriterionCallback(prefix='reg', loss_key='reg',
                               output_key='regression',
@@ -294,10 +314,6 @@ def main():
             )
 
             del optimizer
-
-        if mixup:
-            # callbacks += [MixupSameLabelCallback(fields=['image'])]
-            callbacks += [MixupRegressionCallback(fields=['image'])]
 
         if early_stopping:
             callbacks += [

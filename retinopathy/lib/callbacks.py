@@ -328,7 +328,8 @@ class MixupRegressionCallback(MixupCallback):
         y_b: torch.Tensor = state.input[self.input_key][self.index]
         # y = max(y_a, y_b)
 
-        # In case of regression, if we do mixup of images of DR of different stages, we assign the maximum stage as our target
+        # In case of regression, if we do mixup of images of DR of different stages,
+        # we assign the maximum stage as our target
         mask = y_b > y_a
         y = y_a.masked_scatter(mask, y_b[mask])
 
