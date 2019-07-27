@@ -152,7 +152,7 @@ def get_loss(loss_name: str, **kwargs):
         return SoftCrossEntropyLoss()
 
     if loss_name.lower() == 'hybrid_kappa':
-        return HybridCappaLoss()
+        return HybridCappaLoss(**kwargs)
 
     raise KeyError(loss_name)
 
