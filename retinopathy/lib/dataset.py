@@ -372,8 +372,10 @@ def get_datasets(
         trainset_sizes.append(len(tx))
         train_x.extend(tx)
         train_y.extend([UNLABELED_CLASS] * len(tx))
-        valid_x.extend(vx)
-        valid_y.extend(vy)
+
+        if not use_unsupervised:
+            valid_x.extend(vx)
+            valid_y.extend(vy)
 
     if use_idrid:
         dataset_dir = os.path.join(data_dir, 'idrid')
