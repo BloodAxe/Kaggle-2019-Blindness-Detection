@@ -21,7 +21,7 @@ class RMSPool2d(nn.Module):
     Root mean square pooling
     """
 
-    def __init__(self, eps=1e-5):
+    def __init__(self, eps=1e-9):
         super().__init__()
         self.eps = eps
         self.avg_pool = GlobalAvgPool2d()
