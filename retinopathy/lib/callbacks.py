@@ -496,18 +496,19 @@ class UnsupervisedCriterionCallback(CriterionCallback):
 
             return
 
-        with torch.no_grad():
-            orig_input: torch.Tensor = state.input[self.input_key].detach()
+        non_augmented_image: torch.Tensor = state.input[self.input_key]
 
-            # Compute target probability distribution
-            state.model.eval()
-            output = state.model(orig_input)[self.output_key][mask]
-            state.model.train()
-            original_prob: torch.Tensor = F.log_softmax(output, dim=1).exp()
+        # Compute target probability distribution
+        state.model.eval()
+        non_augmented_logits = state.model(non_augmented_image)[self.output_key][mask]
+        state.model.train()
 
-        augmented_log_prob = F.log_softmax(state.output[self.output_key][mask], dim=1)
+        non_augmented_probs: torch.Tensor = F.log_softmax(non_augmented_logits, dim=1).exp()
 
-        loss = F.kl_div(augmented_log_prob, original_prob, reduction='batchmean')
+        augmented_logits = state.output[self.output_key][mask]
+        augmented_log_prob = F.log_softmax(augmented_logits, dim=1)
+
+        loss = F.kl_div(augmented_log_prob, non_augmented_probs, reduction='batchmean')
 
         state.metrics.add_batch_value(metrics_dict={
             self.prefix: loss.item(),
