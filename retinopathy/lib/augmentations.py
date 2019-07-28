@@ -293,10 +293,30 @@ def get_train_aug(image_size, augmentation=None, crop_black=True):
         CropBlackRegions() if crop_black else A.NoOp(always_apply=True),
         A.LongestMaxSize(longest_size, interpolation=cv2.INTER_CUBIC),
 
-        # ChannelIndependentCLAHE(),
-
         A.PadIfNeeded(image_size[0], image_size[1],
                       border_mode=cv2.BORDER_CONSTANT, value=0),
+
+        A.Compose([
+            A.OneOf([
+                A.ShiftScaleRotate(shift_limit=0.05, scale_limit=0.1,
+                                   rotate_limit=15,
+                                   border_mode=cv2.BORDER_CONSTANT, value=0),
+
+                A.NoOp()
+            ])
+        ], p=float(augmentation == LIGHT)),
+
+        A.Compose([
+            A.OneOf([
+                A.ShiftScaleRotate(shift_limit=0.05, scale_limit=0.1,
+                                   rotate_limit=15,
+                                   border_mode=cv2.BORDER_CONSTANT, value=0),
+                A.OpticalDistortion(distort_limit=0.11, shift_limit=0.15,
+                                    border_mode=cv2.BORDER_CONSTANT,
+                                    value=0),
+                A.NoOp()
+            ])
+        ], p=float(augmentation == MEDIUM)),
 
         A.Compose([
             A.OneOf([
@@ -334,7 +354,7 @@ def get_train_aug(image_size, augmentation=None, crop_black=True):
                                                 contrast_limit=0.24),
             A.RandomGamma(gamma_limit=(50, 150)),
             A.NoOp()
-        ], p=float(augmentation >= MEDIUM)),
+        ], p=float(augmentation >= LIGHT)),
 
         # Color augmentations
         A.OneOf([
