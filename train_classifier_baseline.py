@@ -7,6 +7,7 @@ import os
 from datetime import datetime
 from functools import partial
 
+import torch
 from catalyst.dl import SupervisedRunner, EarlyStoppingCallback, CriterionCallback
 from catalyst.utils import load_checkpoint, unpack_checkpoint
 from pytorch_toolbelt.utils import fs
@@ -64,6 +65,7 @@ def main():
     parser.add_argument('-d', '--dropout', default=0.0, type=float, help='Dropout before head layer')
     parser.add_argument('--warmup', default=0, type=int,
                         help='Number of warmup epochs with 0.1 of the initial LR and frozed encoder')
+    parser.add_argument('-x', '--experiment', default=None, type=str, help='Dropout before head layer')
 
     # '--use-messidor --use-aptos2019 --use-idrid'
     args = parser.parse_args()
@@ -98,7 +100,7 @@ def main():
     warmup = args.warmup
     dropout = args.dropout
     use_unsupervised = args.unsupervised
-
+    experiment = args.experiment
     assert use_aptos2015 or use_aptos2019 or use_idrid or use_messidor
 
     current_time = datetime.now().strftime('%b%d_%H_%M')
@@ -107,7 +109,9 @@ def main():
         folds = [None]
 
     for fold in folds:
-        checkpoint_prefix = f'{model_name}_{args.size}_fold{fold}_{get_random_name()}'
+        torch.cuda.empty_cache()
+        checkpoint_prefix = f'{model_name}_{args.size}_fold{fold}_{augmentations}_{get_random_name()}'
+
         if use_aptos2019:
             checkpoint_prefix += '_aptos2019'
         if use_aptos2015:
@@ -116,6 +120,11 @@ def main():
             checkpoint_prefix += '_messidor'
         if use_idrid:
             checkpoint_prefix += '_idrid'
+        if use_unsupervised:
+            checkpoint_prefix += '_unsup'
+
+        if experiment is not None:
+            checkpoint_prefix = experiment
 
         set_manual_seed(args.seed)
         model = get_model(model_name, num_classes=len(get_class_names()), dropout=dropout).cuda()
@@ -344,9 +353,10 @@ def main():
         del runner, callbacks, loaders, optimizer, model, criterion, scheduler
 
         best__checkpoint = os.path.join(log_dir, 'checkpoints', 'best.pth')
-        model_checkpoint = os.path.join(log_dir, 'checkpoints', f'{checkpoint_prefix}_best.pth')
+        model_checkpoint = os.path.join(log_dir, 'checkpoints', f'{checkpoint_prefix}.pth')
         clean_checkpoint(best__checkpoint, model_checkpoint)
 
 
 if __name__ == '__main__':
-    main()
+    with torch.autograd.detect_anomaly():
+        main()
