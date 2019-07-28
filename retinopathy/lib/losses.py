@@ -77,17 +77,26 @@ class LabelSmoothingLoss(nn.Module):
 
 @registry.Criterion
 class SoftCrossEntropyLoss(nn.Module):
-    def __init__(self, smooth_factor=0.05):
+    def __init__(self, smooth_factor=0.01, ignore_index=None):
         super().__init__()
         self.smooth_factor = smooth_factor
+        self.ignore_index = ignore_index
 
-    def forward(self, pred, target):
-        n_class = pred.size(1)
-        one_hot = torch.zeros_like(pred).scatter(1, target.view(-1, 1), 1)
+    def forward(self, input, target):
+        if self.ignore_index is not None:
+            mask = target != self.ignore_index
+            target = target[mask]
+            input = input[mask]
+
+        if not len(target):
+            return torch.tensor(0.).to(input.device)
+
+        n_class = input.size(1)
+        one_hot = torch.zeros_like(input).scatter(1, target.view(-1, 1), 1)
         one_hot = one_hot * (1 - self.smooth_factor) + (1 - one_hot) * self.smooth_factor / (n_class - 1)
-        log_prb = F.log_softmax(pred, dim=1)
+        log_prb = F.log_softmax(input, dim=1)
         loss = -(one_hot * log_prb).sum(dim=1)
-        return loss.sum()
+        return loss.mean()
 
 
 @registry.Criterion

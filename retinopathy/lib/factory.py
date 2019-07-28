@@ -149,7 +149,7 @@ def get_loss(loss_name: str, **kwargs):
         return LabelSmoothingLoss()
 
     if loss_name.lower() == 'soft_ce':
-        return SoftCrossEntropyLoss()
+        return SoftCrossEntropyLoss(**kwargs)
 
     if loss_name.lower() == 'hybrid_kappa':
         return HybridCappaLoss(**kwargs)
