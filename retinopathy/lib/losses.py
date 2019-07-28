@@ -77,7 +77,7 @@ class LabelSmoothingLoss(nn.Module):
 
 @registry.Criterion
 class SoftCrossEntropyLoss(nn.Module):
-    def __init__(self, smooth_factor=0.01, ignore_index=None):
+    def __init__(self, smooth_factor=0.05, ignore_index=None):
         super().__init__()
         self.smooth_factor = smooth_factor
         self.ignore_index = ignore_index
