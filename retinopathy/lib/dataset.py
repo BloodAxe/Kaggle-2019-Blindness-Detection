@@ -444,7 +444,7 @@ def get_dataloaders(train_ds, valid_ds,
 
     if balance:
         weights = compute_sample_weight('balanced', train_ds.targets)
-        num_samples = int(train_ds.targets)
+        num_samples = len(train_ds.targets)
 
     if balance_datasets:
         assert train_sizes is not None
