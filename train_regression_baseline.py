@@ -8,7 +8,7 @@ from datetime import datetime
 from functools import partial
 
 import torch
-from catalyst.dl import SupervisedRunner, EarlyStoppingCallback, CriterionCallback
+from catalyst.dl import SupervisedRunner, EarlyStoppingCallback, CriterionCallback, CheckpointCallback
 from catalyst.utils import load_checkpoint, unpack_checkpoint
 from pytorch_toolbelt.utils import fs
 from pytorch_toolbelt.utils.catalyst import ShowPolarBatchesCallback
@@ -276,11 +276,11 @@ def main():
 
             ConfusionMatrixCallbackFromRegression(output_key='regression', class_names=get_class_names(),
                                                   ignore_index=UNLABELED_CLASS),
-            NegativeMiningCallback(from_regression=True, output_key='regression', ignore_index=UNLABELED_CLASS)
+            NegativeMiningCallback(from_regression=True, output_key='regression', ignore_index=UNLABELED_CLASS),
         ]
 
         criterion = {
-            'classification': get_loss('ce', ignore_index=UNLABELED_CLASS),
+            'classification': get_loss('soft_ce', ignore_index=UNLABELED_CLASS),
             'regression': get_loss(criterion_name, ignore_index=UNLABELED_CLASS)
         }
 
