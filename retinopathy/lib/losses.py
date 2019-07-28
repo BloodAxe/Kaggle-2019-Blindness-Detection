@@ -102,7 +102,7 @@ class SoftCrossEntropyLoss(nn.Module):
 @registry.Criterion
 class ClippedWingLoss(WingLoss):
     def __init__(self, width=5, curvature=0.5, reduction='mean', min=0, max=4, ignore_index=None):
-        super(ClippedWingLoss, self).__init__()
+        super(ClippedWingLoss, self).__init__(width=width, curvature=curvature, reduction=reduction)
         self.min = min
         self.max = max
         self.ignore_index = ignore_index

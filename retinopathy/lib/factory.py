@@ -186,26 +186,3 @@ def get_scheduler(scheduler_name: str,
     raise KeyError(scheduler_name)
 
 
-@torch.no_grad()
-def test_wing_loss():
-    loss_fn = ClippedWingLoss(width=5, curvature=0.5, reduction=None, min=0,
-                              max=4)
-    # loss_fn = ClippedWingLoss(width=2, curvature=0.1, reduction=None, min=0,
-    #                           max=4)
-    # loss_fn = WingLoss(width=2, curvature=0.1, reduction=None)
-    x = torch.arange(-1, 5, 0.1)
-    y0 = torch.tensor(0.0).expand_as(x)
-    y1 = torch.tensor(1.0).expand_as(x)
-    y2 = torch.tensor(2.0).expand_as(x)
-    y3 = torch.tensor(3.0).expand_as(x)
-    y4 = torch.tensor(4.0).expand_as(x)
-
-    import matplotlib.pyplot as plt
-
-    plt.figure()
-    plt.plot(to_numpy(x), to_numpy(loss_fn(x, y0)))
-    plt.plot(to_numpy(x), to_numpy(loss_fn(x, y1)))
-    plt.plot(to_numpy(x), to_numpy(loss_fn(x, y2)))
-    plt.plot(to_numpy(x), to_numpy(loss_fn(x, y3)))
-    plt.plot(to_numpy(x), to_numpy(loss_fn(x, y4)))
-    plt.show()
