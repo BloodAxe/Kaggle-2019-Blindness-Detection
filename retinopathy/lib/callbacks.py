@@ -11,12 +11,94 @@ from catalyst.dl.callbacks import MixupCallback
 from pytorch_toolbelt.utils.catalyst import get_tensorboard_logger
 from pytorch_toolbelt.utils.torch_utils import to_numpy
 from pytorch_toolbelt.utils.visualization import plot_confusion_matrix, render_figure_to_tensor
-from sklearn.metrics import cohen_kappa_score, confusion_matrix
+from sklearn.metrics import confusion_matrix
 from torch import nn
 from torch.nn import Module
 
 from retinopathy.lib.models.ordinal import LogisticCumulativeLink
 from retinopathy.lib.models.regression import regression_to_class
+
+
+def cohen_kappa_score(y1, y2, labels=None, weights=None, sample_weight=None):
+    r"""Cohen's kappa: a statistic that measures inter-annotator agreement.
+
+    This function computes Cohen's kappa [1]_, a score that expresses the level
+    of agreement between two annotators on a classification problem. It is
+    defined as
+
+    .. math::
+        \kappa = (p_o - p_e) / (1 - p_e)
+
+    where :math:`p_o` is the empirical probability of agreement on the label
+    assigned to any sample (the observed agreement ratio), and :math:`p_e` is
+    the expected agreement when both annotators assign labels randomly.
+    :math:`p_e` is estimated using a per-annotator empirical prior over the
+    class labels [2]_.
+
+    Read more in the :ref:`User Guide <cohen_kappa>`.
+
+    Parameters
+    ----------
+    y1 : array, shape = [n_samples]
+        Labels assigned by the first annotator.
+
+    y2 : array, shape = [n_samples]
+        Labels assigned by the second annotator. The kappa statistic is
+        symmetric, so swapping ``y1`` and ``y2`` doesn't change the value.
+
+    labels : array, shape = [n_classes], optional
+        List of labels to index the matrix. This may be used to select a
+        subset of labels. If None, all labels that appear at least once in
+        ``y1`` or ``y2`` are used.
+
+    weights : str, optional
+        List of weighting type to calculate the score. None means no weighted;
+        "linear" means linear weighted; "quadratic" means quadratic weighted.
+
+    sample_weight : array-like of shape = [n_samples], optional
+        Sample weights.
+
+    Returns
+    -------
+    kappa : float
+        The kappa statistic, which is a number between -1 and 1. The maximum
+        value means complete agreement; zero or lower means chance agreement.
+
+    References
+    ----------
+    .. [1] J. Cohen (1960). "A coefficient of agreement for nominal scales".
+           Educational and Psychological Measurement 20(1):37-46.
+           doi:10.1177/001316446002000104.
+    .. [2] `R. Artstein and M. Poesio (2008). "Inter-coder agreement for
+           computational linguistics". Computational Linguistics 34(4):555-596.
+           <https://www.mitpressjournals.org/doi/pdf/10.1162/coli.07-034-R2>`_
+    .. [3] `Wikipedia entry for the Cohen's kappa.
+            <https://en.wikipedia.org/wiki/Cohen%27s_kappa>`_
+    """
+    confusion = confusion_matrix(y1, y2, labels=labels,
+                                 sample_weight=sample_weight)
+    n_classes = confusion.shape[0]
+    sum0 = np.sum(confusion, axis=0)
+    sum1 = np.sum(confusion, axis=1)
+    expected = np.outer(sum0, sum1) / np.sum(sum0)
+
+    if weights is None:
+        w_mat = np.ones([n_classes, n_classes], dtype=np.int)
+        w_mat.flat[:: n_classes + 1] = 0
+    elif weights == "linear" or weights == "quadratic":
+        w_mat = np.zeros([n_classes, n_classes], dtype=np.int)
+        w_mat += np.arange(n_classes)
+        if weights == "linear":
+            w_mat = np.abs(w_mat - w_mat.T)
+        else:
+            w_mat = (w_mat - w_mat.T) ** 2
+    else:
+        raise ValueError("Unknown kappa weighting type.")
+
+    num = w_mat * confusion
+    denom = w_mat * expected
+    k = np.sum(num) / np.sum(denom)
+    return 1 - k, num, denom
 
 
 class CappaScoreCallback(Callback):
@@ -25,7 +107,8 @@ class CappaScoreCallback(Callback):
                  output_key: str = "logits",
                  prefix: str = "kappa_score",
                  from_regression=False,
-                 ignore_index=-100):
+                 ignore_index=-100,
+                 class_names=None):
         """
         :param input_key: input key to use for precision calculation; specifies our `y_true`.
         :param output_key: output key to use for precision calculation; specifies our `y_pred`.
@@ -37,6 +120,7 @@ class CappaScoreCallback(Callback):
         self.predictions = []
         self.ignore_index = ignore_index
         self.from_regression = from_regression
+        self.class_names = class_names
 
     def on_loader_start(self, state):
         self.targets = []
@@ -62,8 +146,33 @@ class CappaScoreCallback(Callback):
         self.predictions.extend(outputs)
 
     def on_loader_end(self, state):
-        score = cohen_kappa_score(self.predictions, self.targets, weights='quadratic')
+        score, num, denom = cohen_kappa_score(self.predictions, self.targets, weights='quadratic')
         state.metrics.epoch_values[state.loader_name][self.prefix] = score
+
+        if self.class_names is None:
+            class_names = [str(i) for i in range(num.shape[1])]
+        else:
+            class_names = self.class_names
+
+        num_classes = len(class_names)
+
+        num_fig = plot_confusion_matrix(num,
+                                        figsize=(6 + num_classes // 3, 6 + num_classes // 3),
+                                        class_names=class_names,
+                                        normalize=True,
+                                        noshow=True)
+        denom_fig = plot_confusion_matrix(denom,
+                                          figsize=(6 + num_classes // 3, 6 + num_classes // 3),
+                                          class_names=class_names,
+                                          normalize=True,
+                                          noshow=True)
+
+        num_fig = render_figure_to_tensor(num_fig)
+        denom_fig = render_figure_to_tensor(denom_fig)
+
+        logger = get_tensorboard_logger(state)
+        logger.add_image(f'{self.prefix}/epoch/num', num_fig, global_step=state.step)
+        logger.add_image(f'{self.prefix}/epoch/denom', denom_fig, global_step=state.step)
 
 
 def accuracy_from_regression(outputs, targets, ignore_index=None):
