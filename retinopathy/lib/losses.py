@@ -89,7 +89,7 @@ class SoftCrossEntropyLoss(nn.Module):
             input = input[mask]
 
         if not len(target):
-            return torch.tensor(0.).to(input.device)
+            return torch.tensor(0.).type_as(input).to(input.device)
 
         n_class = input.size(1)
         one_hot = torch.zeros_like(input).scatter(1, target.view(-1, 1), 1)
