@@ -7,7 +7,7 @@ from albumentations.augmentations.functional import longest_max_size
 from pytorch_toolbelt.utils import fs
 from tqdm import tqdm
 
-from retinopathy.lib.augmentations import crop_black
+from retinopathy.augmentations import crop_black
 
 
 def preprocess(image_fname, output_dir):

@@ -2,7 +2,7 @@ import cv2
 import matplotlib.pyplot as plt
 from pytorch_toolbelt.utils import fs
 
-from retinopathy.lib.augmentations import crop_black, unsharp_mask, clahe_preprocessing
+from retinopathy.augmentations import crop_black, unsharp_mask, clahe_preprocessing
 
 
 def test_crop_black_regions():

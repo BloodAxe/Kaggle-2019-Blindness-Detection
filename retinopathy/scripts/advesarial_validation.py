@@ -22,9 +22,9 @@ from torch.optim.lr_scheduler import MultiStepLR
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 import pandas as pd
-from retinopathy.lib.dataset import RetinopathyDataset
-from retinopathy.lib.factory import get_model, get_loss, get_optimizer, get_optimizable_parameters, get_train_aug, get_test_aug
-from retinopathy.lib.visualization import draw_classification_predictions
+from retinopathy.dataset import RetinopathyDataset
+from retinopathy.factory import get_model, get_loss, get_optimizer, get_optimizable_parameters, get_train_aug, get_test_aug
+from retinopathy.visualization import draw_classification_predictions
 
 
 def get_dataloaders(data_dir, batch_size, num_workers,

@@ -1,7 +1,7 @@
 from sklearn.utils import compute_sample_weight, compute_class_weight
 from torch.utils.data import WeightedRandomSampler, DataLoader
 
-from retinopathy.lib.dataset import get_datasets
+from retinopathy.dataset import get_datasets
 
 
 def test_aptos2019():

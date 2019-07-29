@@ -12,10 +12,10 @@ from torch import nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from retinopathy.lib.augmentations import get_test_aug
-from retinopathy.lib.dataset import get_class_names, RetinopathyDataset
-from retinopathy.lib.factory import get_model
-from retinopathy.lib.models.regression import regression_to_class
+from retinopathy.augmentations import get_test_aug
+from retinopathy.dataset import get_class_names, RetinopathyDataset
+from retinopathy.factory import get_model
+from retinopathy.models.regression import regression_to_class
 
 
 class PickModelOutput(nn.Module):

@@ -16,12 +16,12 @@ from pytorch_toolbelt.utils.random import set_manual_seed, get_random_name
 from pytorch_toolbelt.utils.torch_utils import maybe_cuda, count_parameters, \
     set_trainable
 
-from retinopathy.lib.callbacks import AscensionCallback, CappaScoreCallback
-from retinopathy.lib.dataset import get_class_names, \
+from retinopathy.callbacks import AscensionCallback, CappaScoreCallback
+from retinopathy.dataset import get_class_names, \
     get_datasets, get_dataloaders
-from retinopathy.lib.factory import get_model, get_loss, get_optimizer, \
+from retinopathy.factory import get_model, get_loss, get_optimizer, \
     get_optimizable_parameters, get_scheduler
-from retinopathy.lib.visualization import draw_classification_predictions
+from retinopathy.visualization import draw_classification_predictions
 from retinopathy.scripts.clean_checkpoint import clean_checkpoint
 
 

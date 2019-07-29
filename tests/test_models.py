@@ -4,8 +4,8 @@ import torch
 from pytorch_toolbelt.utils import fs
 from pytorch_toolbelt.utils.torch_utils import count_parameters, tensor_from_rgb_image
 
-from retinopathy.lib.augmentations import get_test_aug
-from retinopathy.lib.factory import get_model
+from retinopathy.augmentations import get_test_aug
+from retinopathy.factory import get_model
 
 
 @pytest.mark.parametrize('model_name',

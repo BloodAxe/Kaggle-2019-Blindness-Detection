@@ -3,8 +3,8 @@ import itertools
 from pytorch_toolbelt.utils import fs
 from sklearn.metrics import cohen_kappa_score
 import numpy as np
-from retinopathy.lib.dataset import get_datasets
-from retinopathy.lib.inference import run_model_inference, run_model_inference_via_dataset, \
+from retinopathy.dataset import get_datasets
+from retinopathy.inference import run_model_inference, run_model_inference_via_dataset, \
     reg_predictions_to_submission
 
 

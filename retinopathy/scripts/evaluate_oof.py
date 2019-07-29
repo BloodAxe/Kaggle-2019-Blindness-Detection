@@ -2,8 +2,8 @@ import numpy as np
 from pytorch_toolbelt.utils import fs
 from sklearn.metrics import cohen_kappa_score
 
-from retinopathy.lib.dataset import get_datasets
-from retinopathy.lib.inference import run_model_inference_via_dataset, cls_predictions_to_submission, \
+from retinopathy.dataset import get_datasets
+from retinopathy.inference import run_model_inference_via_dataset, cls_predictions_to_submission, \
     reg_predictions_to_submission, average_predictions
 
 

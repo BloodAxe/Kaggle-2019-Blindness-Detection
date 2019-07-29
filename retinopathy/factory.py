@@ -11,12 +11,12 @@ from torch.optim.lr_scheduler import MultiStepLR
 from torch.optim.rmsprop import RMSprop
 from torchvision.models import densenet169, densenet121, densenet201
 
-from retinopathy.lib.losses import ClippedMSELoss, ClippedWingLoss, CumulativeLinkLoss, LabelSmoothingLoss, \
+from retinopathy.losses import ClippedMSELoss, ClippedWingLoss, CumulativeLinkLoss, LabelSmoothingLoss, \
     SoftCrossEntropyLoss, ClippedHuber, CustomMSE, HybridCappaLoss
-from retinopathy.lib.models.heads import GlobalAvgPool2dHead, GlobalMaxPool2dHead, \
+from retinopathy.models.heads import GlobalAvgPool2dHead, GlobalMaxPool2dHead, \
     ObjectContextPoolHead, \
     GlobalMaxAvgPool2dHead, EncoderHeadModel, RMSPoolHead, MultistageModel
-from retinopathy.lib.models.inceptionv4 import InceptionV4Encoder
+from retinopathy.models.inceptionv4 import InceptionV4Encoder
 
 
 class DenseNet121Encoder(EncoderModule):

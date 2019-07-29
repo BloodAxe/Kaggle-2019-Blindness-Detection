@@ -5,20 +5,20 @@ import inspect
 from pytorch_toolbelt.utils.fs import read_rgb_image, id_from_fname
 from pytorch_toolbelt.utils.torch_utils import tensor_from_rgb_image
 
-from retinopathy.lib.augmentations import CropBlackRegions, get_test_aug, crop_black, ChannelIndependentCLAHE, \
+from retinopathy.augmentations import CropBlackRegions, get_test_aug, crop_black, ChannelIndependentCLAHE, \
     clahe_preprocessing
-from retinopathy.lib.dataset import RetinopathyDataset, get_class_names, UNLABELED_CLASS
-from retinopathy.lib.factory import get_model, DenseNet121Encoder, DenseNet201Encoder, DenseNet169Encoder
-from retinopathy.lib.inference import PickModelOutput, run_model_inference, cls_predictions_to_submission, \
+from retinopathy.dataset import RetinopathyDataset, get_class_names, UNLABELED_CLASS
+from retinopathy.factory import get_model, DenseNet121Encoder, DenseNet201Encoder, DenseNet169Encoder
+from retinopathy.inference import PickModelOutput, run_model_inference, cls_predictions_to_submission, \
     average_predictions, reg_predictions_to_submission, run_model_inference_via_dataset
-from retinopathy.lib.models.heads import RMSPool2d, EncoderHeadModel, GlobalAvgPool2d, GlobalAvgPool2dHead, \
+from retinopathy.models.heads import RMSPool2d, EncoderHeadModel, GlobalAvgPool2d, GlobalAvgPool2dHead, \
     GlobalMaxAvgPool2dHead, \
     GlobalMaxPool2dHead, ObjectContextPoolHead, FourReluBlock, Flatten, CLSBlock, RMSPoolHead
-from retinopathy.lib.models.inceptionv4 import InceptionV4Encoder, inceptionv4, InceptionV4, Inception_B, Inception_A, \
+from retinopathy.models.inceptionv4 import InceptionV4Encoder, inceptionv4, InceptionV4, Inception_B, Inception_A, \
     Inception_C, Reduction_A, Mixed_5a, Mixed_3a, Mixed_4a, BasicConv2d, Reduction_B
-from retinopathy.lib.models.oc import ASP_OC_Module, BaseOC_Context_Module, SelfAttentionBlock2D, _SelfAttentionBlock
-from retinopathy.lib.models.ordinal import OrdinalEncoderHeadModel, LogisticCumulativeLink
-from retinopathy.lib.models.regression import regression_to_class
+from retinopathy.models.oc import ASP_OC_Module, BaseOC_Context_Module, SelfAttentionBlock2D, _SelfAttentionBlock
+from retinopathy.models import OrdinalEncoderHeadModel, LogisticCumulativeLink
+from retinopathy.models.regression import regression_to_class
 
 
 def encode_archive(archive_name):

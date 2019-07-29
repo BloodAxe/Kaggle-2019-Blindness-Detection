@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 from pytorch_toolbelt.utils.torch_utils import rgb_image_from_tensor, to_numpy
 
-from retinopathy.lib.models.regression import regression_to_class
+from retinopathy.models.regression import regression_to_class
 
 
 def draw_classification_predictions(input: dict,

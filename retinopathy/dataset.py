@@ -12,7 +12,7 @@ from sklearn.utils import compute_class_weight, compute_sample_weight
 from torch.utils.data import Dataset, DataLoader, WeightedRandomSampler
 from typing import Tuple, List
 
-from retinopathy.lib.augmentations import get_train_aug, get_test_aug
+from retinopathy.augmentations import get_train_aug, get_test_aug
 
 
 def get_class_names():

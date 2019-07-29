@@ -15,8 +15,8 @@ from sklearn.metrics import confusion_matrix
 from torch import nn
 from torch.nn import Module
 
-from retinopathy.lib.models.ordinal import LogisticCumulativeLink
-from retinopathy.lib.models.regression import regression_to_class
+from retinopathy.models import LogisticCumulativeLink
+from retinopathy.models.regression import regression_to_class
 
 
 def cohen_kappa_score(y1, y2, labels=None, weights=None, sample_weight=None):

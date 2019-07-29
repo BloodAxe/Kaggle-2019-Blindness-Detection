@@ -4,7 +4,7 @@ from pytorch_toolbelt.modules.pooling import GlobalAvgPool2d, GlobalMaxPool2d
 from torch import nn
 from torch.nn import functional as F
 
-from retinopathy.lib.models.oc import ASP_OC_Module
+from retinopathy.models.oc import ASP_OC_Module
 
 
 class Flatten(nn.Module):

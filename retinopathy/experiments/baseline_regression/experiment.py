@@ -3,8 +3,8 @@ from collections import OrderedDict
 import torchvision
 from catalyst.dl import ConfigExperiment
 
-from retinopathy.lib.augmentations import get_train_aug, get_test_aug
-from retinopathy.lib.dataset import get_datasets
+from retinopathy.augmentations import get_train_aug, get_test_aug
+from retinopathy.dataset import get_datasets
 
 
 class Experiment(ConfigExperiment):

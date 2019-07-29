@@ -3,7 +3,7 @@ import torch.nn.functional as F
 import pytest
 from pytorch_toolbelt.utils.torch_utils import to_numpy
 
-from retinopathy.lib.losses import ClippedWingLoss, ClippedMSELoss, ClippedHuber
+from retinopathy.losses import ClippedWingLoss, ClippedMSELoss, ClippedHuber
 
 
 def test_kl():
