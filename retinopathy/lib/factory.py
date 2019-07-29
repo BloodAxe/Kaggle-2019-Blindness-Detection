@@ -1,11 +1,9 @@
 from functools import partial
 
-import torch
 import torch.nn.functional as F
 from catalyst.contrib.schedulers import OneCycleLR, ExponentialLR
 from pytorch_toolbelt.losses import FocalLoss
 from pytorch_toolbelt.modules.encoders import *
-from pytorch_toolbelt.utils.torch_utils import to_numpy
 from torch import nn
 from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss
 from torch.optim import SGD, Adam
@@ -17,7 +15,7 @@ from retinopathy.lib.losses import ClippedMSELoss, ClippedWingLoss, CumulativeLi
     SoftCrossEntropyLoss, ClippedHuber, CustomMSE, HybridCappaLoss
 from retinopathy.lib.models.heads import GlobalAvgPool2dHead, GlobalMaxPool2dHead, \
     ObjectContextPoolHead, \
-    GlobalMaxAvgPool2dHead, EncoderHeadModel, RMSPoolHead
+    GlobalMaxAvgPool2dHead, EncoderHeadModel, RMSPoolHead, MultistageModel
 from retinopathy.lib.models.inceptionv4 import InceptionV4Encoder
 
 
@@ -90,7 +88,8 @@ def get_model(model_name, num_classes, pretrained=True, dropout=0.0, **kwargs):
     MODELS = {
         'reg': partial(EncoderHeadModel, num_classes=num_classes, dropout=dropout),
         'cls': partial(EncoderHeadModel, num_classes=num_classes, dropout=dropout),
-        'ord': partial(EncoderHeadModel, num_classes=num_classes, dropout=dropout)
+        'ord': partial(EncoderHeadModel, num_classes=num_classes, dropout=dropout),
+        'mul': partial(MultistageModel, num_classes=num_classes, dropout=dropout)
     }
 
     head = POOLING[head_name](encoder.output_filters)
@@ -184,5 +183,3 @@ def get_scheduler(scheduler_name: str,
                            gamma=0.5)
 
     raise KeyError(scheduler_name)
-
-

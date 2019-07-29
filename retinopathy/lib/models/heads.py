@@ -5,7 +5,6 @@ from torch import nn
 from torch.nn import functional as F
 
 from retinopathy.lib.models.oc import ASP_OC_Module
-from retinopathy.lib.models.ordinal import LogisticCumulativeLink
 
 
 class Flatten(nn.Module):
@@ -216,6 +215,68 @@ class EncoderHeadModel(nn.Module):
         features = self.head(feature_maps)
         features = self.dropout(features)
         features = self.bottleneck(features)
+
+        logits = self.logits(features)
+        regression = self.regressor(features)
+        # ordinal = self.ordinal(features)
+
+        if regression.size(1) == 1:
+            regression = regression.squeeze(1)
+
+        return {
+            'features': features,
+            'logits': logits,
+            'regression': regression,
+            # 'ordinal': ordinal
+        }
+
+
+class PoolAndSqueeze(nn.Module):
+    def __init__(self, input_features, output_features, dropout=0.0):
+        super().__init__()
+        self.pool = GlobalMaxPool2d()
+        self.dropout = nn.Dropout(dropout)
+        self.bottleneck = nn.Linear(input_features, output_features)
+        self.output_features = output_features
+
+    def forward(self, input):
+        features = self.pool(input)
+        features = features.view(features.size(0), features.size(1))
+        features = self.dropout(features)
+        features = self.bottleneck(features)
+        return features
+
+
+class MultistageModel(nn.Module):
+    def __init__(self, encoder: EncoderModule, pooling_module: nn.Module,
+                 num_classes=5,
+                 num_regression_dims=1,
+                 dropout=0.0,
+                 reduction=8):
+        super().__init__()
+        self.encoder = encoder
+        self.pool1 = PoolAndSqueeze(encoder.output_filters[-1], encoder.output_filters[-1] // reduction, dropout)
+        self.pool2 = PoolAndSqueeze(encoder.output_filters[-2], encoder.output_filters[-2] // reduction, dropout)
+        self.pool3 = PoolAndSqueeze(encoder.output_filters[-3], encoder.output_filters[-3] // reduction, dropout)
+
+        bottleneck_features = self.pool1.output_features + self.pool2.output_features + self.pool3.output_features
+        self.regressor = FourReluBlock(bottleneck_features, num_regression_dims, reduction=1)
+        self.logits = nn.Linear(bottleneck_features, num_classes)
+        # self.ordinal = nn.Sequential(nn.Linear(bottleneck_features, num_classes),
+        #                              LogisticCumulativeLink(num_classes, init_cutpoints='ordered'))
+
+    @property
+    def features_size(self):
+        return self.head.features_size
+
+    def forward(self, input):
+        feature_maps = self.encoder(input)
+
+        pool1 = self.pool1(feature_maps[-1])
+        pool2 = self.pool2(feature_maps[-2])
+        pool3 = self.pool3(feature_maps[-3])
+
+        features = torch.cat([pool1, pool2, pool3], dim=1)
 
         logits = self.logits(features)
         regression = self.regressor(features)
