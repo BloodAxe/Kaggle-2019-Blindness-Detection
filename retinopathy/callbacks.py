@@ -16,7 +16,7 @@ from sklearn.metrics import confusion_matrix
 from torch import nn
 from torch.nn import Module
 
-from retinopathy.models import LogisticCumulativeLink
+from retinopathy.models.ordinal import LogisticCumulativeLink
 from retinopathy.models.regression import regression_to_class
 
 
