@@ -36,11 +36,10 @@ class FourReluBlock(nn.Module):
     Block used for making final regression predictions
     """
 
-    def __init__(self, features, num_classes, reduction=4, dropout=0.0):
+    def __init__(self, features, bottleneck, num_classes, dropout=0.0):
         super().__init__()
         self.bn = nn.BatchNorm1d(features)
 
-        bottleneck = features // reduction
         self.fc1 = nn.Linear(features, bottleneck)
         self.act1 = nn.LeakyReLU(inplace=True)
 
@@ -201,7 +200,7 @@ class EncoderHeadModel(nn.Module):
         self.dropout = nn.Dropout(dropout)
         self.bottleneck = nn.Linear(head.features_size, bottleneck_features)
 
-        self.regressor = FourReluBlock(bottleneck_features, num_regression_dims, reduction=1)
+        self.regressor = FourReluBlock(bottleneck_features, 64, num_regression_dims)
         self.logits = nn.Linear(bottleneck_features, num_classes)
         # self.ordinal = nn.Sequential(nn.Linear(bottleneck_features, num_classes),
         #                              LogisticCumulativeLink(num_classes, init_cutpoints='ordered'))
@@ -260,7 +259,7 @@ class MultistageModel(nn.Module):
         self.pool3 = PoolAndSqueeze(encoder.output_filters[-3], encoder.output_filters[-3] // reduction, dropout)
 
         bottleneck_features = self.pool1.output_features + self.pool2.output_features + self.pool3.output_features
-        self.regressor = FourReluBlock(bottleneck_features, num_regression_dims, reduction=1)
+        self.regressor = FourReluBlock(bottleneck_features, 64, num_regression_dims)
         self.logits = nn.Linear(bottleneck_features, num_classes)
         # self.ordinal = nn.Sequential(nn.Linear(bottleneck_features, num_classes),
         #                              LogisticCumulativeLink(num_classes, init_cutpoints='ordered'))
