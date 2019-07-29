@@ -115,7 +115,7 @@ def main():
 
     for fold in folds:
         torch.cuda.empty_cache()
-        checkpoint_prefix = f'{model_name}_{args.size}_{augmentations}'
+        checkpoint_prefix = f'{model_name}_{args.size}_{augmentations}_{criterion_name}'
 
         if preprocessing is not None:
             checkpoint_prefix += f'_{preprocessing}'
