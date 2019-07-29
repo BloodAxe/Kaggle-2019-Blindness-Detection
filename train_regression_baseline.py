@@ -8,7 +8,7 @@ from datetime import datetime
 from functools import partial
 
 import torch
-from catalyst.dl import SupervisedRunner, EarlyStoppingCallback, CriterionCallback, CheckpointCallback
+from catalyst.dl import SupervisedRunner, EarlyStoppingCallback, CriterionCallback
 from catalyst.utils import load_checkpoint, unpack_checkpoint
 from pytorch_toolbelt.utils import fs
 from pytorch_toolbelt.utils.catalyst import ShowPolarBatchesCallback
@@ -269,9 +269,13 @@ def main():
 
         callbacks += [
             AccuracyCallbackFromRegression(output_key='regression', ignore_index=UNLABELED_CLASS),
-            CappaScoreCallback(prefix='kappa_score', output_key='regression', ignore_index=UNLABELED_CLASS,
+            CappaScoreCallback(prefix='kappa_score', output_key='regression',
+                               ignore_index=UNLABELED_CLASS,
+                               class_names=get_class_names(),
                                from_regression=True),
-            CappaScoreCallback(prefix='kappa_score_aux', output_key='logits', ignore_index=UNLABELED_CLASS,
+            CappaScoreCallback(prefix='kappa_score_aux', output_key='logits',
+                               ignore_index=UNLABELED_CLASS,
+                               class_names=get_class_names(),
                                from_regression=False),
 
             ConfusionMatrixCallbackFromRegression(output_key='regression', class_names=get_class_names(),

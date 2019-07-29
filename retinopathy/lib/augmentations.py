@@ -2,10 +2,21 @@ import random
 
 import albumentations as A
 import cv2
-from albumentations.augmentations.functional import brightness_contrast_adjust, center_crop, pad_with_params, \
-    gaussian_blur
-
 import numpy as np
+from albumentations.augmentations.functional import brightness_contrast_adjust, gaussian_blur
+
+
+def red_free(image):
+    """
+    https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4944099/
+    The red-free version of this photo shows the new vessels at the optic disc more clearly.
+    Altering the images, e.g. by using red-free, is a valuable tool for detecting retinopathy
+    :param image:
+    :return:
+    """
+    image = image.copy()
+    image[..., 0] = 0
+    return image
 
 
 def crop_black(image, tolerance=5):
@@ -43,6 +54,14 @@ def clahe_preprocessing(image, clip_limit=4.0, tile_grid_size=(18, 18)):
 
     # image_norm = cv2.addWeighted(image, 0.5, image_norm, 0.5, 0)
     return image_norm
+
+
+class RedFree(A.ImageOnlyTransform):
+    def __init__(self, p=1):
+        super().__init__(p=p)
+
+    def apply(self, img, **params):
+        return red_free(img)
 
 
 class CropBlackRegions(A.ImageOnlyTransform):
@@ -358,12 +377,20 @@ def get_train_aug(image_size, augmentation=None, crop_black=True):
 
         # Color augmentations
         A.OneOf([
+            FancyPCA(alpha_std=4),
+            A.RGBShift(r_shift_limit=20, b_shift_limit=15, g_shift_limit=15),
+            A.HueSaturationValue(hue_shift_limit=5,
+                                 sat_shift_limit=5),
+            A.NoOp()
+        ], p=float(augmentation == MEDIUM)),
+
+        A.OneOf([
             FancyPCA(alpha_std=6),
             A.RGBShift(r_shift_limit=40, b_shift_limit=30, g_shift_limit=30),
             A.HueSaturationValue(hue_shift_limit=10,
                                  sat_shift_limit=10),
             A.NoOp()
-        ], p=float(augmentation >= MEDIUM)),
+        ], p=float(augmentation == HARD)),
 
         # Just flips
         A.Compose([

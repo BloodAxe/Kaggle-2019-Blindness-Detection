@@ -440,7 +440,7 @@ def get_dataloaders(train_ds, valid_ds,
     if balance_unlabeled:
         labeled_mask = (train_ds.targets != UNLABELED_CLASS).astype(np.uint8)
         weights = compute_sample_weight('balanced', labeled_mask)
-        num_samples = int(2 * np.sum(labeled_mask))
+        num_samples = int(np.mean(train_sizes))
 
     if balance:
         weights = compute_sample_weight('balanced', train_ds.targets)

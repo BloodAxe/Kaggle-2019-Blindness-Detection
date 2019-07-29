@@ -16,7 +16,8 @@ from pytorch_toolbelt.utils.random import set_manual_seed, get_random_name
 from pytorch_toolbelt.utils.torch_utils import count_parameters, \
     set_trainable
 
-from retinopathy.lib.callbacks import CappaScoreCallback, MixupSameLabelCallback, UnsupervisedCriterionCallback, NegativeMiningCallback
+from retinopathy.lib.callbacks import CappaScoreCallback, MixupSameLabelCallback, UnsupervisedCriterionCallback, \
+    NegativeMiningCallback
 from retinopathy.lib.dataset import get_class_names, \
     get_datasets, get_dataloaders, UNLABELED_CLASS
 from retinopathy.lib.factory import get_model, get_loss, get_optimizer, \
@@ -193,7 +194,8 @@ def main():
                                                      num_workers=num_workers,
                                                      train_sizes=train_sizes,
                                                      balance=balance,
-                                                     balance_datasets=balance_datasets)
+                                                     balance_datasets=balance_datasets,
+                                                     balance_unlabeled=use_unsupervised)
 
         if use_swa:
             from torchcontrib.optim import SWA
