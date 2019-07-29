@@ -234,7 +234,7 @@ class EncoderHeadModel(nn.Module):
 class PoolAndSqueeze(nn.Module):
     def __init__(self, input_features, output_features, dropout=0.0):
         super().__init__()
-        self.pool = GlobalMaxPool2d()
+        self.pool = RMSPool2d()
         self.dropout = nn.Dropout(dropout)
         self.bottleneck = nn.Linear(input_features, output_features)
         self.output_features = output_features
