@@ -1,4 +1,5 @@
 import os
+from typing import Tuple, List
 
 import albumentations as A
 import cv2
@@ -8,11 +9,10 @@ import pandas as pd
 from pytorch_toolbelt.utils.fs import id_from_fname
 from pytorch_toolbelt.utils.torch_utils import tensor_from_rgb_image
 from sklearn.model_selection import StratifiedKFold, train_test_split
-from sklearn.utils import compute_class_weight, compute_sample_weight
+from sklearn.utils import compute_sample_weight
 from torch.utils.data import Dataset, DataLoader, WeightedRandomSampler
-from typing import Tuple, List
 
-from retinopathy.augmentations import get_train_aug, get_test_aug
+from retinopathy.augmentations import get_train_transform, get_test_transform
 
 
 def get_class_names():
@@ -341,6 +341,7 @@ def get_datasets(
         data_dir='data',
         image_size=(512, 512),
         augmentation='medium',
+        preprocessing=None,
         use_aptos2019=True,
         use_aptos2015=False,
         use_idrid=False,
@@ -397,8 +398,13 @@ def get_datasets(
         valid_x.extend(vx)
         valid_y.extend(vy)
 
-    train_transform = get_train_aug(image_size, augmentation, crop_black=False)
-    valid_transform = get_test_aug(image_size, crop_black=False)
+    train_transform = get_train_transform(image_size,
+                                          augmentation=augmentation,
+                                          preprocessing=preprocessing,
+                                          crop_black=False)
+    valid_transform = get_test_transform(image_size,
+                                         preprocessing=preprocessing,
+                                         crop_black=False)
 
     if use_unsupervised:
         dataset_dir = os.path.join(data_dir, 'aptos-2019')

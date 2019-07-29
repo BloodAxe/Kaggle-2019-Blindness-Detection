@@ -12,7 +12,7 @@ from torch import nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from retinopathy.augmentations import get_test_aug
+from retinopathy.augmentations import get_test_transform
 from retinopathy.dataset import get_class_names, RetinopathyDataset
 from retinopathy.factory import get_model
 from retinopathy.models.regression import regression_to_class
@@ -120,7 +120,7 @@ def run_model_inference(model_checkpoint: str,
                         apply_softmax=True,
                         workers=None) -> pd.DataFrame:
     image_fnames = test_csv['id_code'].apply(lambda x: os.path.join(data_dir, images_dir, f'{x}.png'))
-    test_ds = RetinopathyDataset(image_fnames, None, get_test_aug(image_size))
+    test_ds = RetinopathyDataset(image_fnames, None, get_test_transform(image_size))
     return run_model_inference_via_dataset(model_checkpoint, test_ds,
                                            model_name=model_name,
                                            output_key=output_key,

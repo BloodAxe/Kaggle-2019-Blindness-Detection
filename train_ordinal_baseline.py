@@ -13,7 +13,7 @@ from catalyst.utils import load_checkpoint, unpack_checkpoint
 from pytorch_toolbelt.utils import fs
 from pytorch_toolbelt.utils.catalyst import ShowPolarBatchesCallback, ConfusionMatrixCallback
 from pytorch_toolbelt.utils.random import set_manual_seed, get_random_name
-from pytorch_toolbelt.utils.torch_utils import maybe_cuda, count_parameters, \
+from pytorch_toolbelt.utils.torch_utils import count_parameters, \
     set_trainable
 
 from retinopathy.callbacks import AscensionCallback, CappaScoreCallback
@@ -21,8 +21,8 @@ from retinopathy.dataset import get_class_names, \
     get_datasets, get_dataloaders
 from retinopathy.factory import get_model, get_loss, get_optimizer, \
     get_optimizable_parameters, get_scheduler
-from retinopathy.visualization import draw_classification_predictions
 from retinopathy.scripts.clean_checkpoint import clean_checkpoint
+from retinopathy.visualization import draw_classification_predictions
 
 
 def main():
@@ -139,14 +139,10 @@ def main():
             print('Metrics (Train):',
                   'cappa:',
                   checkpoint['epoch_metrics']['train']['kappa_score'],
-                  'accuracy01:',
-                  checkpoint['epoch_metrics']['train'].get('accuracy01', 'n/a'),
                   'loss:', checkpoint['epoch_metrics']['train']['loss'])
             print('Metrics (Valid):',
                   'cappa:',
                   checkpoint['epoch_metrics']['valid']['kappa_score'],
-                  'accuracy01:',
-                  checkpoint['epoch_metrics']['valid'].get('accuracy01', 'n/a'),
                   'loss:', checkpoint['epoch_metrics']['valid']['loss'])
 
         checkpoint = None

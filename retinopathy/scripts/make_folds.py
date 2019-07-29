@@ -1,6 +1,7 @@
 import argparse
-import pandas as pd
+
 import numpy as np
+import pandas as pd
 from pytorch_toolbelt.utils.fs import auto_file
 
 

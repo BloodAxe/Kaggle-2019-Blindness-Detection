@@ -1,9 +1,8 @@
 import torch
 import torch.nn.functional as F
-import pytest
 from pytorch_toolbelt.utils.torch_utils import to_numpy
 
-from retinopathy.losses import ClippedWingLoss, ClippedMSELoss, ClippedHuber
+from retinopathy.losses import ClippedMSELoss, ClippedHuber
 
 
 def test_kl():

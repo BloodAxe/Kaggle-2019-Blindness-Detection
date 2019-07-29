@@ -18,13 +18,13 @@ from pytorch_toolbelt.utils.torch_utils import count_parameters, \
 
 from retinopathy.callbacks import ConfusionMatrixCallbackFromRegression, \
     MixupRegressionCallback, UnsupervisedCriterionCallback, \
-    CappaScoreCallback, AccuracyCallbackFromRegression, NegativeMiningCallback
+    CappaScoreCallback, NegativeMiningCallback, CustomAccuracyCallback
 from retinopathy.dataset import get_class_names, \
     get_datasets, get_dataloaders, UNLABELED_CLASS
 from retinopathy.factory import get_model, get_loss, get_optimizer, \
     get_optimizable_parameters, get_scheduler
-from retinopathy.visualization import draw_regression_predictions
 from retinopathy.scripts.clean_checkpoint import clean_checkpoint
+from retinopathy.visualization import draw_regression_predictions
 
 
 def main():
@@ -54,6 +54,7 @@ def main():
     parser.add_argument('-lr', '--learning-rate', type=float, default=1e-4, help='Initial learning rate')
     parser.add_argument('-l', '--criterion', type=str, default='clipped_mse', help='Criterion')
     parser.add_argument('-o', '--optimizer', default='Adam', help='Name of the optimizer')
+    parser.add_argument('-p', '--preprocessing', default=None, help='Preprocessing method')
     parser.add_argument('-c', '--checkpoint', type=str, default=None,
                         help='Checkpoint filename to use as initial model weights')
     parser.add_argument('-w', '--workers', default=multiprocessing.cpu_count(), type=int, help='Num workers')
@@ -103,6 +104,8 @@ def main():
     dropout = args.dropout
     use_unsupervised = args.unsupervised
     experiment = args.experiment
+    preprocessing = args.preprocessing
+
     assert use_aptos2015 or use_aptos2019 or use_idrid or use_messidor
 
     current_time = datetime.now().strftime('%b%d_%H_%M')
@@ -112,8 +115,10 @@ def main():
 
     for fold in folds:
         torch.cuda.empty_cache()
-        checkpoint_prefix = f'{model_name}_{args.size}_fold{fold}_{augmentations}_{get_random_name()}'
+        checkpoint_prefix = f'{model_name}_{args.size}_{augmentations}'
 
+        if preprocessing is not None:
+            checkpoint_prefix += f'_{preprocessing}'
         if use_aptos2019:
             checkpoint_prefix += '_aptos2019'
         if use_aptos2015:
@@ -124,6 +129,10 @@ def main():
             checkpoint_prefix += '_idrid'
         if use_unsupervised:
             checkpoint_prefix += '_unsup'
+        if fold is not None:
+            checkpoint_prefix += f'fold{fold}'
+
+        checkpoint_prefix += f'_{get_random_name()}'
 
         if experiment is not None:
             checkpoint_prefix = experiment
@@ -168,12 +177,10 @@ def main():
             print('Metrics (Train):',
                   'kappa:', checkpoint['epoch_metrics']['train']['kappa_score'],
                   'accuracy:', checkpoint['epoch_metrics']['train'].get('accuracy', 'n/a'),
-                  'accuracy:', checkpoint['epoch_metrics']['train'].get('accuracy01', 'n/a'),
                   'loss:', checkpoint['epoch_metrics']['train'].get('loss', 'n/a'))
             print('Metrics (Valid):',
                   'kappa:', checkpoint['epoch_metrics']['valid']['kappa_score'],
                   'accuracy:', checkpoint['epoch_metrics']['valid'].get('accuracy', 'n/a'),
-                  'accuracy:', checkpoint['epoch_metrics']['valid'].get('accuracy01', 'n/a'),
                   'loss:', checkpoint['epoch_metrics']['valid'].get('n/a'))
 
         train_ds, valid_ds, train_sizes = get_datasets(data_dir=data_dir,
@@ -184,6 +191,7 @@ def main():
                                                        use_unsupervised=use_unsupervised,
                                                        image_size=image_size,
                                                        augmentation=augmentations,
+                                                       preprocessing=preprocessing,
                                                        target_dtype=int,
                                                        fold=fold,
                                                        folds=4)
@@ -193,7 +201,8 @@ def main():
                                                      num_workers=num_workers,
                                                      train_sizes=train_sizes,
                                                      balance=balance,
-                                                     balance_datasets=balance_datasets)
+                                                     balance_datasets=balance_datasets,
+                                                     balance_unlabeled=use_unsupervised)
 
         if use_swa:
             from torchcontrib.optim import SWA
@@ -247,6 +256,11 @@ def main():
         visualization_fn = partial(draw_regression_predictions,
                                    class_names=get_class_names())
 
+        criterion = {
+            'classification': get_loss('soft_ce', ignore_index=UNLABELED_CLASS),
+            'regression': get_loss(criterion_name, ignore_index=UNLABELED_CLASS)
+        }
+
         if mixup:
             callbacks = [MixupRegressionCallback(fields=['image'],
                                                  prefix='reg',
@@ -268,25 +282,25 @@ def main():
                                   multiplier=0.5)]
 
         callbacks += [
-            AccuracyCallbackFromRegression(output_key='regression', ignore_index=UNLABELED_CLASS),
-            CappaScoreCallback(prefix='kappa_score', output_key='regression',
+            CustomAccuracyCallback(output_key='regression',
+                                   from_regression=True,
+                                   ignore_index=UNLABELED_CLASS),
+            CappaScoreCallback(prefix='kappa_score',
+                               output_key='regression',
                                ignore_index=UNLABELED_CLASS,
                                class_names=get_class_names(),
                                from_regression=True),
-            CappaScoreCallback(prefix='kappa_score_aux', output_key='logits',
+            CappaScoreCallback(prefix='kappa_score_aux',
+                               output_key='logits',
                                ignore_index=UNLABELED_CLASS,
                                class_names=get_class_names(),
                                from_regression=False),
 
-            ConfusionMatrixCallbackFromRegression(output_key='regression', class_names=get_class_names(),
+            ConfusionMatrixCallbackFromRegression(output_key='regression',
+                                                  class_names=get_class_names(),
                                                   ignore_index=UNLABELED_CLASS),
             NegativeMiningCallback(from_regression=True, output_key='regression', ignore_index=UNLABELED_CLASS),
         ]
-
-        criterion = {
-            'classification': get_loss('soft_ce', ignore_index=UNLABELED_CLASS),
-            'regression': get_loss(criterion_name, ignore_index=UNLABELED_CLASS)
-        }
 
         runner = SupervisedRunner(input_key='image')
         # Pretrain/warmup

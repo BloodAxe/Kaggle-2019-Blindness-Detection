@@ -1,10 +1,11 @@
 import glob
 from collections import defaultdict
-
-import pandas as pd
-import numpy as np
 from typing import Tuple, Dict
+
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+
 
 def count_mistakes(negatives) -> Tuple[Dict, pd.DataFrame]:
     mistakes = defaultdict(list)

@@ -7,21 +7,20 @@ import os
 from datetime import datetime
 from functools import partial
 
-import cv2
-import numpy as np
+import pandas as pd
 import torch
 from catalyst.dl import SupervisedRunner, EarlyStoppingCallback, AUCCallback
-from catalyst.dl.callbacks import F1ScoreCallback, AccuracyCallback
+from catalyst.dl.callbacks import F1ScoreCallback
 from catalyst.utils import load_checkpoint, unpack_checkpoint
 from pytorch_toolbelt.utils import fs
 from pytorch_toolbelt.utils.catalyst import ShowPolarBatchesCallback
 from pytorch_toolbelt.utils.random import set_manual_seed
-from pytorch_toolbelt.utils.torch_utils import maybe_cuda, count_parameters, to_numpy, rgb_image_from_tensor, set_trainable
+from pytorch_toolbelt.utils.torch_utils import maybe_cuda, count_parameters, to_numpy, set_trainable
 from sklearn.model_selection import train_test_split
 from torch.optim.lr_scheduler import MultiStepLR
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-import pandas as pd
+
 from retinopathy.dataset import RetinopathyDataset
 from retinopathy.factory import get_model, get_loss, get_optimizer, get_optimizable_parameters, get_train_aug, get_test_aug
 from retinopathy.visualization import draw_classification_predictions

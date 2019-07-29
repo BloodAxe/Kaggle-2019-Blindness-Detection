@@ -75,6 +75,24 @@ class LabelSmoothingLoss(nn.Module):
         return F.kl_div(logp, target_one_hot, reduction='sum')
 
 
+def soft_crossentropy(input: torch.Tensor,
+                      target: torch.Tensor, ignore_index=None, smooth_factor=0.01):
+    if ignore_index is not None:
+        mask = target != ignore_index
+        target = target[mask]
+        input = input[mask]
+
+    if not len(target):
+        return torch.tensor(0.).type_as(input).to(input.device)
+
+    n_class = input.size(1)
+    one_hot = torch.zeros_like(input).scatter(1, target.view(-1, 1), 1)
+    one_hot = one_hot * (1 - smooth_factor) + (1 - one_hot) * smooth_factor / (n_class - 1)
+    log_prb = F.log_softmax(input, dim=1)
+    loss = -(one_hot * log_prb).sum(dim=1)
+    return loss.mean()
+
+
 @registry.Criterion
 class SoftCrossEntropyLoss(nn.Module):
     def __init__(self, smooth_factor=0.05, ignore_index=None):
@@ -82,21 +100,10 @@ class SoftCrossEntropyLoss(nn.Module):
         self.smooth_factor = smooth_factor
         self.ignore_index = ignore_index
 
-    def forward(self, input, target):
-        if self.ignore_index is not None:
-            mask = target != self.ignore_index
-            target = target[mask]
-            input = input[mask]
-
-        if not len(target):
-            return torch.tensor(0.).type_as(input).to(input.device)
-
-        n_class = input.size(1)
-        one_hot = torch.zeros_like(input).scatter(1, target.view(-1, 1), 1)
-        one_hot = one_hot * (1 - self.smooth_factor) + (1 - one_hot) * self.smooth_factor / (n_class - 1)
-        log_prb = F.log_softmax(input, dim=1)
-        loss = -(one_hot * log_prb).sum(dim=1)
-        return loss.mean()
+    def forward(self, input: torch.Tensor, target: torch.Tensor):
+        return soft_crossentropy(input, target,
+                                 ignore_index=self.ignore_index,
+                                 smooth_factor=self.smooth_factor)
 
 
 @registry.Criterion
@@ -278,18 +285,15 @@ class HybridCappaLoss(nn.Module):
         if not len(target):
             return torch.tensor(0.).to(input.device)
 
-        target_one_hot = F.one_hot(target, input.size(1)).float()
-
-        # Cross entropy loss, summed over classes, mean over batches
-        log_loss = F.cross_entropy(input, target, reduction='none')
-        log_loss = log_loss.mean()
+        crossentropy_loss = soft_crossentropy(input, target, smooth_factor=0.01)
         # clamped_log_loss = torch.clamp(log_loss, self.log_cutoff, 10 ** 3)
 
         # Second term
         y = F.log_softmax(input, dim=1).exp()
+        target_one_hot = F.one_hot(target, input.size(1)).float()
         kappa_loss = quad_kappa_loss_v2(y, target_one_hot, y_pow=self.y_pow, eps=self.eps)
 
-        return kappa_loss + self.log_scale * log_loss
+        return kappa_loss + self.log_scale * crossentropy_loss
 
 
 def test_quad_kappa_loss():

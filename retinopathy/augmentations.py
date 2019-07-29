@@ -289,7 +289,22 @@ class FancyPCA(A.ImageOnlyTransform):
         return {'alpha': random.gauss(0, self.alpha_std)}
 
 
-def get_train_aug(image_size, augmentation=None, crop_black=True):
+def get_preprocessing_transform(preprocessing):
+    assert preprocessing in {None, 'unsharp', 'clahe'}
+
+    if preprocessing is None:
+        return A.NoOp()
+
+    if preprocessing == 'unsharp':
+        return UnsharpMask(p=1)
+
+    if preprocessing == 'clahe':
+        return ChannelIndependentCLAHE(p=1)
+
+    raise KeyError(f'Unsupported preprocessing method {preprocessing}')
+
+
+def get_train_transform(image_size, augmentation=None, preprocessing=None, crop_black=True):
     if augmentation is None:
         augmentation = 'none'
 
@@ -407,12 +422,12 @@ def get_train_aug(image_size, augmentation=None, crop_black=True):
             A.Transpose()
         ], p=float(augmentation == HARD)),
 
-        # UnsharpMask(p=1),
+        get_preprocessing_transform(preprocessing),
         A.Normalize()
     ])
 
 
-def get_test_aug(image_size, crop_black=True):
+def get_test_transform(image_size, preprocessing: str = None, crop_black=True):
     longest_size = max(image_size[0], image_size[1])
     return A.Compose([
         CropBlackRegions() if crop_black else A.NoOp(always_apply=True),
@@ -421,7 +436,6 @@ def get_test_aug(image_size, crop_black=True):
         A.PadIfNeeded(image_size[0], image_size[1],
                       border_mode=cv2.BORDER_CONSTANT, value=0),
 
-        # ChannelIndependentCLAHE(),
-        # UnsharpMask(p=1),
+        get_preprocessing_transform(preprocessing),
         A.Normalize()
     ])

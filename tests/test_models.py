@@ -1,10 +1,9 @@
 import cv2
 import pytest
 import torch
-from pytorch_toolbelt.utils import fs
 from pytorch_toolbelt.utils.torch_utils import count_parameters, tensor_from_rgb_image
 
-from retinopathy.augmentations import get_test_aug
+from retinopathy.augmentations import get_test_transform
 from retinopathy.factory import get_model
 
 
@@ -49,7 +48,7 @@ def test_reg_models(model_name):
     ]:
         image = cv2.imread(image_fname)
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        transform = get_test_aug(image_size=(512, 512), crop_black=True)
+        transform = get_test_transform(image_size=(512, 512), crop_black=True)
 
         input_image = transform(image=image)['image']
         model = get_model(model_name=model_name, num_classes=5).eval().cuda()

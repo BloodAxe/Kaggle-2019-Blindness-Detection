@@ -1,4 +1,4 @@
-from sklearn.utils import compute_sample_weight, compute_class_weight
+from sklearn.utils import compute_sample_weight
 from torch.utils.data import WeightedRandomSampler, DataLoader
 
 from retinopathy.dataset import get_datasets

@@ -124,7 +124,7 @@ def get_loss(loss_name: str, **kwargs):
         return CrossEntropyLoss(**kwargs)
 
     if loss_name.lower() == 'focal':
-        return FocalLoss(**kwargs)
+        return FocalLoss(alpha=None, **kwargs)
 
     if loss_name.lower() == 'mse':
         return CustomMSE(**kwargs)

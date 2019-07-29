@@ -1,3 +1,4 @@
+import itertools
 import os
 from functools import partial
 from typing import List
@@ -101,6 +102,52 @@ def cohen_kappa_score(y1, y2, labels=None, weights=None, sample_weight=None):
     return 1 - k, num, denom
 
 
+def plot_matrix(cm, class_names,
+                figsize=(16, 16),
+                title='Matrix',
+                fname=None,
+                noshow=False):
+    """Render the confusion matrix and return matplotlib's figure with it.
+    Normalization can be applied by setting `normalize=True`.
+    """
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+
+    cmap = plt.cm.Oranges
+
+    f = plt.figure(figsize=figsize)
+    plt.title(title)
+    plt.imshow(cm, interpolation='nearest', cmap=cmap)
+
+    tick_marks = np.arange(len(class_names))
+    plt.xticks(tick_marks, class_names, rotation=45, ha='right')
+    # f.tick_params(direction='inout')
+    # f.set_xticklabels(varLabels, rotation=45, ha='right')
+    # f.set_yticklabels(varLabels, rotation=45, va='top')
+
+    plt.yticks(tick_marks, class_names)
+
+    fmt = '.2f'
+    thresh = cm.max() / 2.
+    for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
+        plt.text(j, i, format(cm[i, j], fmt),
+                 horizontalalignment="center",
+                 color="white" if cm[i, j] > thresh else "black")
+
+    plt.tight_layout()
+    plt.ylabel('True label')
+    plt.xlabel('Predicted label')
+
+    if fname is not None:
+        plt.savefig(fname=fname)
+
+    if not noshow:
+        plt.show()
+
+    return f
+
+
 class CappaScoreCallback(Callback):
     def __init__(self,
                  input_key: str = "targets",
@@ -156,16 +203,15 @@ class CappaScoreCallback(Callback):
 
         num_classes = len(class_names)
 
-        num_fig = plot_confusion_matrix(num,
-                                        figsize=(6 + num_classes // 3, 6 + num_classes // 3),
-                                        class_names=class_names,
-                                        normalize=True,
-                                        noshow=True)
-        denom_fig = plot_confusion_matrix(denom,
-                                          figsize=(6 + num_classes // 3, 6 + num_classes // 3),
-                                          class_names=class_names,
-                                          normalize=True,
-                                          noshow=True)
+        num_fig = plot_matrix(num / np.sum(num),
+                              figsize=(6 + num_classes // 3, 6 + num_classes // 3),
+                              class_names=class_names,
+                              noshow=True)
+
+        denom_fig = plot_matrix(denom / np.sum(denom),
+                                figsize=(6 + num_classes // 3, 6 + num_classes // 3),
+                                class_names=class_names,
+                                noshow=True)
 
         num_fig = render_figure_to_tensor(num_fig)
         denom_fig = render_figure_to_tensor(denom_fig)
@@ -175,7 +221,7 @@ class CappaScoreCallback(Callback):
         logger.add_image(f'{self.prefix}/epoch/denom', denom_fig, global_step=state.step)
 
 
-def accuracy_from_regression(outputs, targets, ignore_index=None):
+def custom_accuracy_fn(outputs, targets, from_regression=False, ignore_index=None):
     """
     Computes the accuracy@k for the specified values of k
     """
@@ -191,14 +237,18 @@ def accuracy_from_regression(outputs, targets, ignore_index=None):
     if batch_size == 0:
         return np.nan
 
-    outputs = regression_to_class(outputs).long()
+    if from_regression:
+        outputs = regression_to_class(outputs).long()
+    else:
+        outputs = outputs.argmax(dim=1)
+
     correct = outputs.eq(targets.long())
 
     acc = correct.float().sum() / batch_size
     return acc
 
 
-class AccuracyCallbackFromRegression(MetricCallback):
+class CustomAccuracyCallback(MetricCallback):
     """
     Accuracy metric callback.
     """
@@ -208,7 +258,8 @@ class AccuracyCallbackFromRegression(MetricCallback):
             input_key: str = "targets",
             output_key: str = "logits",
             prefix: str = "accuracy",
-            ignore_index=None
+            ignore_index=None,
+            from_regression=False
     ):
         """
         Args:
@@ -219,7 +270,7 @@ class AccuracyCallbackFromRegression(MetricCallback):
         """
         super().__init__(
             prefix=prefix,
-            metric_fn=partial(accuracy_from_regression, ignore_index=ignore_index),
+            metric_fn=partial(custom_accuracy_fn, from_regression=from_regression, ignore_index=ignore_index),
             input_key=input_key,
             output_key=output_key
         )

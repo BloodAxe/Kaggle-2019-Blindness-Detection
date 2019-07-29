@@ -24,9 +24,6 @@ def load_pretrained_weights(model, model_name, load_fc=True):
     print('Loaded pretrained weights for {}'.format(model_name))
 
 
-from pytorch_toolbelt.modules import encoders as E
-
-
 def test_efficientnet_b4():
     model = efficient_net_b4(num_classes=1)
     load_pretrained_weights(model, model_name='efficientnet-b4', load_fc=False)
