@@ -499,9 +499,10 @@ class UnsupervisedCriterionCallback(CriterionCallback):
         non_augmented_image: torch.Tensor = state.input[self.input_key]
 
         # Compute target probability distribution
+        training = state.model.training
         state.model.eval()
         non_augmented_logits = state.model(non_augmented_image)[self.output_key][mask]
-        state.model.train()
+        state.model.train(training)
 
         non_augmented_probs: torch.Tensor = F.log_softmax(non_augmented_logits, dim=1).exp()
 
