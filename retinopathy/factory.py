@@ -2,7 +2,6 @@ from functools import partial
 
 import torch.nn.functional as F
 from catalyst.contrib.schedulers import OneCycleLR, ExponentialLR
-from pytorch_toolbelt.losses import FocalLoss
 from pytorch_toolbelt.modules.encoders import *
 from torch import nn
 from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss
@@ -12,7 +11,7 @@ from torch.optim.rmsprop import RMSprop
 from torchvision.models import densenet169, densenet121, densenet201
 
 from retinopathy.losses import ClippedMSELoss, ClippedWingLoss, CumulativeLinkLoss, LabelSmoothingLoss, \
-    SoftCrossEntropyLoss, ClippedHuber, CustomMSE, HybridCappaLoss
+    SoftCrossEntropyLoss, ClippedHuber, CustomMSE, HybridCappaLoss, FocalLoss
 from retinopathy.models.heads import GlobalAvgPool2dHead, GlobalMaxPool2dHead, \
     ObjectContextPoolHead, \
     GlobalMaxAvgPool2dHead, EncoderHeadModel, RMSPoolHead, MultistageModel

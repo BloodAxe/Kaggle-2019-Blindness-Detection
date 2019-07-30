@@ -6,8 +6,41 @@ import torch
 import torch.nn.functional as F
 from catalyst.contrib import registry
 from pytorch_toolbelt.losses import WingLoss
+from pytorch_toolbelt.losses.functional import sigmoid_focal_loss
 from torch import nn
-from torch.nn.modules.loss import MSELoss, SmoothL1Loss
+from torch.nn.modules.loss import MSELoss, SmoothL1Loss, _Loss
+
+
+class FocalLoss(_Loss):
+    def __init__(self, alpha=0.5, gamma=2, ignore_index=None):
+        """
+        Focal loss for multi-class problem.
+
+        :param alpha:
+        :param gamma:
+        :param ignore_index: If not None, targets with given index are ignored
+        """
+        super().__init__()
+        self.alpha = alpha
+        self.gamma = gamma
+        self.ignore_index = ignore_index
+
+    def forward(self, label_input, label_target):
+        num_classes = label_input.size(1)
+        loss = 0
+
+        # Filter anchors with -1 label from loss computation
+        if self.ignore_index is not None:
+            not_ignored = label_target != self.ignore_index
+            label_input = label_input[not_ignored]
+            label_target = label_target[not_ignored]
+
+        for cls in range(num_classes):
+            cls_label_target = (label_target == cls).long()
+            cls_label_input = label_input[:, cls]
+
+            loss += sigmoid_focal_loss(cls_label_input, cls_label_target, gamma=self.gamma, alpha=self.alpha)
+        return loss
 
 
 @registry.Criterion
