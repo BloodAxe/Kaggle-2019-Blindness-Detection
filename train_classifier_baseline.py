@@ -17,7 +17,7 @@ from pytorch_toolbelt.utils.torch_utils import count_parameters, \
     set_trainable
 
 from retinopathy.callbacks import CappaScoreCallback, MixupSameLabelCallback, UnsupervisedCriterionCallback, \
-    NegativeMiningCallback, CustomAccuracyCallback
+    NegativeMiningCallback, CustomAccuracyCallback, LinearWeightDecayCallback
 from retinopathy.dataset import get_class_names, \
     get_datasets, get_dataloaders, UNLABELED_CLASS
 from retinopathy.factory import get_model, get_loss, get_optimizer, \
@@ -64,6 +64,8 @@ def main():
     parser.add_argument('-s', '--scheduler', default='multistep', type=str, help='')
     parser.add_argument('--size', default=512, type=int, help='Image size for training & inference')
     parser.add_argument('-wd', '--weight-decay', default=0, type=float, help='L2 weight decay')
+    parser.add_argument('-wds', '--weight-decay-step', default=None, type=float,
+                        help='L2 weight decay step to add after each epoch')
     parser.add_argument('-d', '--dropout', default=0.0, type=float, help='Dropout before head layer')
     parser.add_argument('--warmup', default=0, type=int,
                         help='Number of warmup epochs with 0.1 of the initial LR and frozed encoder')
@@ -104,6 +106,7 @@ def main():
     use_unsupervised = args.unsupervised
     experiment = args.experiment
     preprocessing = args.preprocessing
+    weight_decay_step = args.weight_decay_step
 
     assert use_aptos2015 or use_aptos2019 or use_idrid or use_messidor
 
@@ -248,7 +251,7 @@ def main():
         print('  Batch size     :', batch_size)
         print('  Criterion      :', criterion_name)
         print('  Scheduler      :', scheduler_name)
-        print('  Weight decay   :', weight_decay)
+        print('  Weight decay   :', weight_decay, weight_decay_step)
         print('  Early stopping :', early_stopping)
 
         # model training
@@ -335,6 +338,9 @@ def main():
         optimizer = get_optimizer(optimizer_name, get_optimizable_parameters(model),
                                   learning_rate=learning_rate,
                                   weight_decay=weight_decay)
+
+        if weight_decay_step is not None:
+            callbacks += [LinearWeightDecayCallback(step=weight_decay_step)]
 
         scheduler = get_scheduler(scheduler_name, optimizer,
                                   lr=learning_rate,

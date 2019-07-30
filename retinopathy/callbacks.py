@@ -678,14 +678,27 @@ class NegativeMiningCallback(Callback):
         self.y_trues.extend(y_true[negatives])
 
 
-class WeightDecayCallback(Callback):
-    def __init__(self, optimizer, start_wd=0, epoch_step=5e-6):
-        self.optimizer = optimizer
-        self.start_wd = start_wd
-        self.epoch_step = epoch_step
-        self.current_wd = start_wd
+class LinearWeightDecayCallback(Callback):
+    """
+    Linearly increase weight decay factor after each epoch by @step
+    """
+
+    def __init__(self, step=5e-4):
+        self.step = step
+        self.wd_state = None
+
+    def on_stage_start(self, state: RunnerState):
+        self.wd_state = [pg["weight_decay"] for pg in state.optimizer.param_groups]
+
+    def on_epoch_end(self, state: RunnerState):
+        for pg, wd in zip(state.optimizer.param_groups, self.wd_state):
+            pg["weight_decay"] += self.step
 
     def on_stage_end(self, state: RunnerState):
-        self.current_wd += self.epoch_step
-        for pg in self.optimizer.param_groups:
-            pg["weight_decay"] = self.current_wd
+        for pg, wd in zip(state.optimizer.param_groups, self.wd_state):
+            pg["weight_decay"] = wd
+
+    def on_batch_end(self, state: RunnerState):
+        for i, pg in enumerate(state.optimizer.param_groups):
+            state.metrics.add_batch_value(name=f'optimizer/{i}/lr', value=pg["lr"])
+            state.metrics.add_batch_value(name=f'optimizer/{i}/weight_decay', value=pg["weight_decay"])
