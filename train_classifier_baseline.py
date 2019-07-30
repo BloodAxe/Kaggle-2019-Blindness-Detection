@@ -8,7 +8,7 @@ from datetime import datetime
 from functools import partial
 
 import torch
-from catalyst.dl import SupervisedRunner, EarlyStoppingCallback, CriterionCallback
+from catalyst.dl import SupervisedRunner, EarlyStoppingCallback, CriterionCallback, OptimizerCallback
 from catalyst.utils import load_checkpoint, unpack_checkpoint
 from pytorch_toolbelt.utils import fs
 from pytorch_toolbelt.utils.catalyst import ShowPolarBatchesCallback, ConfusionMatrixCallback
@@ -17,7 +17,7 @@ from pytorch_toolbelt.utils.torch_utils import count_parameters, \
     set_trainable
 
 from retinopathy.callbacks import CappaScoreCallback, MixupSameLabelCallback, UnsupervisedCriterionCallback, \
-    NegativeMiningCallback, CustomAccuracyCallback, LinearWeightDecayCallback
+    NegativeMiningCallback, CustomAccuracyCallback, LinearWeightDecayCallback, L2RegularizationCallback
 from retinopathy.dataset import get_class_names, \
     get_datasets, get_dataloaders, UNLABELED_CLASS
 from retinopathy.factory import get_model, get_loss, get_optimizer, \
@@ -338,10 +338,13 @@ def main():
 
         optimizer = get_optimizer(optimizer_name, get_optimizable_parameters(model),
                                   learning_rate=learning_rate,
-                                  weight_decay=weight_decay)
+                                  weight_decay=0)
+
+        if weight_decay > 0:
+            callbacks += [L2RegularizationCallback(multiplier=weight_decay, loss_key='l2')]
 
         if weight_decay_step is not None:
-            callbacks += [LinearWeightDecayCallback(step=weight_decay_step)]
+            pass
 
         scheduler = get_scheduler(scheduler_name, optimizer,
                                   lr=learning_rate,
@@ -370,7 +373,7 @@ def main():
             minimize_metric=False,
             checkpoint_data={"cmd_args": vars(args)}
         )
-
+        OptimizerCallback
         del runner, callbacks, loaders, optimizer, model, criterion, scheduler
 
         best__checkpoint = os.path.join(log_dir, 'checkpoints', 'best.pth')

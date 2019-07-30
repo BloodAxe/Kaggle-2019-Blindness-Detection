@@ -18,7 +18,7 @@ from pytorch_toolbelt.utils.torch_utils import count_parameters, \
 
 from retinopathy.callbacks import ConfusionMatrixCallbackFromRegression, \
     MixupRegressionCallback, UnsupervisedCriterionCallback, \
-    CappaScoreCallback, NegativeMiningCallback, CustomAccuracyCallback, LinearWeightDecayCallback
+    CappaScoreCallback, NegativeMiningCallback, CustomAccuracyCallback, L2RegularizationCallback
 from retinopathy.dataset import get_class_names, \
     get_datasets, get_dataloaders, UNLABELED_CLASS
 from retinopathy.factory import get_model, get_loss, get_optimizer, \
@@ -353,10 +353,13 @@ def main():
 
         optimizer = get_optimizer(optimizer_name, get_optimizable_parameters(model),
                                   learning_rate=learning_rate,
-                                  weight_decay=weight_decay)
+                                  weight_decay=0)
+
+        if weight_decay > 0:
+            callbacks += [L2RegularizationCallback(multiplier=weight_decay, loss_key='l2')]
 
         if weight_decay_step is not None:
-            callbacks += [LinearWeightDecayCallback(step=weight_decay_step)]
+            pass
 
         scheduler = get_scheduler(scheduler_name, optimizer,
                                   lr=learning_rate,

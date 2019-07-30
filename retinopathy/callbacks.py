@@ -569,6 +569,57 @@ class UnsupervisedCriterionCallback(CriterionCallback):
         self._add_loss_to_state(state, loss)
 
 
+class L2RegularizationCallback(CriterionCallback):
+    """
+    """
+
+    def __init__(
+            self,
+            on_train_only=True,
+            apply_to_bias=False,
+            multiplier=1e-4,
+            prefix: str = "l2_regularization",
+            loss_key=None,
+            **kwargs
+    ):
+        """
+        Args:
+            fields (List[str]): list of features which must be affected.
+            alpha (float): beta distribution a=b parameters.
+                Must be >=0. The more alpha closer to zero
+                the less effect of the mixup.
+            on_train_only (bool): Apply to train only.
+                As the mixup use the proxy inputs, the targets are also proxy.
+                We are not interested in them, are we?
+                So, if on_train_only is True, use a standard output/metric
+                for validation.
+        """
+        super().__init__(prefix=prefix, multiplier=multiplier, loss_key=loss_key)
+
+        self.on_train_only = on_train_only
+        self.is_needed = True
+        self.apply_to_bias = apply_to_bias
+
+    def on_loader_start(self, state: RunnerState):
+        self.is_needed = not self.on_train_only or \
+                         state.loader_name.startswith("train")
+
+    def on_batch_end(self, state: RunnerState):
+        l2_reg = 0
+
+        for param_name, param in state.model.named_parameters():
+            if param_name.endswith('bias') and not self.apply_to_bias:
+                continue
+
+            if param.requires_grad:
+                l2_reg = torch.norm(param) * self.multiplier + l2_reg
+
+        state.metrics.add_batch_value(metrics_dict={
+            self.prefix: l2_reg.item(),
+        })
+        self._add_loss_to_state(state, l2_reg)
+
+
 class AscensionCallback(Callback):
     """
     Ensure that each cutpoint is ordered in ascending value.
