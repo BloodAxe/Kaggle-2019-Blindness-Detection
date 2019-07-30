@@ -297,6 +297,7 @@ def main():
             optimizer = get_optimizer(optimizer_name, get_optimizable_parameters(model),
                                       learning_rate=learning_rate,
                                       weight_decay=weight_decay)
+
             runner.train(
                 fp16=fp16,
                 model=model,

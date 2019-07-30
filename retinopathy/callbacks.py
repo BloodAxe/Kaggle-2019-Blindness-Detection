@@ -690,15 +690,13 @@ class LinearWeightDecayCallback(Callback):
     def on_stage_start(self, state: RunnerState):
         self.wd_state = [pg["weight_decay"] for pg in state.optimizer.param_groups]
 
-    def on_epoch_end(self, state: RunnerState):
-        for pg, wd in zip(state.optimizer.param_groups, self.wd_state):
+    def on_epoch_start(self, state: RunnerState):
+        for i, pg in enumerate(state.optimizer.param_groups):
             pg["weight_decay"] += self.step
+
+            state.metrics.epoch_values[state.loader_name][f'optimizer/{i}/weight_decay'] = pg["lr"]
+            state.metrics.epoch_values[state.loader_name][f'optimizer/{i}/weight_decay'] = pg["weight_decay"]
 
     def on_stage_end(self, state: RunnerState):
         for pg, wd in zip(state.optimizer.param_groups, self.wd_state):
             pg["weight_decay"] = wd
-
-    def on_batch_end(self, state: RunnerState):
-        for i, pg in enumerate(state.optimizer.param_groups):
-            state.metrics.add_batch_value(name=f'optimizer/{i}/lr', value=pg["lr"])
-            state.metrics.add_batch_value(name=f'optimizer/{i}/weight_decay', value=pg["weight_decay"])
