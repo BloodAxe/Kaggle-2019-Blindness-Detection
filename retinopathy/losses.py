@@ -329,52 +329,6 @@ class HybridCappaLoss(nn.Module):
         return kappa_loss + self.log_scale * crossentropy_loss
 
 
-def test_quad_kappa_loss():
-    criterion = HybridCappaLoss()
-    target = torch.tensor([0, 1]).long()
-    loss_worst = criterion(torch.tensor([[0, 0, 0, 0, 10], [0, 10, 0, 0, 0]]).float(), target)
-    loss_bad = criterion(torch.tensor([[10, 10, 0, 0, 0], [0, 10, 0, 0, 0]]).float(), target)
-    loss_ideal = criterion(torch.tensor([[10, 0, 0, 0, 0], [0, 10, 0, 0, 0]]).float(), target)
-    assert loss_ideal < loss_bad < loss_worst
-
-
-def test_magnet_loss():
-    margin = 2
-    eps = 1e-4
-    loss = MagnetLoss(margin=margin)
-    x = torch.tensor([[0, 0, 0, 0],
-                      [0, 0, 0, 0]], dtype=torch.float32)
-
-    y = torch.tensor([0, 0], dtype=torch.long)
-
-    l = loss(x, y)
-    print(l)
-    assert pytest.approx(0, abs=eps) == float(l)
-
-    x = torch.tensor([[0, 0, 0, 0],
-                      [0, 0, 0, 0]], dtype=torch.float32)
-
-    y = torch.tensor([0, 1], dtype=torch.long)
-
-    l = loss(x, y)
-    print(l)
-    assert pytest.approx(margin * 2, abs=eps) == float(l)
-
-    x = torch.tensor([[1, 2, 0, 5],
-                      [1, 1, 0, 5],
-                      [3, -1, 2, -2],
-                      [1, 2, 1, 5],
-                      [0, 3, 7, 4],
-                      [0, -3, -2, 4],
-                      [-4, -2, 4, 0]], dtype=torch.float32)
-
-    y = torch.tensor([0, 1, 1, 0, 0, 2, 3],
-                     dtype=torch.long)
-
-    l = loss(x, y)
-    print(l)
-
-
 def _reduction(loss: torch.Tensor, reduction: str) -> torch.Tensor:
     """
     Reduce loss

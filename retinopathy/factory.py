@@ -132,7 +132,7 @@ def get_loss(loss_name: str, **kwargs):
         return ClippedHuber(min=0, max=4, **kwargs)
 
     if loss_name.lower() == 'wing_loss':
-        return ClippedWingLoss(width=5, curvature=0.5, min=0, max=4, **kwargs)
+        return ClippedWingLoss(width=2, curvature=0.1, min=0, max=4, **kwargs)
 
     if loss_name.lower() == 'clipped_huber':
         raise NotImplementedError(loss_name)
