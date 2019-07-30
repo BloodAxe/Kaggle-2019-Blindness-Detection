@@ -6,28 +6,25 @@ import numpy as np
 from albumentations.augmentations.functional import elastic_transform
 from pytorch_toolbelt.utils import fs
 
-from retinopathy.augmentations import crop_black, unsharp_mask, clahe_preprocessing
+from retinopathy.augmentations import crop_black, unsharp_mask, clahe_preprocessing, AddMildDR
 
 
-def create_microaneurisms(image, location=(256, 256), radius=140, num=5, aneurism_radius=(1, 3)):
-    mask = image.copy()
-    aneurism_mask = np.zeros_like(image)
-    for i in range(num):
-        x = int(random.gauss(location[0], radius))
-        y = int(random.gauss(location[0], radius))
-        r = int(random.uniform(aneurism_radius[0], aneurism_radius[1]))
-        cv2.circle(aneurism_mask, (x, y), r, (255, 255, 255), thickness=cv2.FILLED, lineType=cv2.LINE_AA)
+def test_adddr_transform():
+    for image_fname in [
+        # '4_left.png',
+        # '35_left.png',
+        '44_right.png',
+        '68_right.png',
+        '92_left.png'
+    ]:
+        image = cv2.imread(image_fname)
 
-        cv2.circle(mask, (x, y), r, (0, 0, 0), thickness=cv2.FILLED, lineType=cv2.LINE_AA)
-
-    aneurism_mask = elastic_transform(aneurism_mask, alpha=5, sigma=2, alpha_affine=0)
-    cv2.GaussianBlur(aneurism_mask, ksize=(5, 5), sigmaX=0, dst=aneurism_mask)
-    aneurism_mask = 1.0 - aneurism_mask / 255.
-
-    overlay = cv2.addWeighted(image, 0.8,
-                              image * aneurism_mask, 0.2, 0, dtype=cv2.CV_8U)
-
-    return overlay
+        aug = AddMildDR(p=1)
+        data = aug(image=image, diagnosis=0)
+        assert data['diagnosis'] == 1
+        cv2.imshow('image', image)
+        cv2.imshow('image after', data['image'])
+        cv2.waitKey(-1)
 
 
 def test_augment_microaneurisms():
