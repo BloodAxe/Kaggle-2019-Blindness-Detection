@@ -372,11 +372,14 @@ def get_datasets(
 
         trainset_sizes.append(len(tx))
         train_x.extend(tx)
-        train_y.extend([UNLABELED_CLASS] * len(tx))
 
-        if not use_unsupervised:
-            valid_x.extend(vx)
-            valid_y.extend(vy)
+        if use_unsupervised:
+            train_y.extend([UNLABELED_CLASS] * len(tx))
+        else:
+            train_y.extend(ty)
+
+        valid_x.extend(vx)
+        valid_y.extend(vy)
 
     if use_idrid:
         dataset_dir = os.path.join(data_dir, 'idrid')
@@ -449,7 +452,8 @@ def get_dataloaders(train_ds, valid_ds,
         num_samples = int(np.mean(train_sizes))
 
     if balance:
-        weights = compute_sample_weight('balanced', train_ds.targets)
+        class_weights = np.array([1, 2, 2, 2, 2, 2])
+        weights = class_weights[train_ds.targets]
         num_samples = len(train_ds.targets)
 
     if balance_datasets:
