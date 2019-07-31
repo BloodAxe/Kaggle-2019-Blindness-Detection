@@ -56,9 +56,13 @@ class RetinopathyDataset(Dataset):
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
         height, width = image.shape[:2]
+        diagnosis = UNLABELED_CLASS
+        if self.targets is not None:
+            diagnosis = self.targets[item]
 
-        image = self.transform(image=image)['image']
-        data = {'image': tensor_from_rgb_image(image),
+        data = self.transform(image=image, diagnosis=diagnosis)
+        diagnosis = data['diagnosis']
+        data = {'image': tensor_from_rgb_image(data['image']),
                 'image_id': id_from_fname(self.images[item])}
 
         if self.meta_features:
@@ -75,15 +79,13 @@ class RetinopathyDataset(Dataset):
                 mean[1],
                 mean[2]
             ])
-
             data['meta_features'] = meta_features
 
-        if self.targets is not None:
-            target = self.dtype(self.targets[item])
-            if self.target_as_array:
-                data['targets'] = np.array([target])
-            else:
-                data['targets'] = target
+        diagnosis = self.dtype(diagnosis)
+        if self.target_as_array:
+            data['targets'] = np.array([diagnosis])
+        else:
+            data['targets'] = diagnosis
 
         return data
 
