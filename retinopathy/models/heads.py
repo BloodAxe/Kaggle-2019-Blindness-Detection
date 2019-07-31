@@ -1,4 +1,5 @@
 import torch
+import pytorch_toolbelt.inference.functional as FF
 from pytorch_toolbelt.modules.encoders import EncoderModule
 from pytorch_toolbelt.modules.pooling import GlobalAvgPool2d, GlobalMaxPool2d
 from torch import nn
@@ -212,6 +213,63 @@ class EncoderHeadModel(nn.Module):
     def forward(self, input):
         feature_maps = self.encoder(input)
         features = self.head(feature_maps)
+        features = self.dropout(features)
+        features = self.bottleneck(features)
+
+        logits = self.logits(features)
+        regression = self.regressor(features)
+        # ordinal = self.ordinal(features)
+
+        if regression.size(1) == 1:
+            regression = regression.squeeze(1)
+
+        return {
+            'features': features,
+            'logits': logits,
+            'regression': regression,
+            # 'ordinal': ordinal
+        }
+
+
+class CyclycEncoderHeadModel(nn.Module):
+    def __init__(self, encoder: EncoderModule, head: nn.Module, num_classes=5,
+                 num_regression_dims=1,
+                 dropout=0.0,
+                 reduction=8):
+        super().__init__()
+        self.encoder = encoder
+        self.head = head
+        bottleneck_features = head.features_size // reduction
+        self.dropout = nn.Dropout(dropout)
+        self.bottleneck = nn.Linear(head.features_size, bottleneck_features)
+
+        self.regressor = FourReluBlock(bottleneck_features, 64, num_regression_dims)
+        self.logits = nn.Linear(bottleneck_features, num_classes)
+        # self.ordinal = nn.Sequential(nn.Linear(bottleneck_features, num_classes),
+        #                              LogisticCumulativeLink(num_classes, init_cutpoints='ordered'))
+
+    @property
+    def features_size(self):
+        return self.head.features_size
+
+    def cyclic_pooling_features(self, image):
+        output = self.head(self.encoder(image))
+
+        for aug in [FF.torch_rot90, FF.torch_rot180, FF.torch_rot270]:
+            x = self.head(self.encoder(aug(image)))
+            output = output + x
+
+        image = FF.torch_transpose(image)
+
+        for aug in [FF.torch_none, FF.torch_rot90, FF.torch_rot180, FF.torch_rot270]:
+            x = self.head(self.encoder(aug(image)))
+            output = output + x
+
+        one_over_8 = float(1.0 / 8.0)
+        return one_over_8
+
+    def forward(self, input):
+        features = self.cyclic_pooling_features(input)
         features = self.dropout(features)
         features = self.bottleneck(features)
 

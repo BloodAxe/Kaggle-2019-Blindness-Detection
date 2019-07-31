@@ -3,7 +3,7 @@ import random
 import cv2
 import matplotlib.pyplot as plt
 import numpy as np
-from albumentations.augmentations.functional import elastic_transform
+from math import log
 from pytorch_toolbelt.utils import fs
 
 from retinopathy.augmentations import crop_black, unsharp_mask, clahe_preprocessing, AddMildDR, create_microaneurisms
@@ -51,6 +51,29 @@ def test_augment_microaneurisms():
         cv2.imshow('overlay', overlay)
         cv2.imshow('clahe', unsharp_mask(overlay))
         cv2.waitKey(-1)
+
+
+def test_generate_wools():
+    iterations = 100
+    num_circles = 10
+    acc = np.zeros((256, 256), dtype=np.float32)
+    for i in range(iterations):
+        img = np.zeros_like(acc)
+
+        for j in range(num_circles):
+            r = int(random.uniform(5,15))
+            x = int(random.gauss(128, 21))
+            y = int(random.gauss(128, 21))
+            pt = int(x), int(y)
+            cv2.circle(img, pt, r, color=1, thickness=cv2.FILLED)
+
+        # cv2.imshow('Img', (img * 255).astype(np.uint8))
+        # cv2.waitKey(30)
+        acc += img
+
+    acc /= iterations
+    cv2.imshow('Acc', (acc * 255).astype(np.uint8))
+    cv2.waitKey(-1)
 
 
 def test_crop_black_regions():

@@ -14,7 +14,7 @@ from retinopathy.losses import ClippedMSELoss, ClippedWingLoss, CumulativeLinkLo
     SoftCrossEntropyLoss, ClippedHuber, CustomMSE, HybridCappaLoss, FocalLoss
 from retinopathy.models.heads import GlobalAvgPool2dHead, GlobalMaxPool2dHead, \
     ObjectContextPoolHead, \
-    GlobalMaxAvgPool2dHead, EncoderHeadModel, RMSPoolHead, MultistageModel
+    GlobalMaxAvgPool2dHead, EncoderHeadModel, RMSPoolHead, MultistageModel, CyclycEncoderHeadModel
 from retinopathy.models.inceptionv4 import InceptionV4Encoder
 
 
@@ -88,7 +88,8 @@ def get_model(model_name, num_classes, pretrained=True, dropout=0.0, **kwargs):
         'reg': partial(EncoderHeadModel, num_classes=num_classes, dropout=dropout),
         'cls': partial(EncoderHeadModel, num_classes=num_classes, dropout=dropout),
         'ord': partial(EncoderHeadModel, num_classes=num_classes, dropout=dropout),
-        'mul': partial(MultistageModel, num_classes=num_classes, dropout=dropout)
+        'mul': partial(MultistageModel, num_classes=num_classes, dropout=dropout),
+        'clc': partial(CyclycEncoderHeadModel, num_classes=num_classes, dropout=dropout)
     }
 
     head = POOLING[head_name](encoder.output_filters)
