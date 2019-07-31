@@ -21,11 +21,14 @@ from tqdm import tqdm
 from torch.utils.data import Dataset
 from torch import nn
 from functools import partial
+from pytorch_toolbelt.utils import fs
 from pytorch_toolbelt.utils.torch_utils import to_numpy
 from torch.utils.data import DataLoader
 from pytorch_toolbelt.inference.tta import *
 from pytorch_toolbelt.modules.encoders import *
+from pytorch_toolbelt.modules.activations import swish
 from pytorch_toolbelt.modules.pooling import *
+from pytorch_toolbelt.modules.scse import *
 import torch.nn.functional as F
 from pytorch_toolbelt.modules import ABN
 from torch.autograd import Variable
@@ -134,14 +137,15 @@ class RMSPool2d(nn.Module):
     Root mean square pooling
     """
 
-    def __init__(self):
+    def __init__(self, eps=1e-9):
         super().__init__()
+        self.eps = eps
         self.avg_pool = GlobalAvgPool2d()
 
     def forward(self, x):
         x_mean = torch.mean(x, dim=[2, 3], keepdim=True)
         avg_pool = self.avg_pool((x - x_mean) ** 2)
-        return avg_pool.sqrt()
+        return (avg_pool + self.eps).sqrt()
 
 
 class GlobalAvgPool2d(nn.Module):
@@ -770,11 +774,10 @@ class FourReluBlock(nn.Module):
     Block used for making final regression predictions
     """
 
-    def __init__(self, features, num_classes, reduction=4, dropout=0.0):
+    def __init__(self, features, bottleneck, num_classes, dropout=0.0):
         super().__init__()
         self.bn = nn.BatchNorm1d(features)
 
-        bottleneck = features // reduction
         self.fc1 = nn.Linear(features, bottleneck)
         self.act1 = nn.LeakyReLU(inplace=True)
 
@@ -906,7 +909,7 @@ class EncoderHeadModel(nn.Module):
         self.dropout = nn.Dropout(dropout)
         self.bottleneck = nn.Linear(head.features_size, bottleneck_features)
 
-        self.regressor = FourReluBlock(bottleneck_features, num_regression_dims, reduction=1)
+        self.regressor = FourReluBlock(bottleneck_features, 64, num_regression_dims)
         self.logits = nn.Linear(bottleneck_features, num_classes)
         # self.ordinal = nn.Sequential(nn.Linear(bottleneck_features, num_classes),
         #                              LogisticCumulativeLink(num_classes, init_cutpoints='ordered'))
@@ -920,6 +923,52 @@ class EncoderHeadModel(nn.Module):
         features = self.head(feature_maps)
         features = self.dropout(features)
         features = self.bottleneck(features)
+
+        logits = self.logits(features)
+        regression = self.regressor(features)
+        # ordinal = self.ordinal(features)
+
+        if regression.size(1) == 1:
+            regression = regression.squeeze(1)
+
+        return {
+            'features': features,
+            'logits': logits,
+            'regression': regression,
+            # 'ordinal': ordinal
+        }
+
+
+class MultistageModel(nn.Module):
+    def __init__(self, encoder: EncoderModule, pooling_module: nn.Module,
+                 num_classes=5,
+                 num_regression_dims=1,
+                 dropout=0.0,
+                 reduction=8):
+        super().__init__()
+        self.encoder = encoder
+        self.pool1 = PoolAndSqueeze(encoder.output_filters[-1], encoder.output_filters[-1] // reduction, dropout)
+        self.pool2 = PoolAndSqueeze(encoder.output_filters[-2], encoder.output_filters[-2] // reduction, dropout)
+        self.pool3 = PoolAndSqueeze(encoder.output_filters[-3], encoder.output_filters[-3] // reduction, dropout)
+
+        bottleneck_features = self.pool1.output_features + self.pool2.output_features + self.pool3.output_features
+        self.regressor = FourReluBlock(bottleneck_features, 64, num_regression_dims)
+        self.logits = nn.Linear(bottleneck_features, num_classes)
+        # self.ordinal = nn.Sequential(nn.Linear(bottleneck_features, num_classes),
+        #                              LogisticCumulativeLink(num_classes, init_cutpoints='ordered'))
+
+    @property
+    def features_size(self):
+        return self.head.features_size
+
+    def forward(self, input):
+        feature_maps = self.encoder(input)
+
+        pool1 = self.pool1(feature_maps[-1])
+        pool2 = self.pool2(feature_maps[-2])
+        pool3 = self.pool3(feature_maps[-3])
+
+        features = torch.cat([pool1, pool2, pool3], dim=1)
 
         logits = self.logits(features)
         regression = self.regressor(features)
@@ -1024,7 +1073,8 @@ def get_model(model_name, num_classes, pretrained=True, dropout=0.0, **kwargs):
     MODELS = {
         'reg': partial(EncoderHeadModel, num_classes=num_classes, dropout=dropout),
         'cls': partial(EncoderHeadModel, num_classes=num_classes, dropout=dropout),
-        'ord': partial(EncoderHeadModel, num_classes=num_classes, dropout=dropout)
+        'ord': partial(EncoderHeadModel, num_classes=num_classes, dropout=dropout),
+        'mul': partial(MultistageModel, num_classes=num_classes, dropout=dropout)
     }
 
     head = POOLING[head_name](encoder.output_filters)
@@ -1032,15 +1082,16 @@ def get_model(model_name, num_classes, pretrained=True, dropout=0.0, **kwargs):
     return model
 
 
-def get_test_aug(image_size, crop_black=True):
+def get_test_transform(image_size, preprocessing: str = None, crop_black=True):
     longest_size = max(image_size[0], image_size[1])
     return A.Compose([
         CropBlackRegions() if crop_black else A.NoOp(always_apply=True),
         A.LongestMaxSize(longest_size, interpolation=cv2.INTER_CUBIC),
-        ChannelIndependentCLAHE(),
 
         A.PadIfNeeded(image_size[0], image_size[1],
                       border_mode=cv2.BORDER_CONSTANT, value=0),
+
+        get_preprocessing_transform(preprocessing),
         A.Normalize()
     ])
 
@@ -1128,7 +1179,7 @@ def run_model_inference(model_checkpoint: str,
                         apply_softmax=True,
                         workers=None) -> pd.DataFrame:
     image_fnames = test_csv['id_code'].apply(lambda x: os.path.join(data_dir, images_dir, f'{x}.png'))
-    test_ds = RetinopathyDataset(image_fnames, None, get_test_aug(image_size))
+    test_ds = RetinopathyDataset(image_fnames, None, get_test_transform(image_size))
     return run_model_inference_via_dataset(model_checkpoint, test_ds,
                                            model_name=model_name,
                                            output_key=output_key,

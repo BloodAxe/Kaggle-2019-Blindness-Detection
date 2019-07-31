@@ -11,13 +11,13 @@ from retinopathy.dataset import RetinopathyDataset, get_class_names, UNLABELED_C
 from retinopathy.factory import get_model, DenseNet121Encoder, DenseNet201Encoder, DenseNet169Encoder
 from retinopathy.inference import PickModelOutput, run_model_inference, cls_predictions_to_submission, \
     average_predictions, reg_predictions_to_submission, run_model_inference_via_dataset
-from retinopathy.models import OrdinalEncoderHeadModel, LogisticCumulativeLink
 from retinopathy.models.heads import RMSPool2d, EncoderHeadModel, GlobalAvgPool2d, GlobalAvgPool2dHead, \
     GlobalMaxAvgPool2dHead, \
-    GlobalMaxPool2dHead, ObjectContextPoolHead, FourReluBlock, Flatten, CLSBlock, RMSPoolHead
+    GlobalMaxPool2dHead, ObjectContextPoolHead, FourReluBlock, Flatten, CLSBlock, RMSPoolHead, MultistageModel
 from retinopathy.models.inceptionv4 import InceptionV4Encoder, inceptionv4, InceptionV4, Inception_B, Inception_A, \
     Inception_C, Reduction_A, Mixed_5a, Mixed_3a, Mixed_4a, BasicConv2d, Reduction_B
 from retinopathy.models.oc import ASP_OC_Module, BaseOC_Context_Module, SelfAttentionBlock2D, _SelfAttentionBlock
+from retinopathy.models.ordinal import LogisticCumulativeLink, OrdinalEncoderHeadModel
 from retinopathy.models.regression import regression_to_class
 
 
@@ -118,6 +118,7 @@ def main():
         ASP_OC_Module,
         Flatten,
         EncoderHeadModel,
+        MultistageModel,
         crop_black,
         CropBlackRegions,
         clahe_preprocessing,
