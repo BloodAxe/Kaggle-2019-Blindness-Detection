@@ -252,21 +252,35 @@ class CyclycEncoderHeadModel(nn.Module):
     def features_size(self):
         return self.head.features_size
 
+
     def cyclic_pooling_features(self, image):
         output = self.head(self.encoder(image))
+        image = image.rot90(1, [2, 3])
 
-        for aug in [FF.torch_rot90, FF.torch_rot180, FF.torch_rot270]:
-            x = self.head(self.encoder(aug(image)))
-            output = output + x
+        output += self.head(self.encoder(image))
+        image = image.rot90(1, [2, 3])
+
+        output += self.head(self.encoder(image))
+        image = image.rot90(1, [2, 3])
+
+        output += self.head(self.encoder(image))
+        image = image.rot90(1, [2, 3])
 
         image = FF.torch_transpose(image)
 
-        for aug in [FF.torch_none, FF.torch_rot90, FF.torch_rot180, FF.torch_rot270]:
-            x = self.head(self.encoder(aug(image)))
-            output = output + x
+        output += self.head(self.encoder(image))
+        image = image.rot90(1, [2, 3])
+
+        output += self.head(self.encoder(image))
+        image = image.rot90(1, [2, 3])
+
+        output += self.head(self.encoder(image))
+        image = image.rot90(1, [2, 3])
+
+        output += self.head(self.encoder(image))
 
         one_over_8 = float(1.0 / 8.0)
-        return one_over_8
+        return one_over_8 * output
 
     def forward(self, input):
         features = self.cyclic_pooling_features(input)

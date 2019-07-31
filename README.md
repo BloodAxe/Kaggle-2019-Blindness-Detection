@@ -71,7 +71,7 @@ Using only one model **seresnext50**.
 | Baseline regression      | 0.9018 ± 0.0079 | 0.774      | reg_densenet201_rms   | Yes        | 4 folds |-|
 | Baseline regression      | 0.9053 ± 0.0053 | 0.761      | reg_inceptionv4_rms   | Yes        | 4 folds |-|
 |--------------------------|-----------------|------------|-----------------------|------------|---------|-|
-| Regression with aux loss | 0.9170 ± 0.0049 |            | reg_seresnext50_rms   | Yes        | 4 folds | -m reg_seresnext50_rms -a medium -f 0 -f 1 -f 2 -f 3 -b 60 -l clipped_mse --fp16 -o Adam -d 0.5 -s multistep -lr 1e-4 -wd 1e-4 -e 100 -v --use-idrid --use-messidor --use-aptos2019 --warmup 10 |
+| Regression with aux loss | 0.9170 ± 0.0049 | 0.787      | reg_seresnext50_rms   | Yes        | 4 folds | -m reg_seresnext50_rms -a medium -f 0 -f 1 -f 2 -f 3 -b 60 -l clipped_mse --fp16 -o Adam -d 0.5 -s multistep -lr 1e-4 -wd 1e-4 -e 100 -v --use-idrid --use-messidor --use-aptos2019 --warmup 10 |
 
 # References
 

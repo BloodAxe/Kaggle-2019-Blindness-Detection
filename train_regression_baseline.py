@@ -133,7 +133,7 @@ def main():
         if use_unsupervised:
             checkpoint_prefix += '_unsup'
         if fold is not None:
-            checkpoint_prefix += f'fold{fold}'
+            checkpoint_prefix += f'_fold{fold}'
 
         checkpoint_prefix += f'_{get_random_name()}'
 
