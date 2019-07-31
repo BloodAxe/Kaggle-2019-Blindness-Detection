@@ -76,6 +76,9 @@ Using only one model **seresnext50**.
 # References
 
 1. https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5961805/
+1. https://www.slideshare.net/EducacionMolina/diabetic-retinopathy-71884270
+
+# Other 
 
 Train on Aptos 2019
 
