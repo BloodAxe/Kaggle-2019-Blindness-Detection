@@ -385,7 +385,7 @@ def get_train_transform(image_size, augmentation=None, preprocessing=None, crop_
         A.LongestMaxSize(longest_size, interpolation=cv2.INTER_CUBIC),
 
         # Fake decease generation
-        AddMildDR(p=0.3),
+        # AddMildDR(p=0.3),
 
         A.PadIfNeeded(image_size[0], image_size[1],
                       border_mode=cv2.BORDER_CONSTANT, value=0),
