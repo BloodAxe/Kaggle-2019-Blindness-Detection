@@ -6,14 +6,15 @@ from pytorch_toolbelt.utils.fs import read_rgb_image, id_from_fname
 from pytorch_toolbelt.utils.torch_utils import tensor_from_rgb_image
 
 from retinopathy.augmentations import CropBlackRegions, get_test_transform, crop_black, ChannelIndependentCLAHE, \
-    clahe_preprocessing
+    clahe_preprocessing, get_preprocessing_transform, UnsharpMask, unsharp_mask
 from retinopathy.dataset import RetinopathyDataset, get_class_names, UNLABELED_CLASS
 from retinopathy.factory import get_model, DenseNet121Encoder, DenseNet201Encoder, DenseNet169Encoder
 from retinopathy.inference import PickModelOutput, run_model_inference, cls_predictions_to_submission, \
     average_predictions, reg_predictions_to_submission, run_model_inference_via_dataset
 from retinopathy.models.heads import RMSPool2d, EncoderHeadModel, GlobalAvgPool2d, GlobalAvgPool2dHead, \
     GlobalMaxAvgPool2dHead, \
-    GlobalMaxPool2dHead, ObjectContextPoolHead, FourReluBlock, Flatten, CLSBlock, RMSPoolHead, MultistageModel
+    GlobalMaxPool2dHead, ObjectContextPoolHead, FourReluBlock, Flatten, CLSBlock, RMSPoolHead, MultistageModel, \
+    PoolAndSqueeze
 from retinopathy.models.inceptionv4 import InceptionV4Encoder, inceptionv4, InceptionV4, Inception_B, Inception_A, \
     Inception_C, Reduction_A, Mixed_5a, Mixed_3a, Mixed_4a, BasicConv2d, Reduction_B
 from retinopathy.models.oc import ASP_OC_Module, BaseOC_Context_Module, SelfAttentionBlock2D, _SelfAttentionBlock
@@ -117,13 +118,17 @@ def main():
         CLSBlock,
         ASP_OC_Module,
         Flatten,
+        PoolAndSqueeze,
         EncoderHeadModel,
         MultistageModel,
         crop_black,
         CropBlackRegions,
+        unsharp_mask,
+        UnsharpMask,
         clahe_preprocessing,
         ChannelIndependentCLAHE,
         get_model,
+        get_preprocessing_transform,
         get_test_transform,
         PickModelOutput,
         run_model_inference_via_dataset,

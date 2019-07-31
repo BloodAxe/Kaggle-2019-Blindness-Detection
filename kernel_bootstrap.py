@@ -897,6 +897,22 @@ class Flatten(nn.Module):
         return x.view(x.shape[0], -1)
 
 
+class PoolAndSqueeze(nn.Module):
+    def __init__(self, input_features, output_features, dropout=0.0):
+        super().__init__()
+        self.pool = RMSPool2d()
+        self.dropout = nn.Dropout(dropout)
+        self.bottleneck = nn.Linear(input_features, output_features)
+        self.output_features = output_features
+
+    def forward(self, input):
+        features = self.pool(input)
+        features = features.view(features.size(0), features.size(1))
+        features = self.dropout(features)
+        features = self.bottleneck(features)
+        return features
+
+
 class EncoderHeadModel(nn.Module):
     def __init__(self, encoder: EncoderModule, head: nn.Module, num_classes=5,
                  num_regression_dims=1,
@@ -1017,6 +1033,22 @@ class CropBlackRegions(A.ImageOnlyTransform):
         return ('tolerance',)
 
 
+def unsharp_mask(image, sigmaX=10):
+    image = cv2.addWeighted(image, 4, cv2.GaussianBlur(image, (0, 0), sigmaX), -4, 128)
+    return image
+
+
+class UnsharpMask(A.ImageOnlyTransform):
+    def __init__(self, p=1.0):
+        super().__init__(p=p)
+
+    def apply(self, img, **params):
+        return unsharp_mask(img)
+
+    def get_transform_init_args_names(self):
+        return tuple()
+
+
 def clahe_preprocessing(image, clip_limit=4.0, tile_grid_size=(18, 18)):
     image_norm = image.copy()
 
@@ -1080,6 +1112,21 @@ def get_model(model_name, num_classes, pretrained=True, dropout=0.0, **kwargs):
     head = POOLING[head_name](encoder.output_filters)
     model = MODELS[kind](encoder, head)
     return model
+
+
+def get_preprocessing_transform(preprocessing):
+    assert preprocessing in {None, 'unsharp', 'clahe'}
+
+    if preprocessing is None:
+        return A.NoOp()
+
+    if preprocessing == 'unsharp':
+        return UnsharpMask(p=1)
+
+    if preprocessing == 'clahe':
+        return ChannelIndependentCLAHE(p=1)
+
+    raise KeyError(f'Unsupported preprocessing method {preprocessing}')
 
 
 def get_test_transform(image_size, preprocessing: str = None, crop_black=True):
