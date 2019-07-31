@@ -52,7 +52,7 @@ def main():
     parser.add_argument('-f', '--fold', action='append', type=int, default=None)
     parser.add_argument('-fe', '--freeze-encoder', action='store_true')
     parser.add_argument('-lr', '--learning-rate', type=float, default=1e-4, help='Initial learning rate')
-    parser.add_argument('-l', '--criterion', type=str, default='clipped_mse', help='Criterion')
+    parser.add_argument('-l', '--criterion', type=str, default='mse', help='Criterion')
     parser.add_argument('-o', '--optimizer', default='Adam', help='Name of the optimizer')
     parser.add_argument('-p', '--preprocessing', default=None, help='Preprocessing method')
     parser.add_argument('-c', '--checkpoint', type=str, default=None,
