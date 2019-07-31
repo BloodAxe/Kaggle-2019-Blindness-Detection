@@ -289,8 +289,8 @@ class FancyPCA(A.ImageOnlyTransform):
         return {'alpha': random.gauss(0, self.alpha_std)}
 
 
-def create_microaneurisms(image, location=(256, 256), radius=140, num=5, aneurism_radius=(1, 3)):
-    mask = image.copy()
+def create_microaneurisms(image, location=(256, 256), radius=140, num=5, aneurism_radius=(1, 3), alpha=0.2):
+    # mask = image.copy()
     aneurism_mask = np.zeros_like(image)
     for i in range(num):
         x = int(random.gauss(location[0], radius))
@@ -298,14 +298,14 @@ def create_microaneurisms(image, location=(256, 256), radius=140, num=5, aneuris
         r = int(random.uniform(aneurism_radius[0], aneurism_radius[1]))
         cv2.circle(aneurism_mask, (x, y), r, (255, 255, 255), thickness=cv2.FILLED, lineType=cv2.LINE_AA)
 
-        cv2.circle(mask, (x, y), r, (0, 0, 0), thickness=cv2.FILLED, lineType=cv2.LINE_AA)
+        # cv2.circle(mask, (x, y), r, (0, 0, 0), thickness=cv2.FILLED, lineType=cv2.LINE_AA)
 
     aneurism_mask = elastic_transform(aneurism_mask, alpha=5, sigma=2, alpha_affine=0)
     cv2.GaussianBlur(aneurism_mask, ksize=(5, 5), sigmaX=0, dst=aneurism_mask)
     aneurism_mask = 1.0 - aneurism_mask / 255.
 
-    overlay = cv2.addWeighted(image, 0.8,
-                              image * aneurism_mask, 0.2, 0, dtype=cv2.CV_8U)
+    overlay = cv2.addWeighted(image, (1 - alpha),
+                              image * aneurism_mask, alpha, 0, dtype=cv2.CV_8U)
 
     return overlay
 
@@ -323,20 +323,22 @@ class AddMildDR(A.ImageOnlyTransform):
             return new_diagnosis
         return diagnosis
 
-    def apply(self, img, apply=False, new_diagnosis=0, microaneurisms_count=0, **params):
+    def apply(self, img, apply=False, new_diagnosis=0, microaneurisms_count=0, alpha=0.2, **params):
         if apply:
             img = create_microaneurisms(img,
                                         location=[img.shape[1] // 2, img.shape[0] // 2],
-                                        radius=img.shape[1] // 2 - 10,
+                                        radius=min(img.shape[1], img.shape[0]) // 2 - 10,
                                         num=microaneurisms_count,
-                                        aneurism_radius=(1, 4))
+                                        aneurism_radius=(1, 4),
+                                        alpha=alpha)
         return img
 
     def update_params(self, params, image=None, diagnosis=0, **kwargs):
         if diagnosis == 0:
             params['apply'] = True
             params['new_diagnosis'] = 1
-            params['microaneurisms_count'] = int(random.uniform(3, 6))
+            params['microaneurisms_count'] = int(random.uniform(3, 10))
+            params['alpha'] = random.uniform(0.1, 0.3)
 
         return params
 
@@ -381,6 +383,9 @@ def get_train_transform(image_size, augmentation=None, preprocessing=None, crop_
     return A.Compose([
         CropBlackRegions() if crop_black else A.NoOp(always_apply=True),
         A.LongestMaxSize(longest_size, interpolation=cv2.INTER_CUBIC),
+
+        # Fake decease generation
+        AddMildDR(p=0.3),
 
         A.PadIfNeeded(image_size[0], image_size[1],
                       border_mode=cv2.BORDER_CONSTANT, value=0),

@@ -6,7 +6,7 @@ import numpy as np
 from albumentations.augmentations.functional import elastic_transform
 from pytorch_toolbelt.utils import fs
 
-from retinopathy.augmentations import crop_black, unsharp_mask, clahe_preprocessing, AddMildDR
+from retinopathy.augmentations import crop_black, unsharp_mask, clahe_preprocessing, AddMildDR, create_microaneurisms
 
 
 def test_adddr_transform():
@@ -14,8 +14,8 @@ def test_adddr_transform():
         # '4_left.png',
         # '35_left.png',
         '44_right.png',
-        '68_right.png',
-        '92_left.png'
+        # '68_right.png',
+        # '92_left.png'
     ]:
         image = cv2.imread(image_fname)
 
@@ -25,6 +25,9 @@ def test_adddr_transform():
         cv2.imshow('image', image)
         cv2.imshow('image after', data['image'])
         cv2.waitKey(-1)
+
+        data = aug(image=image, diagnosis=2)
+        assert data['diagnosis'] == 2
 
 
 def test_augment_microaneurisms():
