@@ -87,6 +87,10 @@ Using only one model **seresnext50**.
 1. http://eyesteve.com/diabetic-retinopathy-grading/
 1. http://eyesteve.com/diabetic-retinopathy-grading/
 1. https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0139148
+1. https://mlwave.com/kaggle-ensembling-guide/
+1. https://www.kaggle.com/amrmahmoud123/1-guide-to-ensembling-methods
+1. http://blog.kaggle.com/2016/12/27/a-kagglers-guide-to-model-stacking-in-practice/
+1. https://github.com/MLWave/Kaggle-Ensemble-Guide/blob/master/src/correlations.py
 
 # Other 
 
