@@ -8,7 +8,7 @@ from retinopathy.factory import get_model
 
 
 def test_inference():
-    model_checkpoint = '../runs/reg/reg_resnet34_rms/Jul30_22_13/reg_resnet34_rms_512_hard_wing_loss_aptos2019_messidor_idridfold0_silly_lichterman/checkpoints/best.pth'
+    model_checkpoint = '../pretrained/reg_seresnext50_rms_512_medium_mse_aptos2019_fold0_awesome_babbage.pth'
     checkpoint = torch.load(model_checkpoint)
     model_name = checkpoint['checkpoint_data']['cmd_args']['model']
 

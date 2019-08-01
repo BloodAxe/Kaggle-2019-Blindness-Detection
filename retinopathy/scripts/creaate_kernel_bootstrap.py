@@ -14,12 +14,13 @@ from retinopathy.inference import PickModelOutput, run_model_inference, cls_pred
 from retinopathy.models.heads import RMSPool2d, EncoderHeadModel, GlobalAvgPool2d, GlobalAvgPool2dHead, \
     GlobalMaxAvgPool2dHead, \
     GlobalMaxPool2dHead, ObjectContextPoolHead, FourReluBlock, Flatten, CLSBlock, RMSPoolHead, MultistageModel, \
-    PoolAndSqueeze
+    PoolAndSqueeze, CyclycEncoderHeadModel
 from retinopathy.models.inceptionv4 import InceptionV4Encoder, inceptionv4, InceptionV4, Inception_B, Inception_A, \
     Inception_C, Reduction_A, Mixed_5a, Mixed_3a, Mixed_4a, BasicConv2d, Reduction_B
 from retinopathy.models.oc import ASP_OC_Module, BaseOC_Context_Module, SelfAttentionBlock2D, _SelfAttentionBlock
 from retinopathy.models.ordinal import LogisticCumulativeLink, OrdinalEncoderHeadModel
 from retinopathy.models.regression import regression_to_class
+from retinopathy.scripts.preprocess_data import preprocess, convert_dir
 
 
 def encode_archive(archive_name):
@@ -79,7 +80,10 @@ def main():
         'from pytorch_toolbelt.modules import ABN',
         'from torch.autograd import Variable',
         'from torchvision.models import densenet169, densenet121, densenet201',
-        'import torch.utils.model_zoo as model_zoo'
+        'import torch.utils.model_zoo as model_zoo',
+        'from multiprocessing.pool import Pool',
+        'from albumentations.augmentations.functional import longest_max_size',
+        'import pytorch_toolbelt.inference.functional as FF'
     ]
     functions = [
         tensor_from_rgb_image,
@@ -121,6 +125,7 @@ def main():
         PoolAndSqueeze,
         EncoderHeadModel,
         MultistageModel,
+        CyclycEncoderHeadModel,
         crop_black,
         CropBlackRegions,
         unsharp_mask,
@@ -137,6 +142,8 @@ def main():
         cls_predictions_to_submission,
         reg_predictions_to_submission,
         regression_to_class,
+        preprocess,
+        convert_dir
     ]
 
     lines.append('# Imports\n')

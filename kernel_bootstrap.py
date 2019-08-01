@@ -34,6 +34,9 @@ from pytorch_toolbelt.modules import ABN
 from torch.autograd import Variable
 from torchvision.models import densenet169, densenet121, densenet201
 import torch.utils.model_zoo as model_zoo
+from multiprocessing.pool import Pool
+from albumentations.augmentations.functional import longest_max_size
+import pytorch_toolbelt.inference.functional as FF
 
 UNLABELED_CLASS = -100
 pretrained_settings = None
@@ -100,9 +103,13 @@ class RetinopathyDataset(Dataset):
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
         height, width = image.shape[:2]
+        diagnosis = UNLABELED_CLASS
+        if self.targets is not None:
+            diagnosis = self.targets[item]
 
-        image = self.transform(image=image)['image']
-        data = {'image': tensor_from_rgb_image(image),
+        data = self.transform(image=image, diagnosis=diagnosis)
+        diagnosis = data['diagnosis']
+        data = {'image': tensor_from_rgb_image(data['image']),
                 'image_id': id_from_fname(self.images[item])}
 
         if self.meta_features:
@@ -119,15 +126,13 @@ class RetinopathyDataset(Dataset):
                 mean[1],
                 mean[2]
             ])
-
             data['meta_features'] = meta_features
 
-        if self.targets is not None:
-            target = self.dtype(self.targets[item])
-            if self.target_as_array:
-                data['targets'] = np.array([target])
-            else:
-                data['targets'] = target
+        diagnosis = self.dtype(diagnosis)
+        if self.target_as_array:
+            data['targets'] = np.array([diagnosis])
+        else:
+            data['targets'] = diagnosis
 
         return data
 
@@ -1001,6 +1006,77 @@ class MultistageModel(nn.Module):
         }
 
 
+class CyclycEncoderHeadModel(nn.Module):
+    def __init__(self, encoder: EncoderModule, head: nn.Module, num_classes=5,
+                 num_regression_dims=1,
+                 dropout=0.0,
+                 reduction=8):
+        super().__init__()
+        self.encoder = encoder
+        self.head = head
+        bottleneck_features = head.features_size // reduction
+        self.dropout = nn.Dropout(dropout)
+        self.bottleneck = nn.Linear(head.features_size, bottleneck_features)
+
+        self.regressor = FourReluBlock(bottleneck_features, 64, num_regression_dims)
+        self.logits = nn.Linear(bottleneck_features, num_classes)
+        # self.ordinal = nn.Sequential(nn.Linear(bottleneck_features, num_classes),
+        #                              LogisticCumulativeLink(num_classes, init_cutpoints='ordered'))
+
+    @property
+    def features_size(self):
+        return self.head.features_size
+
+
+    def cyclic_pooling_features(self, image):
+        output = self.head(self.encoder(image))
+        image = image.rot90(1, [2, 3])
+
+        output += self.head(self.encoder(image))
+        image = image.rot90(1, [2, 3])
+
+        output += self.head(self.encoder(image))
+        image = image.rot90(1, [2, 3])
+
+        output += self.head(self.encoder(image))
+        image = image.rot90(1, [2, 3])
+
+        image = FF.torch_transpose(image)
+
+        output += self.head(self.encoder(image))
+        image = image.rot90(1, [2, 3])
+
+        output += self.head(self.encoder(image))
+        image = image.rot90(1, [2, 3])
+
+        output += self.head(self.encoder(image))
+        image = image.rot90(1, [2, 3])
+
+        output += self.head(self.encoder(image))
+
+        one_over_8 = float(1.0 / 8.0)
+        return one_over_8 * output
+
+    def forward(self, input):
+        features = self.cyclic_pooling_features(input)
+        features = self.dropout(features)
+        features = self.bottleneck(features)
+
+        logits = self.logits(features)
+        regression = self.regressor(features)
+        # ordinal = self.ordinal(features)
+
+        if regression.size(1) == 1:
+            regression = regression.squeeze(1)
+
+        return {
+            'features': features,
+            'logits': logits,
+            'regression': regression,
+            # 'ordinal': ordinal
+        }
+
+
 def crop_black(image, tolerance=5):
     gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
     cv2.threshold(gray, tolerance, 255, type=cv2.THRESH_BINARY, dst=gray)
@@ -1106,7 +1182,8 @@ def get_model(model_name, num_classes, pretrained=True, dropout=0.0, **kwargs):
         'reg': partial(EncoderHeadModel, num_classes=num_classes, dropout=dropout),
         'cls': partial(EncoderHeadModel, num_classes=num_classes, dropout=dropout),
         'ord': partial(EncoderHeadModel, num_classes=num_classes, dropout=dropout),
-        'mul': partial(MultistageModel, num_classes=num_classes, dropout=dropout)
+        'mul': partial(MultistageModel, num_classes=num_classes, dropout=dropout),
+        'clc': partial(CyclycEncoderHeadModel, num_classes=num_classes, dropout=dropout)
     }
 
     head = POOLING[head_name](encoder.output_filters)
@@ -1132,7 +1209,7 @@ def get_preprocessing_transform(preprocessing):
 def get_test_transform(image_size, preprocessing: str = None, crop_black=True):
     longest_size = max(image_size[0], image_size[1])
     return A.Compose([
-        CropBlackRegions() if crop_black else A.NoOp(always_apply=True),
+        CropBlackRegions(tolerance=5) if crop_black else A.NoOp(always_apply=True),
         A.LongestMaxSize(longest_size, interpolation=cv2.INTER_CUBIC),
 
         A.PadIfNeeded(image_size[0], image_size[1],
@@ -1224,9 +1301,13 @@ def run_model_inference(model_checkpoint: str,
                         images_dir='test_images',
                         tta=None,
                         apply_softmax=True,
-                        workers=None) -> pd.DataFrame:
+                        workers=None,
+                        preprocessing=None,
+                        crop_black=True) -> pd.DataFrame:
     image_fnames = test_csv['id_code'].apply(lambda x: os.path.join(data_dir, images_dir, f'{x}.png'))
-    test_ds = RetinopathyDataset(image_fnames, None, get_test_transform(image_size))
+    test_ds = RetinopathyDataset(image_fnames, None, get_test_transform(image_size,
+                                                                        preprocessing=preprocessing,
+                                                                        crop_black=crop_black))
     return run_model_inference_via_dataset(model_checkpoint, test_ds,
                                            model_name=model_name,
                                            output_key=output_key,
@@ -1279,5 +1360,27 @@ def regression_to_class(value: torch.Tensor, min=0, max=4):
     value = torch.round(value)
     value = torch.clamp(value, min, max)
     return value.long()
+
+
+def preprocess(image_fname, output_dir, image_size=768):
+    image = cv2.imread(image_fname)
+    image = crop_black(image, tolerance=5)
+    image = longest_max_size(image, max_size=image_size, interpolation=cv2.INTER_CUBIC)
+
+    image_id = fs.id_from_fname(image_fname)
+    dst_fname = os.path.join(output_dir, image_id + '.png')
+    cv2.imwrite(dst_fname, image)
+    return
+
+
+def convert_dir(input_dir, output_dir, image_size=768, workers=32):
+    os.makedirs(output_dir, exist_ok=True)
+    images = fs.find_images_in_dir(input_dir)
+
+    processing_fn = partial(preprocess, output_dir=output_dir, image_size=image_size)
+
+    with Pool(workers) as wp:
+        for image_id in tqdm(wp.imap_unordered(processing_fn, images), total=len(images)):
+            pass
 
 

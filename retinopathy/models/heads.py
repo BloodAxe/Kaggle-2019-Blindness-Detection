@@ -1,5 +1,6 @@
-import torch
+import numpy as np
 import pytorch_toolbelt.inference.functional as FF
+import torch
 from pytorch_toolbelt.modules.encoders import EncoderModule
 from pytorch_toolbelt.modules.pooling import GlobalAvgPool2d, GlobalMaxPool2d
 from torch import nn
@@ -184,6 +185,10 @@ class RMSPoolHead(nn.Module):
 
 
 def regression_to_class(value: torch.Tensor, min=0, max=4):
+    if isinstance(value, np.ndarray):
+        value = torch.from_numpy(value)
+    if isinstance(value, (int, float)):
+        value = torch.tensor(value)
     value = torch.round(value)
     value = torch.clamp(value, min, max)
     return value.long()
@@ -251,7 +256,6 @@ class CyclycEncoderHeadModel(nn.Module):
     @property
     def features_size(self):
         return self.head.features_size
-
 
     def cyclic_pooling_features(self, image):
         output = self.head(self.encoder(image))

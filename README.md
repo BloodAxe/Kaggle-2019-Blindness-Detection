@@ -73,15 +73,20 @@ Using only one model **seresnext50**.
 |--------------------------|-----------------|------------|-----------------------|------------|---------|-|
 | Regression with aux loss | 0.9170 ± 0.0049 | 0.787      | reg_seresnext50_rms   | Yes        | 4 folds | -m reg_seresnext50_rms -a medium -f 0 -f 1 -f 2 -f 3 -b 60 -l clipped_mse --fp16 -o Adam -d 0.5 -s multistep -lr 1e-4 -wd 1e-4 -e 100 -v --use-idrid --use-messidor --use-aptos2019 --warmup 10 |
 |--------------------------|-----------------|------------|-----------------------|------------|---------|-|
-| Regression with aux loss | 0.9244 ± 0.0060 |       | reg_seresnext50_rms   | Aptos2015      | 4 folds | train_regression_baseline.py -m reg_seresnext50_rms -a medium -f 0 -f 1 -f 2 -f 3 -b 60 --fp16 -o Adam -d 0.5 -s multistep -lr 1e-4 -e 100 -es 20 -v --use-aptos2019 --warmup 10
-| Regression with aux loss | 0.8737 ± 0.0214 |       | reg_seresnext50_rms   | IDRID          | 4 folds | train_regression_baseline.py -m reg_seresnext50_rms -a medium -f 0 -f 1 -f 2 -f 3 -b 60 --fp16 -o Adam -d 0.5 -s multistep -lr 1e-4 -e 100 -es 20 -v --use-idrid --warmup 10
-| Regression with aux loss | 0.9006 ± 0.0141 |       | reg_seresnext50_rms   | Messidor       | 4 folds | train_regression_baseline.py -m reg_seresnext50_rms -a medium -f 0 -f 1 -f 2 -f 3 -b 60 --fp16 -o Adam -d 0.5 -s multistep -lr 1e-4 -e 100 -es 20 -v --use-messidor --warmup 10
+| Regression with aux loss | 0.9244 ± 0.0060 | 0.752      | reg_seresnext50_rms   | Aptos2015      | 4 folds | train_regression_baseline.py -m reg_seresnext50_rms -a medium -f 0 -f 1 -f 2 -f 3 -b 60 --fp16 -o Adam -d 0.5 -s multistep -lr 1e-4 -e 100 -es 20 -v --use-aptos2019 --warmup 10
+| Regression with aux loss | 0.8737 ± 0.0214 | 0.668      | reg_seresnext50_rms   | IDRID          | 4 folds | train_regression_baseline.py -m reg_seresnext50_rms -a medium -f 0 -f 1 -f 2 -f 3 -b 60 --fp16 -o Adam -d 0.5 -s multistep -lr 1e-4 -e 100 -es 20 -v --use-idrid --warmup 10
+| Regression with aux loss | 0.9006 ± 0.0141 | 0.554      | reg_seresnext50_rms   | Messidor       | 4 folds | train_regression_baseline.py -m reg_seresnext50_rms -a medium -f 0 -f 1 -f 2 -f 3 -b 60 --fp16 -o Adam -d 0.5 -s multistep -lr 1e-4 -e 100 -es 20 -v --use-messidor --warmup 10
 
 
 # References
 
 1. https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5961805/
 1. https://www.slideshare.net/EducacionMolina/diabetic-retinopathy-71884270
+1. http://defauw.ai/diabetic-retinopathy-detection/
+1. https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4944099/
+1. http://eyesteve.com/diabetic-retinopathy-grading/
+1. http://eyesteve.com/diabetic-retinopathy-grading/
+1. https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0139148
 
 # Other 
 
