@@ -76,6 +76,7 @@ Using only one model **seresnext50**.
 | Regression with aux loss | 0.9244 ± 0.0060 |       | reg_seresnext50_rms   | Aptos2015      | 4 folds | train_regression_baseline.py -m reg_seresnext50_rms -a medium -f 0 -f 1 -f 2 -f 3 -b 60 --fp16 -o Adam -d 0.5 -s multistep -lr 1e-4 -e 100 -es 20 -v --use-aptos2019 --warmup 10
 | Regression with aux loss | 0.8737 ± 0.0214 |       | reg_seresnext50_rms   | IDRID          | 4 folds | train_regression_baseline.py -m reg_seresnext50_rms -a medium -f 0 -f 1 -f 2 -f 3 -b 60 --fp16 -o Adam -d 0.5 -s multistep -lr 1e-4 -e 100 -es 20 -v --use-idrid --warmup 10
 | Regression with aux loss | 0.9006 ± 0.0141 |       | reg_seresnext50_rms   | Messidor       | 4 folds | train_regression_baseline.py -m reg_seresnext50_rms -a medium -f 0 -f 1 -f 2 -f 3 -b 60 --fp16 -o Adam -d 0.5 -s multistep -lr 1e-4 -e 100 -es 20 -v --use-messidor --warmup 10
+| Regression with aux loss | 0.9134 ± 0.0044 |       | reg_seresnext50_rms   | A15, ID, MD    | 4 folds | train_regression_baseline.py -m reg_seresnext50_rms -a medium -f 0 -f 1 -f 2 -f 3 -b 60 --fp16 -o Adam -d 0.5 -s multistep -lr 1e-4 -e 100 -es 20 -v --use-messidor --warmup 10
 
 
 # References
