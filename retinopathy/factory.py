@@ -16,6 +16,7 @@ from retinopathy.models.heads import GlobalAvgPool2dHead, GlobalMaxPool2dHead, \
     ObjectContextPoolHead, \
     GlobalMaxAvgPool2dHead, EncoderHeadModel, RMSPoolHead, MultistageModel, CyclycEncoderHeadModel
 from retinopathy.models.inceptionv4 import InceptionV4Encoder
+from retinopathy.opt import Lamb, AdamW, QHAdamW
 
 
 class DenseNet121Encoder(EncoderModule):
@@ -112,6 +113,18 @@ def get_optimizer(optimizer_name: str, parameters, learning_rate: float, weight_
 
     if optimizer_name.lower() == 'rms':
         return RMSprop(parameters, learning_rate, weight_decay=weight_decay, **kwargs)
+
+    if optimizer_name.lower() == 'adamw':
+        return AdamW(parameters, learning_rate, weight_decay=weight_decay, **kwargs)
+
+    if optimizer_name.lower() == 'qhadamw':
+        return QHAdamW(parameters, learning_rate, weight_decay=weight_decay, **kwargs)
+
+    if optimizer_name.lower() == 'lamb':
+        return Lamb(parameters, learning_rate, weight_decay=weight_decay, **kwargs)
+
+    if optimizer_name.lower() == 'lamb':
+        return Lamb(parameters, learning_rate, weight_decay=weight_decay, **kwargs)
 
     raise ValueError("Unsupported optimizer name " + optimizer_name)
 
