@@ -18,7 +18,7 @@ from pytorch_toolbelt.utils.torch_utils import count_parameters, \
 
 from retinopathy.callbacks import ConfusionMatrixCallbackFromRegression, \
     MixupRegressionCallback, UnsupervisedCriterionCallback, \
-    CappaScoreCallback, NegativeMiningCallback, CustomAccuracyCallback, L1RegularizationCallback
+    CappaScoreCallback, NegativeMiningCallback, CustomAccuracyCallback, L1RegularizationCallback, L2RegularizationCallback, CustomOptimizerCallback
 from retinopathy.dataset import get_class_names, \
     get_datasets, get_dataloaders, UNLABELED_CLASS
 from retinopathy.factory import get_model, get_loss, get_optimizer, \
@@ -53,6 +53,9 @@ def main():
     parser.add_argument('-fe', '--freeze-encoder', action='store_true')
     parser.add_argument('-lr', '--learning-rate', type=float, default=1e-4, help='Initial learning rate')
     parser.add_argument('-l', '--criterion', type=str, default='mse', help='Criterion')
+
+    parser.add_argument('-l1', type=float, default=0, help='L1 regularization loss')
+    parser.add_argument('-l2', type=float, default=0, help='L2 regularization loss')
     parser.add_argument('-o', '--optimizer', default='Adam', help='Name of the optimizer')
     parser.add_argument('-p', '--preprocessing', default=None, help='Preprocessing method')
     parser.add_argument('-c', '--checkpoint', type=str, default=None,
@@ -80,6 +83,8 @@ def main():
     num_epochs = args.epochs
     batch_size = args.batch_size
     learning_rate = args.learning_rate
+    l1 = args.l1
+    l2 = args.l2
     early_stopping = args.early_stopping
     model_name = args.model
     optimizer_name = args.optimizer
@@ -253,6 +258,8 @@ def main():
         print('  Criterion      :', criterion_name)
         print('  Scheduler      :', scheduler_name)
         print('  Weight decay   :', weight_decay, weight_decay_step)
+        print('  L1 reg.        :', l1)
+        print('  L2 reg.        :', l2)
         print('  Early stopping :', early_stopping)
 
         # model training
@@ -353,13 +360,15 @@ def main():
 
         optimizer = get_optimizer(optimizer_name, get_optimizable_parameters(model),
                                   learning_rate=learning_rate,
-                                  weight_decay=0)
+                                  weight_decay=weight_decay)
 
-        if weight_decay > 0:
-            callbacks += [L1RegularizationCallback(multiplier=weight_decay, loss_key='l1')]
+        if l1 > 0:
+            callbacks += [L1RegularizationCallback(multiplier=l1, loss_key='l1')]
 
-        if weight_decay_step is not None:
-            pass
+        if l2 > 0:
+            callbacks += [L2RegularizationCallback(multiplier=l2, loss_key='l2')]
+
+        callbacks += [CustomOptimizerCallback()]
 
         scheduler = get_scheduler(scheduler_name, optimizer,
                                   lr=learning_rate,
