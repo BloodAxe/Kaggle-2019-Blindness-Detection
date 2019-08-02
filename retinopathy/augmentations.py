@@ -381,7 +381,7 @@ def get_train_transform(image_size, augmentation=None, preprocessing=None, crop_
 
     longest_size = max(image_size[0], image_size[1])
     return A.Compose([
-        CropBlackRegions() if crop_black else A.NoOp(always_apply=True),
+        CropBlackRegions(tolerance=5) if crop_black else A.NoOp(always_apply=True),
         A.LongestMaxSize(longest_size, interpolation=cv2.INTER_CUBIC),
 
         # Fake decease generation
@@ -490,7 +490,7 @@ def get_train_transform(image_size, augmentation=None, preprocessing=None, crop_
 def get_test_transform(image_size, preprocessing: str = None, crop_black=True):
     longest_size = max(image_size[0], image_size[1])
     return A.Compose([
-        CropBlackRegions() if crop_black else A.NoOp(always_apply=True),
+        CropBlackRegions(tolerance=5) if crop_black else A.NoOp(always_apply=True),
         A.LongestMaxSize(longest_size, interpolation=cv2.INTER_CUBIC),
 
         A.PadIfNeeded(image_size[0], image_size[1],

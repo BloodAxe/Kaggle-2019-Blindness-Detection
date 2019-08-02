@@ -10,10 +10,10 @@ from tqdm import tqdm
 from retinopathy.augmentations import crop_black
 
 
-def preprocess(image_fname, output_dir):
+def preprocess(image_fname, output_dir, image_size=768):
     image = cv2.imread(image_fname)
     image = crop_black(image, tolerance=5)
-    image = longest_max_size(image, max_size=768, interpolation=cv2.INTER_CUBIC)
+    image = longest_max_size(image, max_size=image_size, interpolation=cv2.INTER_CUBIC)
 
     image_id = fs.id_from_fname(image_fname)
     dst_fname = os.path.join(output_dir, image_id + '.png')
@@ -21,13 +21,13 @@ def preprocess(image_fname, output_dir):
     return
 
 
-def convert_dir(input_dir, output_dir):
+def convert_dir(input_dir, output_dir, image_size=768, workers=32):
     os.makedirs(output_dir, exist_ok=True)
     images = fs.find_images_in_dir(input_dir)
 
-    processing_fn = partial(preprocess, output_dir=output_dir)
+    processing_fn = partial(preprocess, output_dir=output_dir, image_size=image_size)
 
-    with Pool(32) as wp:
+    with Pool(workers) as wp:
         for image_id in tqdm(wp.imap_unordered(processing_fn, images), total=len(images)):
             pass
 

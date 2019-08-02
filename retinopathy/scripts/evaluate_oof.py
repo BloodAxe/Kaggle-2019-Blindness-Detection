@@ -44,10 +44,10 @@ def evaluate_averaging(checkpoints, use_aptos2015, use_aptos2019, use_messidor, 
         predictions = []
         scores = []
 
-        train_ds, valid_ds = get_datasets(use_aptos2015=use_aptos2015,
-                                          use_aptos2019=use_aptos2019,
-                                          use_messidor=use_messidor,
-                                          use_idrid=use_idrid)
+        train_ds, valid_ds, _ = get_datasets(use_aptos2015=use_aptos2015,
+                                             use_aptos2019=use_aptos2019,
+                                             use_messidor=use_messidor,
+                                             use_idrid=use_idrid)
         full_ds = train_ds + valid_ds
         targets = np.concatenate((train_ds.targets, valid_ds.targets))
         assert len(targets) == len(full_ds)
