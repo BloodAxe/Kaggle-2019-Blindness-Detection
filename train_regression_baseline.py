@@ -18,7 +18,8 @@ from pytorch_toolbelt.utils.torch_utils import count_parameters, \
 
 from retinopathy.callbacks import ConfusionMatrixCallbackFromRegression, \
     MixupRegressionCallback, UnsupervisedCriterionCallback, \
-    CappaScoreCallback, NegativeMiningCallback, CustomAccuracyCallback, L1RegularizationCallback, L2RegularizationCallback, CustomOptimizerCallback
+    CappaScoreCallback, NegativeMiningCallback, CustomAccuracyCallback, L1RegularizationCallback, \
+    L2RegularizationCallback, CustomOptimizerCallback
 from retinopathy.dataset import get_class_names, \
     get_datasets, get_dataloaders, UNLABELED_CLASS
 from retinopathy.factory import get_model, get_loss, get_optimizer, \
@@ -75,6 +76,7 @@ def main():
                         help='Number of warmup epochs with 0.1 of the initial LR and frozed encoder')
     parser.add_argument('-x', '--experiment', default=None, type=str, help='Dropout before head layer')
 
+    # CheckpointCallback
     # '--use-messidor --use-aptos2019 --use-idrid'
     args = parser.parse_args()
 
@@ -286,123 +288,124 @@ def main():
                                   criterion_key='regression',
                                   multiplier=1.0),
                 # Classification loss is complementary
-                CriterionCallback(prefix='cls', loss_key='cls',
-                                  output_key='logits',
-                                  criterion_key='classification',
-                                  multiplier=0.5)]
+                # CriterionCallback(prefix='cls', loss_key='cls',
+                #                   output_key='logits',
+                #                   criterion_key='classification',
+                #                   multiplier=0.5)
+            ]
 
-        callbacks += [
-            CustomAccuracyCallback(output_key='regression',
-                                   from_regression=True,
-                                   ignore_index=UNLABELED_CLASS),
-            CappaScoreCallback(prefix='kappa_score',
-                               output_key='regression',
-                               ignore_index=UNLABELED_CLASS,
-                               class_names=get_class_names(),
-                               from_regression=True),
-            CappaScoreCallback(prefix='kappa_score_aux',
-                               output_key='logits',
-                               ignore_index=UNLABELED_CLASS,
-                               class_names=get_class_names(),
-                               from_regression=False),
-
-            ConfusionMatrixCallbackFromRegression(output_key='regression',
-                                                  class_names=get_class_names(),
-                                                  ignore_index=UNLABELED_CLASS),
-            NegativeMiningCallback(from_regression=True, output_key='regression', ignore_index=UNLABELED_CLASS),
-        ]
-
-        runner = SupervisedRunner(input_key='image')
-        # Pretrain/warmup
-        if warmup:
-            set_trainable(model.encoder, False, False)
-            optimizer = get_optimizer(optimizer_name, get_optimizable_parameters(model),
-                                      learning_rate=learning_rate,
-                                      weight_decay=weight_decay)
-
-            runner.train(
-                fp16=fp16,
-                model=model,
-                criterion=criterion,
-                optimizer=optimizer,
-                scheduler=None,
-                callbacks=callbacks,
-                loaders=loaders,
-                logdir=os.path.join(log_dir, 'warmup'),
-                num_epochs=warmup,
-                verbose=verbose,
-                main_metric='kappa_score',
-                minimize_metric=False,
-                checkpoint_data={"cmd_args": vars(args)}
-            )
-
-            del optimizer
-
-        if early_stopping:
             callbacks += [
-                EarlyStoppingCallback(early_stopping, metric='kappa_score',
-                                      minimize=False)]
+                CustomAccuracyCallback(output_key='regression',
+                                       from_regression=True,
+                                       ignore_index=UNLABELED_CLASS),
+                CappaScoreCallback(prefix='kappa_score',
+                                   output_key='regression',
+                                   ignore_index=UNLABELED_CLASS,
+                                   class_names=get_class_names(),
+                                   from_regression=True),
+                CappaScoreCallback(prefix='kappa_score_aux',
+                                   output_key='logits',
+                                   ignore_index=UNLABELED_CLASS,
+                                   class_names=get_class_names(),
+                                   from_regression=False),
 
-        if show_batches:
-            callbacks += [
-                ShowPolarBatchesCallback(visualization_fn, metric='accuracy',
-                                         minimize=False)]
+                ConfusionMatrixCallbackFromRegression(output_key='regression',
+                                                      class_names=get_class_names(),
+                                                      ignore_index=UNLABELED_CLASS),
+                NegativeMiningCallback(from_regression=True, output_key='regression', ignore_index=UNLABELED_CLASS),
+            ]
 
-        if use_unsupervised:
-            callbacks += [
-                UnsupervisedCriterionCallback(prefix='unsupervised', loss_key='unsupervised',
-                                              unsupervised_label=UNLABELED_CLASS)]
-
-        # Main train
-        set_trainable(model.encoder, True, False)
-        if freeze_encoder:
-            set_trainable(model.encoder, trainable=False, freeze_bn=False)
-
+    runner = SupervisedRunner(input_key='image')
+    # Pretrain/warmup
+    if warmup:
+        set_trainable(model.encoder, False, False)
         optimizer = get_optimizer(optimizer_name, get_optimizable_parameters(model),
                                   learning_rate=learning_rate,
                                   weight_decay=weight_decay)
-
-        if l1 > 0:
-            callbacks += [L1RegularizationCallback(multiplier=l1, loss_key='l1')]
-
-        if l2 > 0:
-            callbacks += [L2RegularizationCallback(multiplier=l2, loss_key='l2')]
-
-        callbacks += [CustomOptimizerCallback()]
-
-        scheduler = get_scheduler(scheduler_name, optimizer,
-                                  lr=learning_rate,
-                                  num_epochs=num_epochs,
-                                  batches_in_epoch=len(train_loader))
-
-        if checkpoint is not None:
-            try:
-                unpack_checkpoint(checkpoint, optimizer=optimizer)
-                print('Restored optimizer state from checkpoint')
-            except Exception as e:
-                print('Failed to restore optimizer state from checkpoint', e)
 
         runner.train(
             fp16=fp16,
             model=model,
             criterion=criterion,
             optimizer=optimizer,
-            scheduler=scheduler,
+            scheduler=None,
             callbacks=callbacks,
             loaders=loaders,
-            logdir=log_dir,
-            num_epochs=num_epochs,
+            logdir=os.path.join(log_dir, 'warmup'),
+            num_epochs=warmup,
             verbose=verbose,
             main_metric='kappa_score',
             minimize_metric=False,
             checkpoint_data={"cmd_args": vars(args)}
         )
 
-        del runner, callbacks, loaders, optimizer, model, criterion, scheduler
+        del optimizer
 
-        best__checkpoint = os.path.join(log_dir, 'checkpoints', 'best.pth')
-        model_checkpoint = os.path.join(log_dir, 'checkpoints', f'{checkpoint_prefix}.pth')
-        clean_checkpoint(best__checkpoint, model_checkpoint)
+    if early_stopping:
+        callbacks += [
+            EarlyStoppingCallback(early_stopping, metric='kappa_score',
+                                  minimize=False)]
+
+    if show_batches:
+        callbacks += [
+            ShowPolarBatchesCallback(visualization_fn, metric='accuracy',
+                                     minimize=False)]
+
+    if use_unsupervised:
+        callbacks += [
+            UnsupervisedCriterionCallback(prefix='unsupervised', loss_key='unsupervised',
+                                          unsupervised_label=UNLABELED_CLASS)]
+
+    # Main train
+    set_trainable(model.encoder, True, False)
+    if freeze_encoder:
+        set_trainable(model.encoder, trainable=False, freeze_bn=False)
+
+    optimizer = get_optimizer(optimizer_name, get_optimizable_parameters(model),
+                              learning_rate=learning_rate,
+                              weight_decay=weight_decay)
+
+    if l1 > 0:
+        callbacks += [L1RegularizationCallback(multiplier=l1, loss_key='l1')]
+
+    if l2 > 0:
+        callbacks += [L2RegularizationCallback(multiplier=l2, loss_key='l2')]
+
+    callbacks += [CustomOptimizerCallback()]
+
+    scheduler = get_scheduler(scheduler_name, optimizer,
+                              lr=learning_rate,
+                              num_epochs=num_epochs,
+                              batches_in_epoch=len(train_loader))
+
+    if checkpoint is not None:
+        try:
+            unpack_checkpoint(checkpoint, optimizer=optimizer)
+            print('Restored optimizer state from checkpoint')
+        except Exception as e:
+            print('Failed to restore optimizer state from checkpoint', e)
+
+    runner.train(
+        fp16=fp16,
+        model=model,
+        criterion=criterion,
+        optimizer=optimizer,
+        scheduler=scheduler,
+        callbacks=callbacks,
+        loaders=loaders,
+        logdir=log_dir,
+        num_epochs=num_epochs,
+        verbose=verbose,
+        main_metric='kappa_score',
+        minimize_metric=False,
+        checkpoint_data={"cmd_args": vars(args)}
+    )
+
+    del runner, callbacks, loaders, optimizer, model, criterion, scheduler
+
+    best__checkpoint = os.path.join(log_dir, 'checkpoints', 'best.pth')
+    model_checkpoint = os.path.join(log_dir, 'checkpoints', f'{checkpoint_prefix}.pth')
+    clean_checkpoint(best__checkpoint, model_checkpoint)
 
 
 if __name__ == '__main__':

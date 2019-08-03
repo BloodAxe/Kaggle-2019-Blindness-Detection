@@ -73,8 +73,24 @@ def test_mse_loss():
 
 @torch.no_grad()
 @pytest.mark.parametrize(['width', 'curvature'], [
-    [5, 0.5], [5, 0.1], [1, 0.1], [2, 0.5], [2, 0.01],
-    [5, 0.9], [10, 0.8], [1, 0.1], [2, 0.1], [2,0.9]
+    # [5, 0.5],
+    # [5, 0.1],
+    # [1, 0.1],
+    # [2, 0.5],
+    # [2, 0.01],
+    # [5, 0.9],
+    # [10, 0.8],
+    # [1, 0.1],
+    # [2, 0.1],
+    [4, 0.9],
+    [4, 0.8],
+    [4, 0.7],
+    [4, 0.6],
+    [4, 0.5],
+    [4, 0.4],
+    [4, 0.3],
+    [4, 0.2],
+    [4, 0.1]
 ])
 def test_wing_loss(width, curvature):
     loss_fn = ClippedWingLoss(width, curvature, min=0, max=4, reduction='none')

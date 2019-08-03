@@ -1,12 +1,10 @@
 from typing import Optional
 
 import numpy as np
-import pytest
 import torch
 import torch.nn.functional as F
 from catalyst.contrib import registry
-from pytorch_toolbelt.losses import WingLoss
-from pytorch_toolbelt.losses.functional import sigmoid_focal_loss
+from pytorch_toolbelt.losses.functional import sigmoid_focal_loss, wing_loss
 from torch import nn
 from torch.nn.modules.loss import MSELoss, SmoothL1Loss, _Loss
 
@@ -137,6 +135,26 @@ class SoftCrossEntropyLoss(nn.Module):
         return soft_crossentropy(input, target,
                                  ignore_index=self.ignore_index,
                                  smooth_factor=self.smooth_factor)
+
+
+@registry.Criterion
+class WingLoss(_Loss):
+    def __init__(self, width=5, curvature=0.5, reduction='mean', ignore_index=None):
+        super(WingLoss, self).__init__(reduction=reduction)
+        self.width = width
+        self.curvature = curvature
+        self.ignore_index = ignore_index
+
+    def forward(self, input, target):
+        if self.ignore_index is not None:
+            mask = target != self.ignore_index
+            target = target[mask]
+            input = input[mask]
+
+        if not len(target):
+            return torch.tensor(0.).to(input.device)
+
+        return wing_loss(input, target.float(), self.width, self.curvature, self.reduction)
 
 
 @registry.Criterion

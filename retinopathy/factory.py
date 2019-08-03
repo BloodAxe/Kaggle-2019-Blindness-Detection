@@ -11,7 +11,7 @@ from torch.optim.rmsprop import RMSprop
 from torchvision.models import densenet169, densenet121, densenet201
 
 from retinopathy.losses import ClippedMSELoss, ClippedWingLoss, CumulativeLinkLoss, LabelSmoothingLoss, \
-    SoftCrossEntropyLoss, ClippedHuber, CustomMSE, HybridCappaLoss, FocalLoss
+    SoftCrossEntropyLoss, ClippedHuber, CustomMSE, HybridCappaLoss, FocalLoss, WingLoss
 from retinopathy.models.heads import GlobalAvgPool2dHead, GlobalMaxPool2dHead, \
     ObjectContextPoolHead, \
     GlobalMaxAvgPool2dHead, EncoderHeadModel, RMSPoolHead, MultistageModel, CyclycEncoderHeadModel
@@ -146,7 +146,10 @@ def get_loss(loss_name: str, **kwargs):
         return ClippedHuber(min=0, max=4, **kwargs)
 
     if loss_name.lower() == 'wing_loss':
-        return ClippedWingLoss(width=2, curvature=0.1, min=0, max=4, **kwargs)
+        return WingLoss(width=4, curvature=0.3, **kwargs)
+
+    if loss_name.lower() == 'clipped_wing_loss':
+        return ClippedWingLoss(width=4, curvature=0.3, min=0, max=4, **kwargs)
 
     if loss_name.lower() == 'clipped_huber':
         raise NotImplementedError(loss_name)

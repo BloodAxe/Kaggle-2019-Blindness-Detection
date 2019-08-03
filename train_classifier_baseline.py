@@ -382,7 +382,7 @@ def main():
             minimize_metric=False,
             checkpoint_data={"cmd_args": vars(args)}
         )
-        OptimizerCallback
+
         del runner, callbacks, loaders, optimizer, model, criterion, scheduler
 
         best__checkpoint = os.path.join(log_dir, 'checkpoints', 'best.pth')

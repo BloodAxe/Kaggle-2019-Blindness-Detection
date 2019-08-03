@@ -439,7 +439,7 @@ def get_train_transform(image_size, augmentation=None, preprocessing=None, crop_
             A.RandomSizedCrop(min_max_height=(int(image_size[0] * 0.75), image_size[0]),
                               height=image_size[0],
                               width=image_size[1], p=0.3),
-        ], p=float(augmentation == HARD)),
+        ], p=float(augmentation >= LIGHT)),
 
         A.OneOf([
             A.ISONoise(),

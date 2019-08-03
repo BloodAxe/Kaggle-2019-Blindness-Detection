@@ -202,14 +202,10 @@ class EncoderHeadModel(nn.Module):
         super().__init__()
         self.encoder = encoder
         self.head = head
-        bottleneck_features = head.features_size // reduction
         self.dropout = nn.Dropout(dropout)
-        self.bottleneck = nn.Linear(head.features_size, bottleneck_features)
+        self.bottleneck = nn.Conv2d(head.features_size, num_classes, kernel_size=1)
 
-        self.regressor = FourReluBlock(bottleneck_features, 64, num_regression_dims)
-        self.logits = nn.Linear(bottleneck_features, num_classes)
-        # self.ordinal = nn.Sequential(nn.Linear(bottleneck_features, num_classes),
-        #                              LogisticCumulativeLink(num_classes, init_cutpoints='ordered'))
+        self.regressor = nn.Linear(num_classes, num_regression_dims)
 
     @property
     def features_size(self):
@@ -217,12 +213,14 @@ class EncoderHeadModel(nn.Module):
 
     def forward(self, input):
         feature_maps = self.encoder(input)
-        features = self.head(feature_maps)
+        features = feature_maps[-1]
         features = self.dropout(features)
-        features = self.bottleneck(features)
+        logits = self.bottleneck(features)
+        logits = F.adaptive_avg_pool2d(logits, output_size=1)
+        logits = logits.view(logits.size(0), logits.size(1))
 
-        logits = self.logits(features)
-        regression = self.regressor(features)
+        regression = self.regressor(logits)
+
         # ordinal = self.ordinal(features)
 
         if regression.size(1) == 1:
