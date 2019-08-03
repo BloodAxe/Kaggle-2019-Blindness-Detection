@@ -1027,7 +1027,6 @@ class CyclycEncoderHeadModel(nn.Module):
     def features_size(self):
         return self.head.features_size
 
-
     def cyclic_pooling_features(self, image):
         output = self.head(self.encoder(image))
         image = image.rot90(1, [2, 3])
@@ -1357,6 +1356,10 @@ def reg_predictions_to_submission(predictions) -> pd.DataFrame:
 
 
 def regression_to_class(value: torch.Tensor, min=0, max=4):
+    if isinstance(value, np.ndarray):
+        value = torch.from_numpy(value)
+    if isinstance(value, (int, float)):
+        value = torch.tensor(value)
     value = torch.round(value)
     value = torch.clamp(value, min, max)
     return value.long()
