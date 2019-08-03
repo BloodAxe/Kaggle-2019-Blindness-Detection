@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 
 # Pretrain model to start with something more or less accurate
 python train_classifier_baseline.py -m seresnext50_avg -a light -f 0 -b 60 --fp16 -o AdamW -lr 1e-4 -wd 1e-4\
