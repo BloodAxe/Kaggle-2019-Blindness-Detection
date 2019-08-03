@@ -12,9 +12,7 @@ from torchvision.models import densenet169, densenet121, densenet201
 
 from retinopathy.losses import ClippedMSELoss, ClippedWingLoss, CumulativeLinkLoss, LabelSmoothingLoss, \
     SoftCrossEntropyLoss, ClippedHuber, CustomMSE, HybridCappaLoss, FocalLoss, WingLoss
-from retinopathy.models.heads import GlobalAvgPool2dHead, GlobalMaxPool2dHead, \
-    ObjectContextPoolHead, \
-    GlobalMaxAvgPool2dHead, EncoderHeadModel, RMSPoolHead, MultistageModel, CyclycEncoderHeadModel
+from retinopathy.models.heads import EncoderHeadModel, GlobalAvgPoolHead
 from retinopathy.models.inceptionv4 import InceptionV4Encoder
 from retinopathy.opt import Lamb, AdamW, QHAdamW
 
@@ -56,7 +54,12 @@ class DenseNet201Encoder(EncoderModule):
 
 
 def get_model(model_name, num_classes, pretrained=True, dropout=0.0, **kwargs):
-    kind, encoder_name, head_name = model_name.split('_')
+    keys = model_name.split('_')
+    if len(keys) == 2:
+        encoder_name, head_name = keys
+        model = 'baseline'
+    else:
+        model, encoder_name, head_name = keys
 
     ENCODERS = {
         'resnet18': Resnet18Encoder,
@@ -75,26 +78,17 @@ def get_model(model_name, num_classes, pretrained=True, dropout=0.0, **kwargs):
 
     encoder = ENCODERS[encoder_name](pretrained=pretrained)
 
-    POOLING = {
-        'gap': GlobalAvgPool2dHead,
-        'avg': GlobalAvgPool2dHead,
-        'gmp': GlobalMaxPool2dHead,
-        'max': GlobalMaxPool2dHead,
-        'ocp': partial(ObjectContextPoolHead, oc_features=encoder.output_filters[-1] // 4),
-        'rms': RMSPoolHead,
-        'maxavg': GlobalMaxAvgPool2dHead,
+    HEADS = {
+        'gap': GlobalAvgPoolHead,
     }
 
     MODELS = {
-        'reg': partial(EncoderHeadModel, num_classes=num_classes, dropout=dropout),
-        'cls': partial(EncoderHeadModel, num_classes=num_classes, dropout=dropout),
-        'ord': partial(EncoderHeadModel, num_classes=num_classes, dropout=dropout),
-        'mul': partial(MultistageModel, num_classes=num_classes, dropout=dropout),
-        'clc': partial(CyclycEncoderHeadModel, num_classes=num_classes, dropout=dropout)
+        'baseline': EncoderHeadModel,
     }
 
-    head = POOLING[head_name](encoder.output_filters)
-    model = MODELS[kind](encoder, head)
+    head = HEADS[head_name](feature_maps=encoder.output_filters, num_classes=num_classes, dropout=dropout)
+
+    model = MODELS[model](encoder, head)
     return model
 
 

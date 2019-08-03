@@ -2,13 +2,14 @@ from __future__ import absolute_import
 
 import argparse
 import collections
+import json
 import multiprocessing
 import os
 from datetime import datetime
 from functools import partial
 
 import torch
-from catalyst.dl import SupervisedRunner, EarlyStoppingCallback, CriterionCallback, OptimizerCallback
+from catalyst.dl import SupervisedRunner, EarlyStoppingCallback, CriterionCallback
 from catalyst.utils import load_checkpoint, unpack_checkpoint
 from pytorch_toolbelt.utils import fs
 from pytorch_toolbelt.utils.catalyst import ShowPolarBatchesCallback, ConfusionMatrixCallback
@@ -17,7 +18,7 @@ from pytorch_toolbelt.utils.torch_utils import count_parameters, \
     set_trainable
 
 from retinopathy.callbacks import CappaScoreCallback, MixupSameLabelCallback, UnsupervisedCriterionCallback, \
-    NegativeMiningCallback, CustomAccuracyCallback, LinearWeightDecayCallback, L2RegularizationCallback, CustomOptimizerCallback, L1RegularizationCallback
+    NegativeMiningCallback, CustomAccuracyCallback, L2RegularizationCallback, CustomOptimizerCallback, L1RegularizationCallback
 from retinopathy.dataset import get_class_names, \
     get_datasets, get_dataloaders, UNLABELED_CLASS
 from retinopathy.factory import get_model, get_loss, get_optimizer, \
@@ -43,7 +44,7 @@ def main():
     parser.add_argument('-v', '--verbose', action='store_true')
     parser.add_argument('-acc', '--accumulation-steps', type=int, default=1, help='Number of batches to process')
     parser.add_argument('-dd', '--data-dir', type=str, default='data', help='Data directory')
-    parser.add_argument('-m', '--model', type=str, default='cls_resnet18', help='')
+    parser.add_argument('-m', '--model', type=str, default='resnet18_gap', help='')
     parser.add_argument('-b', '--batch-size', type=int, default=8, help='Batch Size during training, e.g. -b 64')
     parser.add_argument('-e', '--epochs', type=int, default=100, help='Epoch to run')
     parser.add_argument('-es', '--early-stopping', type=int, default=None,
@@ -51,8 +52,8 @@ def main():
     parser.add_argument('-f', '--fold', action='append', type=int, default=None)
     parser.add_argument('-fe', '--freeze-encoder', action='store_true')
     parser.add_argument('-lr', '--learning-rate', type=float, default=1e-4, help='Initial learning rate')
-    parser.add_argument('-l', '--criterion', type=str, default='ce', help='Criterion')
-
+    parser.add_argument('--criterion-reg', type=str, default=None, help='Criterion')
+    parser.add_argument('--criterion-cls', type=str, default='ce', help='Criterion')
     parser.add_argument('-l1', type=float, default=0, help='L1 regularization loss')
     parser.add_argument('-l2', type=float, default=0, help='L2 regularization loss')
     parser.add_argument('-o', '--optimizer', default='Adam', help='Name of the optimizer')
@@ -62,7 +63,7 @@ def main():
     parser.add_argument('-w', '--workers', default=multiprocessing.cpu_count(), type=int, help='Num workers')
     parser.add_argument('-a', '--augmentations', default='medium', type=str, help='')
     parser.add_argument('-tta', '--tta', default=None, type=str, help='Type of TTA to use [fliplr, d4]')
-    parser.add_argument('--transfer', default=None, type=str, help='')
+    parser.add_argument('-t', '--transfer', default=None, type=str, help='')
     parser.add_argument('--fp16', action='store_true')
     parser.add_argument('-s', '--scheduler', default='multistep', type=str, help='')
     parser.add_argument('--size', default=512, type=int, help='Image size for training & inference')
@@ -92,7 +93,8 @@ def main():
     augmentations = args.augmentations
     fp16 = args.fp16
     freeze_encoder = args.freeze_encoder
-    criterion_name = args.criterion
+    criterion_reg_name = args.criterion_reg
+    criterion_cls_name = args.criterion_cls
     folds = args.fold
     mixup = args.mixup
     balance = args.balance
@@ -116,13 +118,15 @@ def main():
     assert use_aptos2015 or use_aptos2019 or use_idrid or use_messidor
 
     current_time = datetime.now().strftime('%b%d_%H_%M')
+    random_name = get_random_name()
 
     if folds is None or len(folds) == 0:
         folds = [None]
 
     for fold in folds:
         torch.cuda.empty_cache()
-        checkpoint_prefix = f'{model_name}_{args.size}_{augmentations}_{criterion_name}'
+        checkpoint_prefix = f'{model_name}_{args.size}_{augmentations}'
+        directory_prefix = f'{current_time}/{model_name}/{random_name}'
 
         if preprocessing is not None:
             checkpoint_prefix += f'_{preprocessing}'
@@ -138,11 +142,20 @@ def main():
             checkpoint_prefix += '_unsup'
         if fold is not None:
             checkpoint_prefix += f'_fold{fold}'
+            directory_prefix += f'/fold{fold}'
 
-        checkpoint_prefix += f'_{get_random_name()}'
+        checkpoint_prefix += f'_{random_name}'
 
         if experiment is not None:
             checkpoint_prefix = experiment
+
+        log_dir = os.path.join('runs', directory_prefix)
+        os.makedirs(log_dir, exist_ok=False)
+
+        config_fname = os.path.join(log_dir, f'{checkpoint_prefix}.json')
+        with open(config_fname, 'w') as f:
+            train_session_args = vars(args)
+            f.write(json.dumps(train_session_args, indent=2))
 
         set_manual_seed(args.seed)
         model = get_model(model_name, num_classes=len(get_class_names()), dropout=dropout).cuda()
@@ -211,20 +224,9 @@ def main():
                                                      balance_datasets=balance_datasets,
                                                      balance_unlabeled=use_unsupervised)
 
-        if use_swa:
-            from torchcontrib.optim import SWA
-            optimizer = SWA(optimizer,
-                            swa_start=len(train_loader),
-                            swa_freq=512)
-
         loaders = collections.OrderedDict()
         loaders["train"] = train_loader
         loaders["valid"] = valid_loader
-
-        prefix = f'cls/{model_name}/{current_time}/{checkpoint_prefix}'
-
-        log_dir = os.path.join('runs', prefix)
-        os.makedirs(log_dir, exist_ok=False)
 
         print('Datasets         :', data_dir)
         print('  Train size     :', len(train_loader), len(train_loader.dataset))
@@ -234,7 +236,7 @@ def main():
         print('  IDRID          :', use_idrid)
         print('  Messidor       :', use_messidor)
         print('  Unsupervised   :', use_unsupervised)
-        print('Train session    :', prefix)
+        print('Train session    :', directory_prefix)
         print('  FP16 mode      :', fp16)
         print('  Fast mode      :', fast)
         print('  Mixup          :', mixup)
@@ -254,7 +256,8 @@ def main():
         print('Optimizer        :', optimizer_name)
         print('  Learning rate  :', learning_rate)
         print('  Batch size     :', batch_size)
-        print('  Criterion      :', criterion_name)
+        print('  Criterion (cls):', criterion_cls_name)
+        print('  Criterion (reg):', criterion_reg_name)
         print('  Scheduler      :', scheduler_name)
         print('  Weight decay   :', weight_decay, weight_decay_step)
         print('  L1 reg.        :', l1)
@@ -266,24 +269,31 @@ def main():
                                    class_names=get_class_names())
 
         criterion = {
-            'classification': get_loss(criterion_name, ignore_index=UNLABELED_CLASS),
-            'regression': get_loss('wing_loss', ignore_index=UNLABELED_CLASS)
+            'classification': get_loss(criterion_cls_name, ignore_index=UNLABELED_CLASS),
         }
 
         if mixup:
             callbacks = [MixupSameLabelCallback(fields=['image'])]
         else:
-            callbacks = [
-                # Classification loss is main
-                CriterionCallback(prefix='cls', loss_key='cls',
-                                  output_key='logits',
-                                  criterion_key='classification',
-                                  multiplier=1.0),
+            callbacks = [CriterionCallback(prefix='cls', loss_key='cls',
+                                           output_key='logits',
+                                           criterion_key='classification',
+                                           multiplier=1.0)]
+
+        if criterion_reg_name is not None:
+            criterion['regression'] = get_loss(criterion_reg_name, ignore_index=UNLABELED_CLASS)
+            callbacks += [
                 # Regression loss is complementary
-                # CriterionCallback(prefix='reg', loss_key='reg',
-                #                   output_key='regression',
-                #                   criterion_key='regression',
-                #                   multiplier=0.5),
+                CriterionCallback(prefix='reg', loss_key='reg',
+                                  output_key='regression',
+                                  criterion_key='regression',
+                                  multiplier=0.5),
+                # If we are optimizing regression, compute kappa score for it
+                CappaScoreCallback(prefix='kappa_score_reg',
+                                   output_key='regression',
+                                   ignore_index=UNLABELED_CLASS,
+                                   class_names=get_class_names(),
+                                   from_regression=True)
             ]
 
         callbacks += [
@@ -298,6 +308,7 @@ def main():
         ]
 
         runner = SupervisedRunner(input_key='image')
+
         # Pretrain/warmup
         if warmup:
             set_trainable(model.encoder, False, False)
@@ -347,6 +358,12 @@ def main():
                                   learning_rate=learning_rate,
                                   weight_decay=weight_decay)
 
+        if use_swa:
+            from torchcontrib.optim import SWA
+            optimizer = SWA(optimizer,
+                            swa_start=len(train_loader),
+                            swa_freq=512)
+
         if l1 > 0:
             callbacks += [L1RegularizationCallback(multiplier=l1, loss_key='l1')]
 
@@ -385,9 +402,9 @@ def main():
 
         del runner, callbacks, loaders, optimizer, model, criterion, scheduler
 
-        best__checkpoint = os.path.join(log_dir, 'checkpoints', 'best.pth')
+        best_checkpoint = os.path.join(log_dir, 'checkpoints', 'best.pth')
         model_checkpoint = os.path.join(log_dir, 'checkpoints', f'{checkpoint_prefix}.pth')
-        clean_checkpoint(best__checkpoint, model_checkpoint)
+        clean_checkpoint(best_checkpoint, model_checkpoint)
 
 
 if __name__ == '__main__':

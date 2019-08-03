@@ -20,6 +20,7 @@ from torch.nn import Module, Parameter
 
 from retinopathy.models.ordinal import LogisticCumulativeLink
 from retinopathy.models.regression import regression_to_class
+from retinopathy.rounder import OptimizedRounder
 
 
 def cohen_kappa_score(y1, y2, labels=None, weights=None, sample_weight=None):
@@ -178,13 +179,7 @@ class CappaScoreCallback(Callback):
     def on_batch_end(self, state: RunnerState):
 
         targets = to_numpy(state.input[self.input_key].detach())
-
-        outputs = state.output[self.output_key].detach()
-        if self.from_regression:
-            outputs = to_numpy(regression_to_class(outputs))
-        else:
-            outputs = to_numpy(outputs)
-            outputs = np.argmax(outputs, axis=1)
+        outputs = to_numpy(state.output[self.output_key].detach())
 
         if self.ignore_index is not None:
             mask = targets != self.ignore_index
@@ -195,8 +190,22 @@ class CappaScoreCallback(Callback):
         self.predictions.extend(outputs)
 
     def on_loader_end(self, state):
-        score, num, denom = cohen_kappa_score(self.predictions, self.targets, weights='quadratic')
-        state.metrics.epoch_values[state.loader_name][self.prefix] = score
+        predictions = to_numpy(self.predictions)
+
+        if self.from_regression:
+            rounder = OptimizedRounder()
+            coeff = rounder.fit(predictions, self.targets)
+            optimized_predictions = rounder.predict(predictions, coeff)
+            predictions = regression_to_class(predictions)
+
+            self._log(state, self.prefix + "_opt", optimized_predictions, self.targets)
+        else:
+            predictions = np.argmax(predictions, axis=1)
+
+        self._log(state, self.prefix, predictions, self.targets)
+
+    def _log(self, state, prefix, predictions, targets):
+        score, num, denom = cohen_kappa_score(predictions, targets, weights='quadratic')
 
         if self.class_names is None:
             class_names = [str(i) for i in range(num.shape[1])]
@@ -219,8 +228,9 @@ class CappaScoreCallback(Callback):
         denom_fig = render_figure_to_tensor(denom_fig)
 
         logger = get_tensorboard_logger(state)
-        logger.add_image(f'{self.prefix}/epoch/num', num_fig, global_step=state.step)
-        logger.add_image(f'{self.prefix}/epoch/denom', denom_fig, global_step=state.step)
+        logger.add_image(f'{prefix}/epoch/num', num_fig, global_step=state.step)
+        logger.add_image(f'{prefix}/epoch/denom', denom_fig, global_step=state.step)
+        state.metrics.epoch_values[state.loader_name][prefix] = score
 
 
 def custom_accuracy_fn(outputs, targets, from_regression=False, ignore_index=None):
@@ -671,7 +681,6 @@ class L1RegularizationCallback(CriterionCallback):
             self.prefix: l1_reg.item(),
         })
         self._add_loss_to_state(state, l1_reg)
-
 
 
 class AscensionCallback(Callback):

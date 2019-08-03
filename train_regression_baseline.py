@@ -2,6 +2,7 @@ from __future__ import absolute_import
 
 import argparse
 import collections
+import json
 import multiprocessing
 import os
 from datetime import datetime
@@ -45,7 +46,7 @@ def main():
     parser.add_argument('-v', '--verbose', action='store_true')
     parser.add_argument('-acc', '--accumulation-steps', type=int, default=1, help='Number of batches to process')
     parser.add_argument('-dd', '--data-dir', type=str, default='data', help='Data directory')
-    parser.add_argument('-m', '--model', type=str, default='reg_resnet18', help='')
+    parser.add_argument('-m', '--model', type=str, default='resnet18_gap', help='')
     parser.add_argument('-b', '--batch-size', type=int, default=8, help='Batch Size during training, e.g. -b 64')
     parser.add_argument('-e', '--epochs', type=int, default=100, help='Epoch to run')
     parser.add_argument('-es', '--early-stopping', type=int, default=None,
@@ -53,8 +54,8 @@ def main():
     parser.add_argument('-f', '--fold', action='append', type=int, default=None)
     parser.add_argument('-fe', '--freeze-encoder', action='store_true')
     parser.add_argument('-lr', '--learning-rate', type=float, default=1e-4, help='Initial learning rate')
-    parser.add_argument('-l', '--criterion', type=str, default='mse', help='Criterion')
-
+    parser.add_argument('--criterion-reg', type=str, default='mse', help='Criterion')
+    parser.add_argument('--criterion-cls', type=str, default=None, help='Criterion')
     parser.add_argument('-l1', type=float, default=0, help='L1 regularization loss')
     parser.add_argument('-l2', type=float, default=0, help='L2 regularization loss')
     parser.add_argument('-o', '--optimizer', default='Adam', help='Name of the optimizer')
@@ -64,7 +65,7 @@ def main():
     parser.add_argument('-w', '--workers', default=multiprocessing.cpu_count(), type=int, help='Num workers')
     parser.add_argument('-a', '--augmentations', default='medium', type=str, help='')
     parser.add_argument('-tta', '--tta', default=None, type=str, help='Type of TTA to use [fliplr, d4]')
-    parser.add_argument('--transfer', default=None, type=str, help='')
+    parser.add_argument('-t', '--transfer', default=None, type=str, help='')
     parser.add_argument('--fp16', action='store_true')
     parser.add_argument('-s', '--scheduler', default='multistep', type=str, help='')
     parser.add_argument('--size', default=512, type=int, help='Image size for training & inference')
@@ -76,7 +77,6 @@ def main():
                         help='Number of warmup epochs with 0.1 of the initial LR and frozed encoder')
     parser.add_argument('-x', '--experiment', default=None, type=str, help='Dropout before head layer')
 
-    # CheckpointCallback
     # '--use-messidor --use-aptos2019 --use-idrid'
     args = parser.parse_args()
 
@@ -95,7 +95,8 @@ def main():
     augmentations = args.augmentations
     fp16 = args.fp16
     freeze_encoder = args.freeze_encoder
-    criterion_name = args.criterion
+    criterion_reg_name = args.criterion_reg
+    criterion_cls_name = args.criterion_cls
     folds = args.fold
     mixup = args.mixup
     balance = args.balance
@@ -119,13 +120,15 @@ def main():
     assert use_aptos2015 or use_aptos2019 or use_idrid or use_messidor
 
     current_time = datetime.now().strftime('%b%d_%H_%M')
+    random_name = get_random_name()
 
     if folds is None or len(folds) == 0:
         folds = [None]
 
     for fold in folds:
         torch.cuda.empty_cache()
-        checkpoint_prefix = f'{model_name}_{args.size}_{augmentations}_{criterion_name}'
+        checkpoint_prefix = f'{model_name}_{args.size}_{augmentations}'
+        directory_prefix = f'{current_time}/{model_name}/{random_name}'
 
         if preprocessing is not None:
             checkpoint_prefix += f'_{preprocessing}'
@@ -141,11 +144,20 @@ def main():
             checkpoint_prefix += '_unsup'
         if fold is not None:
             checkpoint_prefix += f'_fold{fold}'
+            directory_prefix += f'/fold{fold}'
 
-        checkpoint_prefix += f'_{get_random_name()}'
+        checkpoint_prefix += f'_{random_name}'
 
         if experiment is not None:
             checkpoint_prefix = experiment
+
+        log_dir = os.path.join('runs', directory_prefix)
+        os.makedirs(log_dir, exist_ok=False)
+
+        config_fname = os.path.join(log_dir, f'{checkpoint_prefix}.json')
+        with open(config_fname, 'w') as f:
+            train_session_args = vars(args)
+            f.write(json.dumps(train_session_args, indent=2))
 
         set_manual_seed(args.seed)
         model = get_model(model_name, num_classes=len(get_class_names()), dropout=dropout).cuda()
@@ -214,20 +226,9 @@ def main():
                                                      balance_datasets=balance_datasets,
                                                      balance_unlabeled=use_unsupervised)
 
-        if use_swa:
-            from torchcontrib.optim import SWA
-            optimizer = SWA(optimizer,
-                            swa_start=len(train_loader),
-                            swa_freq=512)
-
         loaders = collections.OrderedDict()
         loaders["train"] = train_loader
         loaders["valid"] = valid_loader
-
-        prefix = f'reg/{model_name}/{current_time}/{checkpoint_prefix}'
-
-        log_dir = os.path.join('runs', prefix)
-        os.makedirs(log_dir, exist_ok=False)
 
         print('Datasets         :', data_dir)
         print('  Train size     :', len(train_loader), len(train_loader.dataset))
@@ -237,7 +238,7 @@ def main():
         print('  IDRID          :', use_idrid)
         print('  Messidor       :', use_messidor)
         print('  Unsupervised   :', use_unsupervised)
-        print('Train session    :', prefix)
+        print('Train session    :', directory_prefix)
         print('  FP16 mode      :', fp16)
         print('  Fast mode      :', fast)
         print('  Mixup          :', mixup)
@@ -257,7 +258,8 @@ def main():
         print('Optimizer        :', optimizer_name)
         print('  Learning rate  :', learning_rate)
         print('  Batch size     :', batch_size)
-        print('  Criterion      :', criterion_name)
+        print('  Criterion (cls):', criterion_cls_name)
+        print('  Criterion (reg):', criterion_reg_name)
         print('  Scheduler      :', scheduler_name)
         print('  Weight decay   :', weight_decay, weight_decay_step)
         print('  L1 reg.        :', l1)
@@ -269,8 +271,7 @@ def main():
                                    class_names=get_class_names())
 
         criterion = {
-            'classification': get_loss('soft_ce', ignore_index=UNLABELED_CLASS),
-            'regression': get_loss(criterion_name, ignore_index=UNLABELED_CLASS)
+            'regression': get_loss(criterion_reg_name, ignore_index=UNLABELED_CLASS)
         }
 
         if mixup:
@@ -281,131 +282,142 @@ def main():
                                                  criterion_key='regression',
                                                  multiplier=1.0)]
         else:
-            callbacks = [
-                # Regression loss is main
-                CriterionCallback(prefix='reg', loss_key='reg',
+            callbacks = [CriterionCallback(prefix='reg', loss_key='reg',
                                   output_key='regression',
                                   criterion_key='regression',
-                                  multiplier=1.0),
-                # Classification loss is complementary
-                # CriterionCallback(prefix='cls', loss_key='cls',
-                #                   output_key='logits',
-                #                   criterion_key='classification',
-                #                   multiplier=0.5)
-            ]
+                                  multiplier=1.0)]
 
+        if criterion_cls_name is not None:
+            criterion['classification'] = get_loss(criterion_cls_name, ignore_index=UNLABELED_CLASS)
             callbacks += [
-                CustomAccuracyCallback(output_key='regression',
-                                       from_regression=True,
-                                       ignore_index=UNLABELED_CLASS),
-                CappaScoreCallback(prefix='kappa_score',
-                                   output_key='regression',
-                                   ignore_index=UNLABELED_CLASS,
-                                   class_names=get_class_names(),
-                                   from_regression=True),
-                CappaScoreCallback(prefix='kappa_score_aux',
+                CriterionCallback(prefix='cls', loss_key='cls',
+                                  output_key='logits',
+                                  criterion_key='classification',
+                                  multiplier=0.5),
+                CappaScoreCallback(prefix='kappa_score_cls',
                                    output_key='logits',
                                    ignore_index=UNLABELED_CLASS,
-                                   class_names=get_class_names(),
-                                   from_regression=False),
-
-                ConfusionMatrixCallbackFromRegression(output_key='regression',
-                                                      class_names=get_class_names(),
-                                                      ignore_index=UNLABELED_CLASS),
-                NegativeMiningCallback(from_regression=True, output_key='regression', ignore_index=UNLABELED_CLASS),
+                                   class_names=get_class_names())
             ]
 
-    runner = SupervisedRunner(input_key='image')
-    # Pretrain/warmup
-    if warmup:
-        set_trainable(model.encoder, False, False)
+        callbacks += [
+            CustomAccuracyCallback(output_key='regression',
+                                   from_regression=True,
+                                   ignore_index=UNLABELED_CLASS),
+            CappaScoreCallback(prefix='kappa_score',
+                               output_key='regression',
+                               ignore_index=UNLABELED_CLASS,
+                               class_names=get_class_names(),
+                               from_regression=True),
+            CappaScoreCallback(prefix='kappa_score_aux',
+                               output_key='logits',
+                               ignore_index=UNLABELED_CLASS,
+                               class_names=get_class_names(),
+                               from_regression=False),
+
+            ConfusionMatrixCallbackFromRegression(output_key='regression',
+                                                  class_names=get_class_names(),
+                                                  ignore_index=UNLABELED_CLASS),
+            NegativeMiningCallback(from_regression=True, output_key='regression', ignore_index=UNLABELED_CLASS),
+        ]
+
+        runner = SupervisedRunner(input_key='image')
+        # Pretrain/warmup
+        if warmup:
+            set_trainable(model.encoder, False, False)
+            optimizer = get_optimizer(optimizer_name, get_optimizable_parameters(model),
+                                      learning_rate=learning_rate,
+                                      weight_decay=weight_decay)
+
+            runner.train(
+                fp16=fp16,
+                model=model,
+                criterion=criterion,
+                optimizer=optimizer,
+                scheduler=None,
+                callbacks=callbacks,
+                loaders=loaders,
+                logdir=os.path.join(log_dir, 'warmup'),
+                num_epochs=warmup,
+                verbose=verbose,
+                main_metric='kappa_score',
+                minimize_metric=False,
+                checkpoint_data={"cmd_args": vars(args)}
+            )
+
+            del optimizer
+
+        if early_stopping:
+            callbacks += [
+                EarlyStoppingCallback(early_stopping, metric='kappa_score',
+                                      minimize=False)]
+
+        if show_batches:
+            callbacks += [
+                ShowPolarBatchesCallback(visualization_fn, metric='accuracy',
+                                         minimize=False)]
+
+        if use_unsupervised:
+            callbacks += [
+                UnsupervisedCriterionCallback(prefix='unsupervised', loss_key='unsupervised',
+                                              unsupervised_label=UNLABELED_CLASS)]
+
+        # Main train
+        set_trainable(model.encoder, True, False)
+        if freeze_encoder:
+            set_trainable(model.encoder, trainable=False, freeze_bn=False)
+
         optimizer = get_optimizer(optimizer_name, get_optimizable_parameters(model),
                                   learning_rate=learning_rate,
                                   weight_decay=weight_decay)
+
+        if use_swa:
+            from torchcontrib.optim import SWA
+            optimizer = SWA(optimizer,
+                            swa_start=len(train_loader),
+                            swa_freq=512)
+
+        if l1 > 0:
+            callbacks += [L1RegularizationCallback(multiplier=l1, loss_key='l1')]
+
+        if l2 > 0:
+            callbacks += [L2RegularizationCallback(multiplier=l2, loss_key='l2')]
+
+        callbacks += [CustomOptimizerCallback()]
+
+        scheduler = get_scheduler(scheduler_name, optimizer,
+                                  lr=learning_rate,
+                                  num_epochs=num_epochs,
+                                  batches_in_epoch=len(train_loader))
+
+        if checkpoint is not None:
+            try:
+                unpack_checkpoint(checkpoint, optimizer=optimizer)
+                print('Restored optimizer state from checkpoint')
+            except Exception as e:
+                print('Failed to restore optimizer state from checkpoint', e)
 
         runner.train(
             fp16=fp16,
             model=model,
             criterion=criterion,
             optimizer=optimizer,
-            scheduler=None,
+            scheduler=scheduler,
             callbacks=callbacks,
             loaders=loaders,
-            logdir=os.path.join(log_dir, 'warmup'),
-            num_epochs=warmup,
+            logdir=log_dir,
+            num_epochs=num_epochs,
             verbose=verbose,
             main_metric='kappa_score',
             minimize_metric=False,
             checkpoint_data={"cmd_args": vars(args)}
         )
 
-        del optimizer
+        del runner, callbacks, loaders, optimizer, model, criterion, scheduler
 
-    if early_stopping:
-        callbacks += [
-            EarlyStoppingCallback(early_stopping, metric='kappa_score',
-                                  minimize=False)]
-
-    if show_batches:
-        callbacks += [
-            ShowPolarBatchesCallback(visualization_fn, metric='accuracy',
-                                     minimize=False)]
-
-    if use_unsupervised:
-        callbacks += [
-            UnsupervisedCriterionCallback(prefix='unsupervised', loss_key='unsupervised',
-                                          unsupervised_label=UNLABELED_CLASS)]
-
-    # Main train
-    set_trainable(model.encoder, True, False)
-    if freeze_encoder:
-        set_trainable(model.encoder, trainable=False, freeze_bn=False)
-
-    optimizer = get_optimizer(optimizer_name, get_optimizable_parameters(model),
-                              learning_rate=learning_rate,
-                              weight_decay=weight_decay)
-
-    if l1 > 0:
-        callbacks += [L1RegularizationCallback(multiplier=l1, loss_key='l1')]
-
-    if l2 > 0:
-        callbacks += [L2RegularizationCallback(multiplier=l2, loss_key='l2')]
-
-    callbacks += [CustomOptimizerCallback()]
-
-    scheduler = get_scheduler(scheduler_name, optimizer,
-                              lr=learning_rate,
-                              num_epochs=num_epochs,
-                              batches_in_epoch=len(train_loader))
-
-    if checkpoint is not None:
-        try:
-            unpack_checkpoint(checkpoint, optimizer=optimizer)
-            print('Restored optimizer state from checkpoint')
-        except Exception as e:
-            print('Failed to restore optimizer state from checkpoint', e)
-
-    runner.train(
-        fp16=fp16,
-        model=model,
-        criterion=criterion,
-        optimizer=optimizer,
-        scheduler=scheduler,
-        callbacks=callbacks,
-        loaders=loaders,
-        logdir=log_dir,
-        num_epochs=num_epochs,
-        verbose=verbose,
-        main_metric='kappa_score',
-        minimize_metric=False,
-        checkpoint_data={"cmd_args": vars(args)}
-    )
-
-    del runner, callbacks, loaders, optimizer, model, criterion, scheduler
-
-    best__checkpoint = os.path.join(log_dir, 'checkpoints', 'best.pth')
-    model_checkpoint = os.path.join(log_dir, 'checkpoints', f'{checkpoint_prefix}.pth')
-    clean_checkpoint(best__checkpoint, model_checkpoint)
+        best_checkpoint = os.path.join(log_dir, 'checkpoints', 'best.pth')
+        model_checkpoint = os.path.join(log_dir, 'checkpoints', f'{checkpoint_prefix}.pth')
+        clean_checkpoint(best_checkpoint, model_checkpoint)
 
 
 if __name__ == '__main__':
