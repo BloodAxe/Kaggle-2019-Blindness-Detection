@@ -158,6 +158,14 @@ class RetinopathyDatasetV2(Dataset):
         return data
 
 
+def count_targets(targets):
+    counts = []
+    for i in range(len(get_class_names())):
+        counts.append(int((targets == i).sum()))
+
+    return counts
+
+
 def get_aptos2019(data_dir,
                   random_state=42,
                   fold=None,
@@ -195,6 +203,7 @@ def get_aptos2019(data_dir,
                                                               shuffle=True,
                                                               stratify=y)
 
+    print('Aptos 2019', count_targets(train_x), count_targets(valid_y))
     return train_x, valid_x, train_y, valid_y
 
 
@@ -268,6 +277,7 @@ def get_aptos2015(dataset_dir,
                                                               shuffle=True,
                                                               stratify=y)
 
+    print('Aptos 2015', count_targets(train_x), count_targets(valid_y))
     return train_x, valid_x, train_y, valid_y
 
 
@@ -309,6 +319,7 @@ def get_idrid(dataset_dir,
         valid_x = np.array(idrid_test['image_path'])
         valid_y = np.array(idrid_test['diagnosis'], dtype=int)
 
+    print('Idrid', count_targets(train_x), count_targets(valid_y))
     return train_x, valid_x, train_y, valid_y
 
 
@@ -344,6 +355,7 @@ def get_messidor(dataset_dir,
                                                               shuffle=True,
                                                               stratify=y)
 
+    print('Messidor', count_targets(train_x), count_targets(valid_y))
     return train_x, valid_x, train_y, valid_y
 
 
@@ -456,456 +468,6 @@ APTOS2019_DUPLICATES = [
 ]
 
 # Here we list what should be ignored
-APTOS2019_MISLABELED_DUPLICATES = [
-
-    # diagnosis                                    path
-    # 2          4.. / input / train_images / 6b00cb764237.png
-    # 3          2.. / input / train_images / 64678182d8a8.png
-    '6b00cb764237'  # Wrong annotation
-
-    # diagnosis                                    path
-    # 4          2.. / input / train_images / 8273fdb4405e.png
-    # 5          1.. / input / train_images / f0098e9d4aee.png
-    # Different images, keep both
-
-    # diagnosis                                    path
-    # 6          2.. / input / train_images / d801c0a66738.png
-    # 7          4.. / input / train_images / 68332fdcaa70.png
-    # IGNORE?
-
-    # diagnosis                                    path
-    # 8          0.. / input / train_images / ba735b286d62.png
-    # 9          4.. / input / train_images / ed3a0fc5b546.png
-    'ba735b286d62',  # Wrong annotation
-
-    # diagnosis                                    path
-    # 10          2.. / input / train_images / 36677b70b1ef.png
-    # 11          0.. / input / train_images / 7bf981d9c7fe.png
-    '7bf981d9c7fe',  # Wrong annotation
-
-    # Need resolve
-    # diagnosis                                    path
-    # 12          3.. / input / train_images / 19e350c7c83c.png
-    # 13          2.. / input / train_images / 19722bff5a09.png
-    # Unclear stage
-
-    # diagnosis                                    path
-    # 14          3.. / input / train_images / 435d900fa7b2.png
-    # 15          0.. / input / train_images / 1006345f70b7.png
-    '1006345f70b7',  # Wrong annotation
-
-    # diagnosis                                    path
-    # 16          2.. / input / train_images / 278aa860dffd.png
-    # 17          0.. / input / train_images / f066db7a2efe.png
-    'f066db7a2efe',  # Wrong annotation
-
-    # diagnosis                                    path
-    # 20          0.. / input / train_images / f4d3777f2710.png
-    # 21          1.. / input / train_images / 5dc23e440de3.png
-    'f4d3777f2710',  # Wrong annotation
-
-    # diagnosis                                    path
-    # 24          1.. / input / train_images / a4012932e18d.png ?!?!?!
-    # 25          0.. / input / train_images / 906d02fb822d.png
-    '906d02fb822d',  # Wrong annotation
-
-    # diagnosis                                    path
-    # 26          4.. / input / train_images / 8fc09fecd22f.png
-    # 27          0.. / input / train_images / d1cad012a254.png
-    '8fc09fecd22f',  # Wrong annotation
-
-    # diagnosis                                    path
-    # 32          2.. / input / train_images / 7a0cff4c24b2.png
-    # 33          0.. / input / train_images / 86baef833ae0.png
-    '86baef833ae0',  # Wrong annotation
-
-    # diagnosis                                    path
-    # 34          0.. / input / train_images / 8ef2eb8c51c4.png
-    # 35          2.. / input / train_images / 8446826853d0.png
-    '8ef2eb8c51c4',  # Wrong annotation
-
-    # Need resolve
-    # diagnosis                                    path
-    # 40          0.. / input / train_images / ca6842bfcbc9.png
-    # 41          3.. / input / train_images / c027e5482e8c.png
-    # 42          2.. / input / train_images / 7a3ea1779b13.png
-    # 43          2.. / input / train_images / a8582e346df0.png
-    'ca6842bfcbc9',  # Blurry
-    'c027e5482e8c',  # Images
-    '7a3ea1779b13',  # Ignore
-    'a8582e346df0',  # Just in case
-
-    # Need resolve
-    # diagnosis                                    path
-    # 44          1.. / input / train_images / 9a3c03a5ad0f.png
-    # 45          0.. / input / train_images / f03d3c4ce7fb.png
-    '9a3c03a5ad0f',  # 3?
-    'f03d3c4ce7fb',  # 3?
-
-    # diagnosis                                    path
-    # 46          0.. / input / train_images / 1a1b4b2450ca.png
-    # 47          3.. / input / train_images / 92b0d27fc0ec.png
-    '1a1b4b2450ca',  # Wrong annotation
-
-    # diagnosis                                    path
-    # 52          0.. / input / train_images / 3c53198519f7.png
-    # 53          1.. / input / train_images / 1c5e6cdc7ee1.png
-    '3c53198519f7',  # Wrong annotation
-
-    # diagnosis                                    path
-    # 62          0.. / input / train_images / 8cb6b0efaaac.png
-    # 63          0.. / input / train_images / 42a850acd2ac.png
-    # 64          4.. / input / train_images / 51131b48f9d4.png
-    '8cb6b0efaaac',  # Wrong annotation
-    '42a850acd2ac',  # Wrong annotation
-
-    # diagnosis                                    path
-    # 65          2.. / input / train_images / 4a44cc840ebe.png
-    # 66          0.. / input / train_images / 0cb14014117d.png
-    '0cb14014117d',  # Wrong annotation
-
-    # diagnosis                                    path
-    # 69          0.. / input / train_images / 29f44aea93a4.png
-    # 70          2.. / input / train_images / 7e6e90a93aa5.png
-    # Corrected
-
-    # TODO: Need resolve
-    # diagnosis                                    path
-    # 71          2.. / input / train_images / 7b691d9ced34.png
-    # 72          4.. / input / train_images / d51c2153d151.png
-
-    # diagnosis                                    path
-    # 73          2.. / input / train_images / 9bf060db8376.png
-    # 74          0.. / input / train_images / 4fecf87184e6.png
-    # 75          0.. / input / train_images / f7edc074f06b.png
-    '4fecf87184e6',  # Wrong annotation
-    'f7edc074f06b',  # Wrong annotation
-
-    # diagnosis                                    path
-    # 76          0.. / input / train_images / aca88f566228.png
-    # 77          2.. / input / train_images / c05b7b4c22fe.png
-    'aca88f566228',  # Wrong annotation
-
-    # Need resolve
-    # diagnosis                                    path
-    # 78          2.. / input / train_images / 878a3a097436.png
-    # 79          0.. / input / train_images / 80feb1f7ca5e.png
-
-    # Need resolve
-    # diagnosis                                    path
-    # 80          1.. / input / train_images / 46cdc8b685bd.png
-    # 81          0.. / input / train_images / e4151feb8443.png
-    'e4151feb8443',
-
-    # diagnosis                                    path
-    # 82          2.. / input / train_images / ea9e0fb6fb0b.png
-    # 83          0.. / input / train_images / 23d7ca170bdb.png
-    '23d7ca170bdb',
-
-    # diagnosis                                    path
-    # 84          4.. / input / train_images / 3dbfbc11e105.png
-    # 85          0.. / input / train_images / d0079cc188e9.png
-    'd0079cc188e9',  # Wrong annotation
-
-    # diagnosis                                    path
-    # 88          4.. / input / train_images / 4d9fc85a8259.png
-    # 89          0.. / input / train_images / 16ce555748d8.png
-    '16ce555748d8',
-
-    # Need resolve
-    # diagnosis                                    path
-    # 90          1.. / input / train_images / 79ce83c07588.png
-    # 91          0.. / input / train_images / 71c1a3cdbe47.png
-
-    # diagnosis                                    path
-    # 94          1.. / input / train_images / c8d2d32f7f29.png TODO: Verify grade
-    # 95          0.. / input / train_images / 034cb07a550f.png
-    '034cb07a550f',
-
-    # Need resolve
-    # diagnosis                                    path
-    # 96          4.. / input / train_images / 38fe9f854046.png
-    # 97          2.. / input / train_images / 1dfbede13143.png
-    '38fe9f854046',  # Wrong annotation
-
-    # Need resolve
-    # diagnosis                                    path
-    # 104          0.. / input / train_images / 98e8adcf085c.png
-    # 105          1.. / input / train_images / 026dcd9af143.png
-    # Need resolve
-    # diagnosis                                    path
-    # 108          0.. / input / train_images / e12d41e7b221.png
-    # 109          4.. / input / train_images / bacfb1029f6b.png
-
-    # Need resolve
-    # diagnosis                                    path
-    # 110          0.. / input / train_images / b13d72ceea26.png
-    # 111          2.. / input / train_images / da0a1043abf7.png
-
-    # Need resolve
-    # diagnosis                                    path
-    # 112          1.. / input / train_images / 0c7e82daf5a0.png
-    # 113          2.. / input / train_images / 3e86335bc2fd.png
-
-    # Need resolve
-    # diagnosis                                    path
-    # 114          0.. / input / train_images / 6165081b9021.png
-    # 115          4.. / input / train_images / 42985aa2e32f.png
-
-    # Need resolve
-    # diagnosis                                    path
-    # 116          0.. / input / train_images / 9c5dd3612f0c.png
-    # 117          2.. / input / train_images / c9f0dc2c8b43.png
-    # Need resolve
-    # diagnosis                                    path
-    # 120          0.. / input / train_images / 521d3e264d71.png
-    # 121          4.. / input / train_images / fe0fc67c7980.png
-
-    # Need resolve
-    # diagnosis                                    path
-    # 122          1.. / input / train_images / e8d1c6c07cf2.png
-    # 123          0.. / input / train_images / f23902998c21.png
-
-    # Need resolve
-    # diagnosis                                    path
-    # 124          0.. / input / train_images / 155e2df6bfcf.png
-    # 125          4.. / input / train_images / 415f2d2bd2a1.png
-
-    # Need resolve
-    # diagnosis                                    path
-    # 126          0.. / input / train_images / 9b7b6e4db1d5.png
-    # 127          2.. / input / train_images / 9f4132bd6ed6.png
-    # Need resolve
-    # diagnosis                                    path
-    # 130          0.. / input / train_images / 65e51e18242b.png
-    # 131          1.. / input / train_images / cc12453ea915.png
-    # Need resolve
-    # diagnosis                                    path
-    # 134          4.. / input / train_images / 76095c338728.png
-    # 135          0.. / input / train_images / bd34a0639575.png
-    # 136          2.. / input / train_images / de55ed25e0e8.png
-    # 137          2.. / input / train_images / 84b79243e430.png
-    # Need resolve
-    # diagnosis                                    path
-    # 140          2.. / input / train_images / ff0740cb484a.png
-    # 141          0.. / input / train_images / b8ac328009e0.png
-    # Need resolve
-    # diagnosis                                    path
-    # 142          3.. / input / train_images / b9127e38d9b9.png
-    # 143          0.. / input / train_images / e39b627cf648.png
-    # Need resolve
-    # diagnosis                                    path
-    # 144          3.. / input / train_images / f1a761c68559.png
-    # 145          0.. / input / train_images / ff52392372d3.png
-    # Need resolve
-    # diagnosis                                    path
-    # 146          2.. / input / train_images / 36ec36c301c1.png
-    # 147          0.. / input / train_images / 26e231747848.png
-    # Need resolve
-    # diagnosis                                    path
-    # 150          1.. / input / train_images / 0dce95217626.png
-    # 151          4.. / input / train_images / 94372043d55b.png
-    # Need resolve
-    # diagnosis                                    path
-    # 154          1.. / input / train_images / badb5ff8d3c7.png
-    # 155          0.. / input / train_images / 2923971566fe.png
-    # Need resolve
-    # diagnosis                                    path
-    # 156          2.. / input / train_images / 33778d136069.png
-    # 157          3.. / input / train_images / 4ccfa0b4e96c.png
-    # Need resolve
-    # diagnosis                                    path
-    # 160          2.. / input / train_images / 86b3a7929bec.png
-    # 161          0.. / input / train_images / 1b4625877527.png
-    # Need resolve
-    # diagnosis                                    path
-    # 162          1.. / input / train_images / 43fb6eda9b97.png
-    # 163          0.. / input / train_images / e4e343eaae2a.png
-    # Need resolve
-    # diagnosis                                    path
-    # 166          2.. / input / train_images / 135575dc57c9.png
-    # 167          1.. / input / train_images / 2c2aa057afc5.png
-    # Need resolve
-    # diagnosis                                    path
-    # 168          3.. / input / train_images / 40e9b5630438.png
-    # 169          1.. / input / train_images / 77a9538b8362.png
-    # Need resolve
-    # diagnosis                                    path
-    # 170          0.. / input / train_images / a8b637abd96b.png
-    # 171          2.. / input / train_images / e2c3b037413b.png
-    # Need resolve
-    # diagnosis                                    path
-    # 172          0.. / input / train_images / 1b862fb6f65d.png
-    # 173          2.. / input / train_images / 0a4e1a29ffff.png
-    # Need resolve
-    # diagnosis                                    path
-    # 174          0.. / input / train_images / bf7b4eae7ad0.png
-    # 175          4.. / input / train_images / 496155f71d0a.png
-    # Need resolve
-    # diagnosis                                    path
-    # 176          4.. / input / train_images / 81914ceb4e74.png
-    # 177          0.. / input / train_images / d6b109c82067.png
-    # 178          0.. / input / train_images / 1b398c0494d1.png
-    # Need resolve
-    # diagnosis                                    path
-    # 179          2.. / input / train_images / 11242a67122d.png
-    # 180          0.. / input / train_images / 65c958379680.png
-    # Need resolve
-    # diagnosis                                    path
-    # 181          1.. / input / train_images / ea15a290eb96.png
-    # 182          0.. / input / train_images / 1c9c583c10bf.png
-    # Need resolve
-    # diagnosis                                    path
-    # 185          0.. / input / train_images / 668a319c2d23.png
-    # 186          2.. / input / train_images / 4d167ca69ea8.png
-    # Need resolve
-    # diagnosis                                    path
-    # 189          0.. / input / train_images / 7525ebb3434d.png
-    # 190          2.. / input / train_images / 3cd801ffdbf0.png
-    # Need resolve
-    # diagnosis                                    path
-    # 191          2.. / input / train_images / 1ee1eb7943db.png
-    # 192          0.. / input / train_images / c2d2b4f536da.png
-    # Need resolve
-    # diagnosis                                    path
-    # 193          0.. / input / train_images / 857002ed4e49.png
-    # 194          2.. / input / train_images / 840527bc6628.png
-    # Need resolve
-    # diagnosis                                    path
-    # 195          1.. / input / train_images / a3b2e93d058b.png
-    # 196          0.. / input / train_images / 3fd7df6099e3.png
-    # Need resolve
-    # diagnosis                                    path
-    # 201          0.. / input / train_images / c546670d9684.png
-    # 202          2.. / input / train_images / 30cab14951ac.png
-    # Need resolve
-    # diagnosis                                    path
-    # 203          0.. / input / train_images / 60f15dd68d30.png
-    # 204          1.. / input / train_images / 772af553b8b7.png
-    # 205          0.. / input / train_images / fcc6aa6755e6.png
-    # Need resolve
-    # diagnosis                                    path
-    # 206          2.. / input / train_images / 3b018e8b7303.png
-    # 207          1.. / input / train_images / 0243404e8a00.png
-    # 208          0.. / input / train_images / 3ddb86eb530e.png
-    # Need resolve
-    # diagnosis                                    path
-    # 211          0.. / input / train_images / 1e8a1fdee5b9.png
-    # 212          3.. / input / train_images / a47432cd41e7.png
-    # 213          0.. / input / train_images / b8ebedd382de.png
-    # Need resolve
-    # diagnosis                                    path
-    # 214          3.. / input / train_images / 7005be54cab1.png
-    # 215          2.. / input / train_images / 3ee4841936ef.png
-    # Need resolve
-    # diagnosis                                    path
-    # 216          0.. / input / train_images / a7b0d0c51731.png
-    # 217          2.. / input / train_images / 1cb814ed6332.png
-    # Need resolve
-    # diagnosis                                    path
-    # 218          2.. / input / train_images / fea14b3d44b0.png
-    # 219          0.. / input / train_images / 80d24897669f.png
-    # Need resolve
-    # diagnosis                                    path
-    # 222          4.. / input / train_images / 35aa7f5c2ec0.png
-    # 223          0.. / input / train_images / 1c4d87baaffc.png
-    # Need resolve
-    # diagnosis                                    path
-    # 224          0.. / input / train_images / 7e980424868e.png
-    # 225          2.. / input / train_images / b10fca20c885.png
-    # Need resolve
-    # diagnosis                                    path
-    # 226          2.. / input / train_images / 98f7136d2e7a.png
-    # 227          0.. / input / train_images / e740af6ac6ea.png
-    # Need resolve
-    # diagnosis                                    path
-    # 234          0.. / input / train_images / df4913ca3712.png
-    # 235          2.. / input / train_images / d51b3fe0fa1b.png
-    # Need resolve
-    # diagnosis                                    path
-    # 236          0.. / input / train_images / 3ca637fddd56.png
-    # 237          3.. / input / train_images / 3b4a5fcbe5e0.png
-    # Need resolve
-    # diagnosis                                    path
-    # 238          0.. / input / train_images / e037643244b7.png
-    # 239          2.. / input / train_images / 5b76117c4bcb.png
-    # Need resolve
-    # diagnosis                                    path
-    # 240          2.. / input / train_images / 2f7789c1e046.png
-    # 241          1.. / input / train_images / a8e88d4891c4.png
-    # Need resolve
-    # diagnosis                                    path
-    # 242          0.. / input / train_images / 48c49f662f7d.png
-    # 243          1.. / input / train_images / 6cb98da77e3e.png
-    # Need resolve
-    # diagnosis                                    path
-    # 248          2.. / input / train_images / a56230242a95.png
-    # 249          0.. / input / train_images / 1c6d119c3d70.png
-    # Need resolve
-    # diagnosis                                    path
-    # 250          0.. / input / train_images / 9f1efb799b7b.png
-    # 251          2.. / input / train_images / cd4e7f9fa1a9.png
-    # Need resolve
-    # diagnosis                                    path
-    # 252          3.. / input / train_images / 5eb311bcb5f9.png
-    # 253          2.. / input / train_images / a9e984b57556.png
-    # Need resolve
-    # diagnosis                                    path
-    # 254          3.. / input / train_images / ce887b196c23.png
-    # 255          2.. / input / train_images / e7a7187066ad.png
-    # Need resolve
-    # diagnosis                                    path
-    # 256          0.. / input / train_images / 1e143fa3de57.png
-    # 257          2.. / input / train_images / 144b01e7b993.png
-    # Need resolve
-    # diagnosis                                    path
-    # 258          2.. / input / train_images / 8acffaf1f4b9.png
-    # 259          0.. / input / train_images / 1411c8ab7161.png
-    # Need resolve
-    # diagnosis                                    path
-    # 264          4.. / input / train_images / 1638404f385c.png
-    # 265          2.. / input / train_images / 576e189d23d4.png
-    # Need resolve
-    # diagnosis                                    path
-    # 268          0.. / input / train_images / 9f1b14dfa14c.png
-    # 269          2.. / input / train_images / 435414ccccf7.png
-    # Need resolve
-    # diagnosis                                    path
-    # 270          4.. / input / train_images / 6c3745a222da.png
-    # 271          2.. / input / train_images / eadc57064154.png
-    # Need resolve
-    # diagnosis                                    path
-    # 272          4.. / input / train_images / 2b21d293fdf2.png
-    # 273          3.. / input / train_images / 2a3a1ed1c285.png
-    # Need resolve
-    # diagnosis                                    path
-    # 276          1.. / input / train_images / d144144a2f3f.png
-    # 277          2.. / input / train_images / b06dabab4f09.png
-    # Need resolve
-    # diagnosis                                    path
-    # 282          3.. / input / train_images / 80964d8e0863.png
-    # 283          1.. / input / train_images / ab50123abadb.png
-    # Need resolve
-    # diagnosis                                    path
-    # 284          2.. / input / train_images / fda39982a810.png
-    # 285          0.. / input / train_images / 0ac436400db4.png
-    # Need resolve
-    # diagnosis                                    path
-    # 286          0.. / input / train_images / d85ea1220a03.png
-    # 287          0.. / input / train_images / bfefa7344e7d.png
-    # 288          2.. / input / train_images / 8688f3d0fcaf.png
-    # Need resolve
-    # diagnosis                                    path
-    # 293          1.. / input / train_images / e1fb532f55df.png
-    # 294          0.. / input / train_images / b019a49787c1.png
-    # Need resolve
-    # diagnosis                                    path
-    # 295          1.. / input / train_images / cd93a472e5cd.png
-    # 296          0.. / input / train_images / d035c2bd9104.png
-    # 47
-
-]
-
 APTOS2019_MISLABELED_DUPLICATES2 = [
     # Need resolve
     '6b00cb764237',  # 4
@@ -1337,6 +899,14 @@ def get_datasets(
     if use_aptos2015:
         dataset_dir = os.path.join(data_dir, 'aptos-2015')
         tx, vx, ty, vy = get_aptos2015(dataset_dir, random_state, fold, folds)
+
+        if False:
+            # Use only images with decease
+            tx = tx[ty != 0]
+            ty = ty[ty != 0]
+
+            vx = vx[vy != 0]
+            vy = vy[vy != 0]
 
         trainset_sizes.append(len(tx))
         train_x.extend(tx)
