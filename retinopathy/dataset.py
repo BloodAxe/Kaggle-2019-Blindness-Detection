@@ -159,9 +159,10 @@ class RetinopathyDatasetV2(Dataset):
 
 
 def count_targets(targets):
+    targets = np.array(targets)
     counts = []
     for i in range(len(get_class_names())):
-        counts.append(int((targets == i).sum()))
+        counts.append(np.sum(targets == i))
 
     return counts
 
@@ -203,7 +204,7 @@ def get_aptos2019(data_dir,
                                                               shuffle=True,
                                                               stratify=y)
 
-    print('Aptos 2019', count_targets(train_x), count_targets(valid_y))
+    print('Aptos 2019', count_targets(train_y), count_targets(valid_y))
     return train_x, valid_x, train_y, valid_y
 
 
@@ -277,7 +278,7 @@ def get_aptos2015(dataset_dir,
                                                               shuffle=True,
                                                               stratify=y)
 
-    print('Aptos 2015', count_targets(train_x), count_targets(valid_y))
+    print('Aptos 2015', count_targets(train_y), count_targets(valid_y))
     return train_x, valid_x, train_y, valid_y
 
 
@@ -319,7 +320,7 @@ def get_idrid(dataset_dir,
         valid_x = np.array(idrid_test['image_path'])
         valid_y = np.array(idrid_test['diagnosis'], dtype=int)
 
-    print('Idrid', count_targets(train_x), count_targets(valid_y))
+    print('Idrid', count_targets(train_y), count_targets(valid_y))
     return train_x, valid_x, train_y, valid_y
 
 
@@ -355,7 +356,7 @@ def get_messidor(dataset_dir,
                                                               shuffle=True,
                                                               stratify=y)
 
-    print('Messidor', count_targets(train_x), count_targets(valid_y))
+    print('Messidor', count_targets(train_y), count_targets(valid_y))
     return train_x, valid_x, train_y, valid_y
 
 
