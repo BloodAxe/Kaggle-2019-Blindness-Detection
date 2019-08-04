@@ -309,11 +309,6 @@ def main():
                                ignore_index=UNLABELED_CLASS,
                                class_names=get_class_names(),
                                from_regression=True),
-            CappaScoreCallback(prefix='kappa_score_aux',
-                               output_key='logits',
-                               ignore_index=UNLABELED_CLASS,
-                               class_names=get_class_names(),
-                               from_regression=False),
 
             ConfusionMatrixCallbackFromRegression(output_key='regression',
                                                   class_names=get_class_names(),
