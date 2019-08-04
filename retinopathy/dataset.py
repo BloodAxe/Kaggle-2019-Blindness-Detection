@@ -947,6 +947,8 @@ def get_datasets(
                                          preprocessing=preprocessing,
                                          crop_black=False)
 
+    print('Train', count_targets(train_y), "Valid", count_targets(valid_y))
+
     if use_unsupervised:
         dataset_dir = os.path.join(data_dir, 'aptos-2019')
         tx, vx, ty, vy = get_aptos2019_test(dataset_dir, random_state, fold, folds)
