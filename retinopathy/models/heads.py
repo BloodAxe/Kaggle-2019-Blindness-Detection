@@ -96,7 +96,7 @@ class GlobalAvgPoolHead(nn.Module):
 
         # Regression to grade using SSD-like module
         self.regression = nn.Sequential(
-            nn.Conv2d(self.features_size, 16, kernel_size=3, padding=1),
+            nn.Conv2d(self.features_size, 16, kernel_size=1, padding=1),
             nn.ELU(inplace=True),
             nn.Conv2d(16, 16, kernel_size=3, padding=1),
             nn.ELU(inplace=True),
@@ -112,16 +112,16 @@ class GlobalAvgPoolHead(nn.Module):
         # Take last feature map
         features = feature_maps[-1]
 
-        features_dropout = self.dropout(features)
+        features = self.dropout(features)
 
         # Squeeze to num_classes
-        logits = self.bottleneck(features_dropout)
+        logits = self.bottleneck(features)
         # Compute average
         logits = F.adaptive_avg_pool2d(logits, output_size=1)
         # Flatten
         logits = logits.view(logits.size(0), logits.size(1))
 
-        regression = self.regression(features_dropout)
+        regression = self.regression(features)
         if regression.size(1) == 1:
             regression = regression.squeeze(1)
 
