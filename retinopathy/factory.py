@@ -12,6 +12,7 @@ from torchvision.models import densenet169, densenet121, densenet201
 
 from retinopathy.losses import ClippedMSELoss, ClippedWingLoss, CumulativeLinkLoss, LabelSmoothingLoss, \
     SoftCrossEntropyLoss, ClippedHuber, CustomMSE, HybridCappaLoss, FocalLoss, WingLoss
+from retinopathy.models.dilated_senet import DilatedSEResNeXt50Encoder
 from retinopathy.models.heads import EncoderHeadModel, GlobalAvgPoolHead
 from retinopathy.models.inceptionv4 import InceptionV4Encoder
 from retinopathy.opt import Lamb, AdamW, QHAdamW
@@ -68,6 +69,7 @@ def get_model(model_name, num_classes, pretrained=True, dropout=0.0, **kwargs):
         'resnet101': Resnet101Encoder,
         'resnet152': Resnet152Encoder,
         'seresnext50': SEResNeXt50Encoder,
+        'seresnext50d': DilatedSEResNeXt50Encoder,
         'seresnext101': SEResNeXt101Encoder,
         'seresnet152': SEResnet152Encoder,
         'densenet121': DenseNet121Encoder,

@@ -62,7 +62,6 @@ def test_reg_models(model_name):
         assert output['features'].size(1) == 512
 
 
-
 @pytest.mark.parametrize('model_name',
                          [
                              'ord_resnet18_gap',
@@ -82,3 +81,9 @@ def test_ord_models(model_name):
     assert output['features'].size(1) == 512
 
     print(model_name, count_parameters(model))
+
+
+def test_add_dilation():
+    model = get_model('seresnext50_gap', num_classes=5)
+    for name, module in model.encoder.named_modules():
+        print(name)
