@@ -69,7 +69,7 @@ def get_model(model_name, num_classes, pretrained=True, dropout=0.0, **kwargs):
         'resnet101': Resnet101Encoder,
         'resnet152': Resnet152Encoder,
         'seresnext50': SEResNeXt50Encoder,
-        'seresnext50d': DilatedSEResNeXt50Encoder,
+        'seresnext50d': partial(DilatedSEResNeXt50Encoder, dropout=0.25),
         'seresnext101': SEResNeXt101Encoder,
         'seresnet152': SEResnet152Encoder,
         'densenet121': DenseNet121Encoder,
