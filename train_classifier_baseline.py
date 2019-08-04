@@ -18,7 +18,8 @@ from pytorch_toolbelt.utils.torch_utils import count_parameters, \
     set_trainable
 
 from retinopathy.callbacks import CappaScoreCallback, MixupSameLabelCallback, UnsupervisedCriterionCallback, \
-    NegativeMiningCallback, CustomAccuracyCallback, L2RegularizationCallback, CustomOptimizerCallback, L1RegularizationCallback
+    NegativeMiningCallback, CustomAccuracyCallback, L2RegularizationCallback, CustomOptimizerCallback, \
+    L1RegularizationCallback
 from retinopathy.dataset import get_class_names, \
     get_datasets, get_dataloaders, UNLABELED_CLASS
 from retinopathy.factory import get_model, get_loss, get_optimizer, \
@@ -304,7 +305,8 @@ def main():
                                class_names=get_class_names()),
             ConfusionMatrixCallback(class_names=get_class_names(),
                                     ignore_index=UNLABELED_CLASS),
-            NegativeMiningCallback(ignore_index=UNLABELED_CLASS)
+            NegativeMiningCallback(ignore_index=UNLABELED_CLASS),
+            CustomOptimizerCallback()
         ]
 
         runner = SupervisedRunner(input_key='image')
@@ -336,18 +338,17 @@ def main():
 
         if early_stopping:
             callbacks += [
-                EarlyStoppingCallback(early_stopping, metric='kappa_score',
-                                      minimize=False)]
+                EarlyStoppingCallback(early_stopping,
+                                      metric='kappa_score', minimize=False)]
 
         if show_batches:
-            callbacks += [
-                ShowPolarBatchesCallback(visualization_fn, metric='accuracy',
-                                         minimize=False)]
+            callbacks += [ShowPolarBatchesCallback(visualization_fn,
+                                                   metric='accuracy', minimize=False)]
 
         if use_unsupervised:
-            callbacks += [
-                UnsupervisedCriterionCallback(prefix='unsupervised', loss_key='unsupervised',
-                                              unsupervised_label=UNLABELED_CLASS)]
+            callbacks = [UnsupervisedCriterionCallback(prefix='unsupervised',
+                                                       loss_key='unsupervised',
+                                                       unsupervised_label=UNLABELED_CLASS)] + callbacks
 
         # Main train
         set_trainable(model.encoder, True, False)
@@ -369,8 +370,6 @@ def main():
 
         if l2 > 0:
             callbacks += [L2RegularizationCallback(multiplier=l2, loss_key='l2')]
-
-        callbacks += [CustomOptimizerCallback()]
 
         scheduler = get_scheduler(scheduler_name, optimizer,
                                   lr=learning_rate,

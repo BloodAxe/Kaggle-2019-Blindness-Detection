@@ -318,7 +318,9 @@ def main():
             ConfusionMatrixCallbackFromRegression(output_key='regression',
                                                   class_names=get_class_names(),
                                                   ignore_index=UNLABELED_CLASS),
-            NegativeMiningCallback(from_regression=True, output_key='regression', ignore_index=UNLABELED_CLASS),
+            NegativeMiningCallback(from_regression=True, output_key='regression',
+                                   ignore_index=UNLABELED_CLASS),
+            CustomOptimizerCallback()
         ]
 
         runner = SupervisedRunner(input_key='image')
@@ -358,9 +360,9 @@ def main():
                                          minimize=False)]
 
         if use_unsupervised:
-            callbacks += [
-                UnsupervisedCriterionCallback(prefix='unsupervised', loss_key='unsupervised',
-                                              unsupervised_label=UNLABELED_CLASS)]
+            callbacks = [UnsupervisedCriterionCallback(prefix='unsupervised',
+                                                       loss_key='unsupervised',
+                                                       unsupervised_label=UNLABELED_CLASS)] + callbacks
 
         # Main train
         set_trainable(model.encoder, True, False)
@@ -382,8 +384,6 @@ def main():
 
         if l2 > 0:
             callbacks += [L2RegularizationCallback(multiplier=l2, loss_key='l2')]
-
-        callbacks += [CustomOptimizerCallback()]
 
         scheduler = get_scheduler(scheduler_name, optimizer,
                                   lr=learning_rate,
