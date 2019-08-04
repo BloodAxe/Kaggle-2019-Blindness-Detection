@@ -319,13 +319,14 @@ class CappaLoss(nn.Module):
 class HybridCappaLoss(nn.Module):
     # TODO: Test
     # https://github.com/JeffreyDF/kaggle_diabetic_retinopathy/blob/master/losses.py#L51
-    def __init__(self, y_pow=2, log_scale=0.5, eps=1e-15, log_cutoff=0.9, ignore_index=None):
+    def __init__(self, y_pow=2, log_scale=1.0, eps=1e-15, log_cutoff=0.9, ignore_index=None, gamma=2.):
         super().__init__()
         self.y_pow = y_pow
         self.log_scale = log_scale
         self.log_cutoff = log_cutoff
         self.eps = eps
         self.ignore_index = ignore_index
+        self.gamma = 2
 
     def forward(self, input: torch.Tensor, target: torch.Tensor):
         if self.ignore_index is not None:
@@ -336,15 +337,19 @@ class HybridCappaLoss(nn.Module):
         if not len(target):
             return torch.tensor(0.).to(input.device)
 
-        crossentropy_loss = soft_crossentropy(input, target, smooth_factor=0.01)
-        # clamped_log_loss = torch.clamp(log_loss, self.log_cutoff, 10 ** 3)
+        focal_loss = 0
+        num_classes = input.size(1)
+        for cls in range(num_classes):
+            cls_label_target = (target == cls).long()
+            cls_label_input = input[:, cls]
+            focal_loss += sigmoid_focal_loss(cls_label_input, cls_label_target, gamma=self.gamma, alpha=None)
 
         # Second term
         y = F.log_softmax(input, dim=1).exp()
         target_one_hot = F.one_hot(target, input.size(1)).float()
         kappa_loss = quad_kappa_loss_v2(y, target_one_hot, y_pow=self.y_pow, eps=self.eps)
 
-        return kappa_loss + self.log_scale * crossentropy_loss
+        return kappa_loss + self.log_scale * focal_loss
 
 
 def _reduction(loss: torch.Tensor, reduction: str) -> torch.Tensor:
