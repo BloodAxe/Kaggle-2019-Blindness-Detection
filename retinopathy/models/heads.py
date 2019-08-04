@@ -2,7 +2,7 @@ import numpy as np
 import pytorch_toolbelt.inference.functional as FF
 import torch
 from pytorch_toolbelt.modules.encoders import EncoderModule
-from pytorch_toolbelt.modules.pooling import GlobalAvgPool2d, GlobalMaxPool2d
+from pytorch_toolbelt.modules.pooling import GlobalAvgPool2d, GlobalMaxPool2d, GWAP
 from torch import nn
 from torch.nn import functional as F
 
@@ -120,6 +120,53 @@ class GlobalAvgPoolHead(nn.Module):
         logits = F.adaptive_avg_pool2d(logits, output_size=1)
         # Flatten
         logits = logits.view(logits.size(0), logits.size(1))
+
+        regression = self.regression(features)
+        if regression.size(1) == 1:
+            regression = regression.squeeze(1)
+
+        return {
+            'features': features,
+            'logits': logits,
+            'regression': regression
+        }
+
+
+class GlobalWeightedAvgPoolHead(nn.Module):
+    """
+    1) Squeeze last feature map in num_classes
+    2) Compute global average
+    """
+
+    def __init__(self, feature_maps, num_classes:int, dropout=0.):
+        super().__init__()
+        self.features_size = feature_maps[-1]
+        self.gwap = GWAP(self.features_size)
+        self.dropout = nn.Dropout(dropout)
+        self.logits = nn.Linear(self.features_size, num_classes)
+
+        # Regression to grade using SSD-like module
+        self.regression = nn.Sequential(
+            nn.Conv2d(self.features_size, 16, kernel_size=1, padding=1),
+            nn.ELU(inplace=True),
+            nn.Conv2d(16, 16, kernel_size=3, padding=1),
+            nn.ELU(inplace=True),
+            nn.Conv2d(16, 16, kernel_size=3, padding=1),
+            nn.ELU(inplace=True),
+            nn.Conv2d(16, 1, kernel_size=3, padding=1),
+            nn.ELU(inplace=True),
+            GlobalAvgPool2d(),
+            Flatten()
+        )
+
+    def forward(self, feature_maps):
+        # Take last feature map
+        features = feature_maps[-1]
+        features = self.gwap(features)
+        features = features.view(features.size(0), features.size(1))
+        features = self.dropout(features)
+
+        logits = self.logits(features)
 
         regression = self.regression(features)
         if regression.size(1) == 1:
