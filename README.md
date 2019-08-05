@@ -77,6 +77,9 @@ Using only one model **seresnext50**.
 | Regression with aux loss | 0.8737 ± 0.0214 | 0.668      | reg_seresnext50_rms   | IDRID          | 4 folds | train_regression_baseline.py -m reg_seresnext50_rms -a medium -f 0 -f 1 -f 2 -f 3 -b 60 --fp16 -o Adam -d 0.5 -s multistep -lr 1e-4 -e 100 -es 20 -v --use-idrid --warmup 10
 | Regression with aux loss | 0.9006 ± 0.0141 | 0.554      | reg_seresnext50_rms   | Messidor       | 4 folds | train_regression_baseline.py -m reg_seresnext50_rms -a medium -f 0 -f 1 -f 2 -f 3 -b 60 --fp16 -o Adam -d 0.5 -s multistep -lr 1e-4 -e 100 -es 20 -v --use-messidor --warmup 10
 | Regression with aux loss | 0.9134 ± 0.0044 | 0.779      | reg_seresnext50_rms   | A15, ID, MD    | 4 folds | train_regression_baseline.py -m reg_seresnext50_rms -a medium -f 0 -f 1 -f 2 -f 3 -b 60 --fp16 -o Adam -d 0.5 -s multistep -lr 1e-4 -e 100 -es 20 -v --use-messidor --warmup 10
+|--------------------------|-----------------|------------|-----------------------|------------|---------|-|
+| Regression with aux loss | 0.9231 ± 0.0043 | 0.813      | seresnextd50_gwap     | A15, ID, MD    | 4 folds | train_regression_baseline.py train_regression_baseline.py -m seresnext50d_gwap -a medium -f 0 -f 1 -f 2 -f 3 -b 60 --size 512 --fp16 -o AdamW -wd 1e-4 -s multistep -lr 3e-4 -e 50 --use-idrid --use-messidor --use-aptos2019 -v --criterion-cls focal_kappa -l1 2e-4
+| Regression with aux loss |                 |            | seresnextd50_gap      | A15, ID, MD    | 4 folds | train_regression_baseline.py train_regression_baseline.py -m seresnext50d_gwap -a medium -f 0 -f 1 -f 2 -f 3 -b 60 --size 512 --fp16 -o AdamW -wd 1e-4 -s multistep -lr 3e-4 -e 50 --use-idrid --use-messidor --use-aptos2019 -v --criterion-cls focal_kappa -l1 2e-4
 
 
 # References
