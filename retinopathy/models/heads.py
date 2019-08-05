@@ -147,16 +147,14 @@ class GlobalWeightedAvgPoolHead(nn.Module):
 
         # Regression to grade using SSD-like module
         self.regression = nn.Sequential(
-            nn.Conv2d(self.features_size, 16, kernel_size=1, padding=1),
+            nn.Linear(self.features_size, 16),
             nn.ELU(inplace=True),
-            nn.Conv2d(16, 16, kernel_size=3, padding=1),
+            nn.Linear(16, 16),
             nn.ELU(inplace=True),
-            nn.Conv2d(16, 16, kernel_size=3, padding=1),
+            nn.Linear(16, 16),
             nn.ELU(inplace=True),
-            nn.Conv2d(16, 1, kernel_size=3, padding=1),
+            nn.Linear(16, 1),
             nn.ELU(inplace=True),
-            GlobalAvgPool2d(),
-            Flatten()
         )
 
     def forward(self, feature_maps):
