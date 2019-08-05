@@ -15,7 +15,7 @@ from torch.utils import model_zoo
 __all__ = ['dilated_senet154', 'dilated_se_resnet50', 'dilated_se_resnet101', 'dilated_se_resnet152',
            'dilated_se_resnext50_32x4d', 'dilated_se_resnext101_32x4d', 'DilatedSEResNeXt50Encoder']
 
-pretrained_settings = {
+pretrained_settings_dilated = {
     'senet154': {
         'imagenet': {
             'url': 'http://data.lip6.fr/cadene/pretrainedmodels/senet154-c7b49a05.pth',
@@ -123,7 +123,7 @@ class SEModule(nn.Module):
         return module_input * x
 
 
-class Bottleneck(nn.Module):
+class BottleneckD(nn.Module):
     """
     Base class for bottlenecks that implements `forward()` method.
     """
@@ -160,7 +160,7 @@ class Bottleneck(nn.Module):
         return out
 
 
-class SEBottleneck(Bottleneck):
+class SEBottleneckD(BottleneckD):
     """
     Bottleneck for SENet154.
     """
@@ -169,7 +169,7 @@ class SEBottleneck(Bottleneck):
 
     def __init__(self, inplanes, planes, groups, reduction, stride=1,
                  downsample=None, dilation=1, drop_connect_rate=0.):
-        super(SEBottleneck, self).__init__(drop_connect_rate)
+        super(SEBottleneckD, self).__init__(drop_connect_rate)
         self.conv1 = nn.Conv2d(inplanes, planes * 2, kernel_size=1, bias=False)
         self.bn1 = nn.BatchNorm2d(planes * 2)
         self.conv2 = nn.Conv2d(planes * 2, planes * 4, kernel_size=3,
@@ -185,7 +185,7 @@ class SEBottleneck(Bottleneck):
         self.stride = stride
 
 
-class SEResNetBottleneck(Bottleneck):
+class SEResNetBottleneckD(BottleneckD):
     """
     ResNet bottleneck with a Squeeze-and-Excitation module. It follows Caffe
     implementation and uses `stride=stride` in `conv1` and not in `conv2`
@@ -196,7 +196,7 @@ class SEResNetBottleneck(Bottleneck):
 
     def __init__(self, inplanes, planes, groups, reduction, stride=1,
                  downsample=None, dilation=1, drop_connect_rate=0.):
-        super(SEResNetBottleneck, self).__init__(drop_connect_rate)
+        super(SEResNetBottleneckD, self).__init__(drop_connect_rate)
         self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, bias=False,
                                stride=stride)
         self.bn1 = nn.BatchNorm2d(planes)
@@ -211,7 +211,7 @@ class SEResNetBottleneck(Bottleneck):
         self.stride = stride
 
 
-class SEResNeXtBottleneck(Bottleneck):
+class SEResNeXtBottleneckD(BottleneckD):
     """
     ResNeXt bottleneck type C with a Squeeze-and-Excitation module.
     """
@@ -220,7 +220,7 @@ class SEResNeXtBottleneck(Bottleneck):
 
     def __init__(self, inplanes, planes, groups, reduction, stride=1,
                  downsample=None, base_width=4, dilation=1, drop_connect_rate=0.):
-        super(SEResNeXtBottleneck, self).__init__(drop_connect_rate)
+        super(SEResNeXtBottleneckD, self).__init__(drop_connect_rate)
         width = math.floor(planes * (base_width / 64)) * groups
         self.conv1 = nn.Conv2d(inplanes, width, kernel_size=1, bias=False,
                                stride=1)
@@ -236,7 +236,7 @@ class SEResNeXtBottleneck(Bottleneck):
         self.stride = stride
 
 
-class SENet(nn.Module):
+class SENetD(nn.Module):
 
     def __init__(self, block, layers, groups, reduction, dropout_p=0.1,
                  inplanes=128, input_3x3=True, dilation=(1, 1, 2, 4), downsample_kernel_size=3,
@@ -284,7 +284,7 @@ class SENet(nn.Module):
         num_classes (int): Number of outputs in `last_linear` layer.
             - For all models: 1000
         """
-        super(SENet, self).__init__()
+        super(SENetD, self).__init__()
         self.inplanes = inplanes
         if input_3x3:
             layer0_modules = [
@@ -410,7 +410,7 @@ class SENet(nn.Module):
         return x
 
 
-def initialize_pretrained_model(model, num_classes, settings):
+def initialize_pretrained_model_dilated(model, num_classes, settings):
     assert num_classes == settings['num_classes'], \
         'num_classes should be {}, but is {}'.format(
             settings['num_classes'], num_classes)
@@ -422,67 +422,67 @@ def initialize_pretrained_model(model, num_classes, settings):
     model.std = settings['std']
 
 
-def dilated_senet154(num_classes=1000, pretrained='imagenet', dilation=(1, 1, 2, 4)):
-    model = SENet(SEBottleneck, [3, 8, 36, 3], groups=64, reduction=16, dilation=dilation,
-                  dropout_p=0.2, num_classes=num_classes)
+def dilated_senet154(num_classes=1000, pretrained='imagenet', dilation=(1, 1, 2, 4), dropout_p=0.2):
+    model = SENetD(SEBottleneckD, [3, 8, 36, 3], groups=64, reduction=16, dilation=dilation,
+                   dropout_p=dropout_p, num_classes=num_classes)
     if pretrained is not None:
-        settings = pretrained_settings['senet154'][pretrained]
-        initialize_pretrained_model(model, num_classes, settings)
+        settings = pretrained_settings_dilated['senet154'][pretrained]
+        initialize_pretrained_model_dilated(model, num_classes, settings)
     return model
 
 
-def dilated_se_resnet50(num_classes=1000, pretrained='imagenet', dilation=(1, 1, 2, 4)):
-    model = SENet(SEResNetBottleneck, [3, 4, 6, 3], groups=1, reduction=16, dilation=dilation,
-                  dropout_p=None, inplanes=64, input_3x3=False,
-                  downsample_kernel_size=1, downsample_padding=0,
-                  num_classes=num_classes)
+def dilated_se_resnet50(num_classes=1000, pretrained='imagenet', dilation=(1, 1, 2, 4), dropout_p=0.1):
+    model = SENetD(SEResNetBottleneckD, [3, 4, 6, 3], groups=1, reduction=16, dilation=dilation,
+                   dropout_p=dropout_p, inplanes=64, input_3x3=False,
+                   downsample_kernel_size=1, downsample_padding=0,
+                   num_classes=num_classes)
     if pretrained is not None:
-        settings = pretrained_settings['se_resnet50'][pretrained]
-        initialize_pretrained_model(model, num_classes, settings)
+        settings = pretrained_settings_dilated['se_resnet50'][pretrained]
+        initialize_pretrained_model_dilated(model, num_classes, settings)
     return model
 
 
-def dilated_se_resnet101(num_classes=1000, pretrained='imagenet', dilation=(1, 1, 2, 4)):
-    model = SENet(SEResNetBottleneck, [3, 4, 23, 3], groups=1, reduction=16, dilation=dilation,
-                  dropout_p=None, inplanes=64, input_3x3=False,
-                  downsample_kernel_size=1, downsample_padding=0,
-                  num_classes=num_classes)
+def dilated_se_resnet101(num_classes=1000, pretrained='imagenet', dilation=(1, 1, 2, 4), dropout_p=0.1):
+    model = SENetD(SEResNetBottleneckD, [3, 4, 23, 3], groups=1, reduction=16, dilation=dilation,
+                   dropout_p=dropout_p, inplanes=64, input_3x3=False,
+                   downsample_kernel_size=1, downsample_padding=0,
+                   num_classes=num_classes)
     if pretrained is not None:
-        settings = pretrained_settings['se_resnet101'][pretrained]
-        initialize_pretrained_model(model, num_classes, settings)
+        settings = pretrained_settings_dilated['se_resnet101'][pretrained]
+        initialize_pretrained_model_dilated(model, num_classes, settings)
     return model
 
 
-def dilated_se_resnet152(num_classes=1000, pretrained='imagenet', dilation=(1, 1, 2, 4)):
-    model = SENet(SEResNetBottleneck, [3, 8, 36, 3], groups=1, reduction=16, dilation=dilation,
-                  dropout_p=None, inplanes=64, input_3x3=False,
-                  downsample_kernel_size=1, downsample_padding=0,
-                  num_classes=num_classes)
+def dilated_se_resnet152(num_classes=1000, pretrained='imagenet', dilation=(1, 1, 2, 4), dropout_p=0.1):
+    model = SENetD(SEResNetBottleneckD, [3, 8, 36, 3], groups=1, reduction=16, dilation=dilation,
+                   dropout_p=dropout_p, inplanes=64, input_3x3=False,
+                   downsample_kernel_size=1, downsample_padding=0,
+                   num_classes=num_classes)
     if pretrained is not None:
-        settings = pretrained_settings['se_resnet152'][pretrained]
-        initialize_pretrained_model(model, num_classes, settings)
+        settings = pretrained_settings_dilated['se_resnet152'][pretrained]
+        initialize_pretrained_model_dilated(model, num_classes, settings)
     return model
 
 
 def dilated_se_resnext50_32x4d(num_classes=1000, pretrained='imagenet', dilation=(1, 1, 2, 4), dropout_p=0.1):
-    model = SENet(SEResNeXtBottleneck, [3, 4, 6, 3], groups=32, reduction=16, dilation=dilation,
-                  dropout_p=dropout_p, inplanes=64, input_3x3=False,
-                  downsample_kernel_size=1, downsample_padding=0,
-                  num_classes=num_classes)
+    model = SENetD(SEResNeXtBottleneckD, [3, 4, 6, 3], groups=32, reduction=16, dilation=dilation,
+                   dropout_p=dropout_p, inplanes=64, input_3x3=False,
+                   downsample_kernel_size=1, downsample_padding=0,
+                   num_classes=num_classes)
     if pretrained is not None:
-        settings = pretrained_settings['se_resnext50_32x4d'][pretrained]
-        initialize_pretrained_model(model, num_classes, settings)
+        settings = pretrained_settings_dilated['se_resnext50_32x4d'][pretrained]
+        initialize_pretrained_model_dilated(model, num_classes, settings)
     return model
 
 
-def dilated_se_resnext101_32x4d(num_classes=1000, pretrained='imagenet', dilation=(1, 1, 2, 4)):
-    model = SENet(SEResNeXtBottleneck, [3, 4, 23, 3], groups=32, reduction=16, dilation=dilation,
-                  dropout_p=None, inplanes=64, input_3x3=False,
-                  downsample_kernel_size=1, downsample_padding=0,
-                  num_classes=num_classes)
+def dilated_se_resnext101_32x4d(num_classes=1000, pretrained='imagenet', dilation=(1, 1, 2, 4), dropout_p=0.1):
+    model = SENetD(SEResNeXtBottleneckD, [3, 4, 23, 3], groups=32, reduction=16, dilation=dilation,
+                   dropout_p=dropout_p, inplanes=64, input_3x3=False,
+                   downsample_kernel_size=1, downsample_padding=0,
+                   num_classes=num_classes)
     if pretrained is not None:
-        settings = pretrained_settings['se_resnext101_32x4d'][pretrained]
-        initialize_pretrained_model(model, num_classes, settings)
+        settings = pretrained_settings_dilated['se_resnext101_32x4d'][pretrained]
+        initialize_pretrained_model_dilated(model, num_classes, settings)
     return model
 
 

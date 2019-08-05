@@ -35,11 +35,13 @@ from torch.autograd import Variable
 from torchvision.models import densenet169, densenet121, densenet201
 import torch.utils.model_zoo as model_zoo
 from multiprocessing.pool import Pool
+from collections import OrderedDict
 from albumentations.augmentations.functional import longest_max_size
 import pytorch_toolbelt.inference.functional as FF
 
 UNLABELED_CLASS = -100
 pretrained_settings = None
+pretrained_settings_dilated = None
 # Functions
 def tensor_from_rgb_image(image: np.ndarray) -> torch.Tensor:
     image = np.moveaxis(image, -1, 0)
@@ -162,76 +164,6 @@ class GlobalAvgPool2d(nn.Module):
         return F.adaptive_avg_pool2d(inputs, output_size=1)
 
 
-class GlobalAvgPool2dHead(nn.Module):
-    """Global average pooling classifier module"""
-
-    def __init__(self, features):
-        super().__init__()
-        if isinstance(features, list):
-            features = features[-1]
-
-        self.features_size = features
-        self.avg_pool = GlobalAvgPool2d()
-
-    def forward(self, feature_maps):
-        x = feature_maps[-1]
-        x = self.avg_pool(x)
-        x = x.view(x.size(0), -1)
-        return x
-
-
-class GlobalMaxPool2dHead(nn.Module):
-    """Global max pooling classifier module"""
-
-    def __init__(self, features):
-        super().__init__()
-        if isinstance(features, list):
-            features = features[-1]
-
-        self.features_size = features
-        self.max_pool = GlobalMaxPool2d()
-
-    def forward(self, feature_maps):
-        x = feature_maps[-1]
-        x = self.max_pool(x)
-        x = x.view(x.size(0), -1)
-        return x
-
-
-class GlobalMaxAvgPool2dHead(nn.Module):
-    def __init__(self, features):
-        super().__init__()
-        if isinstance(features, list):
-            features = features[-1]
-
-        self.features_size = features * 2
-        self.avg_pool = GlobalAvgPool2d()
-        self.max_pool = GlobalMaxPool2d()
-
-    def forward(self, feature_maps):
-        x = feature_maps[-1]
-        x = torch.cat([self.avg_pool(x), self.max_pool(x)], dim=1)
-        x = x.view(x.size(0), -1)
-        return x
-
-
-class ObjectContextPoolHead(nn.Module):
-    def __init__(self, features, oc_features, dropout=0.0):
-        super().__init__()
-        if isinstance(features, list):
-            features = features[-1]
-
-        self.features_size = oc_features
-        self.oc = ASP_OC_Module(features, oc_features, dropout=dropout, dilations=(3, 5, 7))
-        self.max_pool = GlobalMaxPool2d()
-
-    def forward(self, feature_maps):
-        x = feature_maps[-1]
-        x = self.oc(x)
-        x = self.max_pool(x)
-        return x
-
-
 class DenseNet121Encoder(EncoderModule):
     def __init__(self, pretrained=True):
         densenet = densenet121(pretrained=pretrained)
@@ -266,6 +198,455 @@ class DenseNet201Encoder(EncoderModule):
         x = self.features(x)
         x = F.relu(x, inplace=True)
         return [x]
+
+
+def drop_connect(inputs, p, training):
+    """
+    Drop connect implementation.
+    """
+    if not training:
+        return inputs
+    batch_size = inputs.shape[0]
+    keep_prob = 1 - p
+    random_tensor = keep_prob
+    random_tensor += torch.rand([batch_size, 1, 1, 1],
+                                dtype=inputs.dtype, device=inputs.device)  # uniform [0,1)
+    binary_tensor = torch.floor(random_tensor)
+    output = (inputs / keep_prob) * binary_tensor
+    return output
+
+
+def initialize_pretrained_model_dilated(model, num_classes, settings):
+    assert num_classes == settings['num_classes'], \
+        'num_classes should be {}, but is {}'.format(
+            settings['num_classes'], num_classes)
+    model.load_state_dict(model_zoo.load_url(settings['url']))
+    model.input_space = settings['input_space']
+    model.input_size = settings['input_size']
+    model.input_range = settings['input_range']
+    model.mean = settings['mean']
+    model.std = settings['std']
+
+
+class SEModule(nn.Module):
+
+    def __init__(self, channels, reduction):
+        super(SEModule, self).__init__()
+        self.avg_pool = nn.AdaptiveAvgPool2d(1)
+        self.fc1 = nn.Conv2d(channels, channels // reduction, kernel_size=1,
+                             padding=0)
+        self.relu = nn.ReLU(inplace=True)
+        self.fc2 = nn.Conv2d(channels // reduction, channels, kernel_size=1,
+                             padding=0)
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, x):
+        module_input = x
+        x = self.avg_pool(x)
+        x = self.fc1(x)
+        x = self.relu(x)
+        x = self.fc2(x)
+        x = self.sigmoid(x)
+        return module_input * x
+
+
+class BottleneckD(nn.Module):
+    """
+    Base class for bottlenecks that implements `forward()` method.
+    """
+
+    def __init__(self, drop_connect_rate=0.):
+        super().__init__()
+        self.drop_connect_rate = drop_connect_rate
+
+    def forward(self, x):
+        residual = x
+
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu(out)
+
+        out = self.conv2(out)
+        out = self.bn2(out)
+        out = self.relu(out)
+
+        out = self.conv3(out)
+        out = self.bn3(out)
+
+        if self.downsample is not None:
+            residual = self.downsample(x)
+
+        out = self.se_module(out)
+        if self.drop_connect_rate:
+            out = drop_connect(out, p=self.drop_connect_rate,
+                               training=self.training)
+
+        out = out + residual
+        out = self.relu(out)
+
+        return out
+
+
+class SEBottleneckD(BottleneckD):
+    """
+    Bottleneck for SENet154.
+    """
+
+    expansion = 4
+
+    def __init__(self, inplanes, planes, groups, reduction, stride=1,
+                 downsample=None, dilation=1, drop_connect_rate=0.):
+        super(SEBottleneckD, self).__init__(drop_connect_rate)
+        self.conv1 = nn.Conv2d(inplanes, planes * 2, kernel_size=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(planes * 2)
+        self.conv2 = nn.Conv2d(planes * 2, planes * 4, kernel_size=3,
+                               stride=stride, padding=dilation, groups=groups,
+                               bias=False, dilation=dilation)
+        self.bn2 = nn.BatchNorm2d(planes * 4)
+        self.conv3 = nn.Conv2d(planes * 4, planes * 4, kernel_size=1,
+                               bias=False)
+        self.bn3 = nn.BatchNorm2d(planes * 4)
+        self.relu = nn.ReLU(inplace=True)
+        self.se_module = SEModule(planes * 4, reduction=reduction)
+        self.downsample = downsample
+        self.stride = stride
+
+
+class SEResNetBottleneckD(BottleneckD):
+    """
+    ResNet bottleneck with a Squeeze-and-Excitation module. It follows Caffe
+    implementation and uses `stride=stride` in `conv1` and not in `conv2`
+    (the latter is used in the torchvision implementation of ResNet).
+    """
+
+    expansion = 4
+
+    def __init__(self, inplanes, planes, groups, reduction, stride=1,
+                 downsample=None, dilation=1, drop_connect_rate=0.):
+        super(SEResNetBottleneckD, self).__init__(drop_connect_rate)
+        self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, bias=False,
+                               stride=stride)
+        self.bn1 = nn.BatchNorm2d(planes)
+        self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, padding=dilation,
+                               groups=groups, bias=False, dilation=dilation)
+        self.bn2 = nn.BatchNorm2d(planes)
+        self.conv3 = nn.Conv2d(planes, planes * 4, kernel_size=1, bias=False)
+        self.bn3 = nn.BatchNorm2d(planes * 4)
+        self.relu = nn.ReLU(inplace=True)
+        self.se_module = SEModule(planes * 4, reduction=reduction)
+        self.downsample = downsample
+        self.stride = stride
+
+
+class SEResNeXtBottleneckD(BottleneckD):
+    """
+    ResNeXt bottleneck type C with a Squeeze-and-Excitation module.
+    """
+
+    expansion = 4
+
+    def __init__(self, inplanes, planes, groups, reduction, stride=1,
+                 downsample=None, base_width=4, dilation=1, drop_connect_rate=0.):
+        super(SEResNeXtBottleneckD, self).__init__(drop_connect_rate)
+        width = math.floor(planes * (base_width / 64)) * groups
+        self.conv1 = nn.Conv2d(inplanes, width, kernel_size=1, bias=False,
+                               stride=1)
+        self.bn1 = nn.BatchNorm2d(width)
+        self.conv2 = nn.Conv2d(width, width, kernel_size=3, stride=stride, padding=dilation,
+                               groups=groups, bias=False, dilation=dilation)
+        self.bn2 = nn.BatchNorm2d(width)
+        self.conv3 = nn.Conv2d(width, planes * 4, kernel_size=1, bias=False)
+        self.bn3 = nn.BatchNorm2d(planes * 4)
+        self.relu = nn.ReLU(inplace=True)
+        self.se_module = SEModule(planes * 4, reduction=reduction)
+        self.downsample = downsample
+        self.stride = stride
+
+
+class SENetD(nn.Module):
+
+    def __init__(self, block, layers, groups, reduction, dropout_p=0.1,
+                 inplanes=128, input_3x3=True, dilation=(1, 1, 2, 4), downsample_kernel_size=3,
+                 downsample_padding=1, num_classes=1000):
+        """
+        Parameters
+        ----------
+        block (nn.Module): Bottleneck class.
+            - For SENet154: SEBottleneck
+            - For SE-ResNet models: SEResNetBottleneck
+            - For SE-ResNeXt models:  SEResNeXtBottleneck
+        layers (list of ints): Number of residual blocks for 4 layers of the
+            network (layer1...layer4).
+        groups (int): Number of groups for the 3x3 convolution in each
+            bottleneck block.
+            - For SENet154: 64
+            - For SE-ResNet models: 1
+            - For SE-ResNeXt models:  32
+        reduction (int): Reduction ratio for Squeeze-and-Excitation modules.
+            - For all models: 16
+        dropout_p (float or None): Drop probability for the Dropout layer.
+            If `None` the Dropout layer is not used.
+            - For SENet154: 0.2
+            - For SE-ResNet models: None
+            - For SE-ResNeXt models: None
+        inplanes (int):  Number of input channels for layer1.
+            - For SENet154: 128
+            - For SE-ResNet models: 64
+            - For SE-ResNeXt models: 64
+        input_3x3 (bool): If `True`, use three 3x3 convolutions instead of
+            a single 7x7 convolution in layer0.
+            - For SENet154: True
+            - For SE-ResNet models: False
+            - For SE-ResNeXt models: False
+        downsample_kernel_size (int): Kernel size for downsampling convolutions
+            in layer2, layer3 and layer4.
+            - For SENet154: 3
+            - For SE-ResNet models: 1
+            - For SE-ResNeXt models: 1
+        downsample_padding (int): Padding for downsampling convolutions in
+            layer2, layer3 and layer4.
+            - For SENet154: 1
+            - For SE-ResNet models: 0
+            - For SE-ResNeXt models: 0
+        num_classes (int): Number of outputs in `last_linear` layer.
+            - For all models: 1000
+        """
+        super(SENetD, self).__init__()
+        self.inplanes = inplanes
+        if input_3x3:
+            layer0_modules = [
+                ('conv1', nn.Conv2d(3, 64, 3, stride=2, padding=1,
+                                    bias=False)),
+                ('bn1', nn.BatchNorm2d(64)),
+                ('relu1', nn.ReLU(inplace=True)),
+                ('conv2', nn.Conv2d(64, 64, 3, stride=1, padding=1,
+                                    bias=False)),
+                ('bn2', nn.BatchNorm2d(64)),
+                ('relu2', nn.ReLU(inplace=True)),
+                ('conv3', nn.Conv2d(64, inplanes, 3, stride=1, padding=1,
+                                    bias=False)),
+                ('bn3', nn.BatchNorm2d(inplanes)),
+                ('relu3', nn.ReLU(inplace=True)),
+            ]
+        else:
+            layer0_modules = [
+                ('conv1', nn.Conv2d(3, inplanes, kernel_size=7, stride=2,
+                                    padding=3, bias=False)),
+                ('bn1', nn.BatchNorm2d(inplanes)),
+                ('relu1', nn.ReLU(inplace=True)),
+            ]
+        # To preserve compatibility with Caffe weights `ceil_mode=True`
+        # is used instead of `padding=1`.
+        layer0_modules.append(('pool', nn.MaxPool2d(3, stride=2,
+                                                    ceil_mode=True)))
+        self.layer0 = nn.Sequential(OrderedDict(layer0_modules))
+        self.layer1 = self._make_layer(
+            block,
+            planes=64,
+            blocks=layers[0],
+            groups=groups,
+            reduction=reduction,
+            downsample_kernel_size=1,
+            downsample_padding=0,
+            drop_connect_rate=dropout_p,
+            dilation=dilation[0]
+        )
+        self.layer2 = self._make_layer(
+            block,
+            planes=128,
+            blocks=layers[1],
+            stride=2,
+            groups=groups,
+            reduction=reduction,
+            downsample_kernel_size=downsample_kernel_size,
+            downsample_padding=downsample_padding,
+            drop_connect_rate=dropout_p,
+            dilation=dilation[1]
+        )
+        self.layer3 = self._make_layer(
+            block,
+            planes=256,
+            blocks=layers[2],
+            stride=2,
+            groups=groups,
+            reduction=reduction,
+            downsample_kernel_size=downsample_kernel_size,
+            downsample_padding=downsample_padding,
+            drop_connect_rate=dropout_p,
+            dilation=dilation[2]
+        )
+        self.layer4 = self._make_layer(
+            block,
+            planes=512,
+            blocks=layers[3],
+            stride=2,
+            groups=groups,
+            reduction=reduction,
+            downsample_kernel_size=downsample_kernel_size,
+            downsample_padding=downsample_padding,
+            drop_connect_rate=dropout_p,
+            dilation=dilation[3]
+        )
+        self.avg_pool = nn.AvgPool2d(7, stride=1)
+        self.dropout = nn.Dropout(dropout_p) if dropout_p is not None else None
+        self.last_linear = nn.Linear(512 * block.expansion, num_classes)
+
+    def _make_layer(self, block, planes, blocks, groups, reduction, stride=1,
+                    downsample_kernel_size=1, downsample_padding=0, dilation=1, drop_connect_rate=0.):
+        downsample = None
+        if stride != 1 or self.inplanes != planes * block.expansion:
+            downsample = nn.Sequential(
+                nn.Conv2d(self.inplanes, planes * block.expansion,
+                          kernel_size=downsample_kernel_size, stride=stride,
+                          padding=downsample_padding, bias=False),
+                nn.BatchNorm2d(planes * block.expansion),
+            )
+
+        layers = []
+        layers.append(block(self.inplanes, planes, groups, reduction, stride,
+                            downsample))
+        self.inplanes = planes * block.expansion
+        for i in range(1, blocks):
+            d = dilation
+            if i == blocks - 1:
+                d = 1  # Do not apply dillation on last block
+            layers.append(block(self.inplanes, planes, groups, reduction,
+                                dilation=d, drop_connect_rate=drop_connect_rate))
+
+        return nn.Sequential(*layers)
+
+    def features(self, x):
+        x = self.layer0(x)
+        x = self.layer1(x)
+        x = self.layer2(x)
+        x = self.layer3(x)
+        x = self.layer4(x)
+        return x
+
+    def logits(self, x):
+        x = self.avg_pool(x)
+        if self.dropout is not None:
+            x = self.dropout(x)
+        x = x.view(x.size(0), -1)
+        x = self.last_linear(x)
+        return x
+
+    def forward(self, x):
+        x = self.features(x)
+        x = self.logits(x)
+        return x
+
+
+def dilated_se_resnext50_32x4d(num_classes=1000, pretrained='imagenet', dilation=(1, 1, 2, 4), dropout_p=0.1):
+    model = SENetD(SEResNeXtBottleneckD, [3, 4, 6, 3], groups=32, reduction=16, dilation=dilation,
+                   dropout_p=dropout_p, inplanes=64, input_3x3=False,
+                   downsample_kernel_size=1, downsample_padding=0,
+                   num_classes=num_classes)
+    if pretrained is not None:
+        settings = pretrained_settings_dilated['se_resnext50_32x4d'][pretrained]
+        initialize_pretrained_model_dilated(model, num_classes, settings)
+    return model
+
+
+class DilatedSEResNeXt50Encoder(SEResnetEncoder):
+    def __init__(self, pretrained=True, layers=[1, 2, 3, 4], dropout=0.):
+        encoder = dilated_se_resnext50_32x4d(pretrained='imagenet' if pretrained else None, dropout_p=dropout)
+        super().__init__(encoder, [64, 256, 512, 1024, 2048], [2, 4, 8, 16, 32], layers)
+
+
+class GlobalWeightedAvgPoolHead(nn.Module):
+    """
+    1) Squeeze last feature map in num_classes
+    2) Compute global average
+    """
+
+    def __init__(self, feature_maps, num_classes:int, dropout=0.):
+        super().__init__()
+        self.features_size = feature_maps[-1]
+        self.gwap = GWAP(self.features_size)
+        self.dropout = nn.Dropout(dropout)
+        self.logits = nn.Linear(self.features_size, num_classes)
+
+        # Regression to grade using SSD-like module
+        self.regression = nn.Sequential(
+            nn.Linear(self.features_size, 16),
+            nn.ELU(inplace=True),
+            nn.Linear(16, 16),
+            nn.ELU(inplace=True),
+            nn.Linear(16, 16),
+            nn.ELU(inplace=True),
+            nn.Linear(16, 1),
+            nn.ELU(inplace=True),
+        )
+
+    def forward(self, feature_maps):
+        # Take last feature map
+        features = feature_maps[-1]
+        features = self.gwap(features)
+        features = features.view(features.size(0), features.size(1))
+        features = self.dropout(features)
+
+        logits = self.logits(features)
+
+        regression = self.regression(features)
+        if regression.size(1) == 1:
+            regression = regression.squeeze(1)
+
+        return {
+            'features': features,
+            'logits': logits,
+            'regression': regression
+        }
+
+
+class GlobalAvgPoolHead(nn.Module):
+    """
+    1) Squeeze last feature map in num_classes
+    2) Compute global average
+    """
+
+    def __init__(self, feature_maps, num_classes:int, dropout=0.):
+        super().__init__()
+        self.features_size = feature_maps[-1]
+        self.dropout = nn.Dropout(dropout)
+        self.bottleneck = nn.Conv2d(self.features_size, num_classes, kernel_size=1)
+
+        # Regression to grade using SSD-like module
+        self.regression = nn.Sequential(
+            nn.Conv2d(self.features_size, 16, kernel_size=1, padding=1),
+            nn.ELU(inplace=True),
+            nn.Conv2d(16, 16, kernel_size=3, padding=1),
+            nn.ELU(inplace=True),
+            nn.Conv2d(16, 16, kernel_size=3, padding=1),
+            nn.ELU(inplace=True),
+            nn.Conv2d(16, 1, kernel_size=3, padding=1),
+            nn.ELU(inplace=True),
+            GlobalAvgPool2d(),
+            Flatten()
+        )
+
+    def forward(self, feature_maps):
+        # Take last feature map
+        features = feature_maps[-1]
+
+        features = self.dropout(features)
+
+        # Squeeze to num_classes
+        logits = self.bottleneck(features)
+        # Compute average
+        logits = F.adaptive_avg_pool2d(logits, output_size=1)
+        # Flatten
+        logits = logits.view(logits.size(0), logits.size(1))
+
+        regression = self.regression(features)
+        if regression.size(1) == 1:
+            regression = regression.squeeze(1)
+
+        return {
+            'features': features,
+            'logits': logits,
+            'regression': regression
+        }
 
 
 class BasicConv2d(nn.Module):
@@ -758,22 +1139,6 @@ class LogisticCumulativeLink(nn.Module):
         return link_mat
 
 
-class RMSPoolHead(nn.Module):
-    def __init__(self, features):
-        super().__init__()
-        if isinstance(features, list):
-            features = features[-1]
-
-        self.features_size = features
-        self.rms_pool = RMSPool2d()
-
-    def forward(self, feature_maps):
-        x = feature_maps[-1]
-        x = self.rms_pool(x)
-        x = x.view(x.size(0), -1)
-        return x
-
-
 class FourReluBlock(nn.Module):
     """
     Block used for making final regression predictions
@@ -810,32 +1175,6 @@ class FourReluBlock(nn.Module):
         x = self.fc4(x)
         x = self.act4(x)
 
-        return x
-
-
-class CLSBlock(nn.Module):
-    """
-    Block used for making final classification predictions
-    """
-
-    def __init__(self, features, num_classes, reduction=8):
-        super().__init__()
-        bottleneck = features // reduction
-
-        self.bn1 = nn.BatchNorm1d(features)
-        self.fc1 = nn.Linear(features, bottleneck, bias=False)
-
-        self.bn2 = nn.BatchNorm1d(bottleneck)
-        self.fc2 = nn.Linear(bottleneck, num_classes)
-
-    def forward(self, x):
-        x = self.bn1(x)
-        x = F.relu(x, inplace=True)
-        x = self.fc1(x)
-
-        x = self.bn2(x)
-        x = F.relu(x, inplace=True)
-        x = self.fc2(x)
         return x
 
 
@@ -902,178 +1241,20 @@ class Flatten(nn.Module):
         return x.view(x.shape[0], -1)
 
 
-class PoolAndSqueeze(nn.Module):
-    def __init__(self, input_features, output_features, dropout=0.0):
-        super().__init__()
-        self.pool = RMSPool2d()
-        self.dropout = nn.Dropout(dropout)
-        self.bottleneck = nn.Linear(input_features, output_features)
-        self.output_features = output_features
-
-    def forward(self, input):
-        features = self.pool(input)
-        features = features.view(features.size(0), features.size(1))
-        features = self.dropout(features)
-        features = self.bottleneck(features)
-        return features
-
-
 class EncoderHeadModel(nn.Module):
-    def __init__(self, encoder: EncoderModule, head: nn.Module, num_classes=5,
-                 num_regression_dims=1,
-                 dropout=0.0,
-                 reduction=8):
+    def __init__(self, encoder: EncoderModule, head: nn.Module):
         super().__init__()
         self.encoder = encoder
         self.head = head
-        bottleneck_features = head.features_size // reduction
-        self.dropout = nn.Dropout(dropout)
-        self.bottleneck = nn.Linear(head.features_size, bottleneck_features)
-
-        self.regressor = FourReluBlock(bottleneck_features, 64, num_regression_dims)
-        self.logits = nn.Linear(bottleneck_features, num_classes)
-        # self.ordinal = nn.Sequential(nn.Linear(bottleneck_features, num_classes),
-        #                              LogisticCumulativeLink(num_classes, init_cutpoints='ordered'))
 
     @property
     def features_size(self):
         return self.head.features_size
 
-    def forward(self, input):
-        feature_maps = self.encoder(input)
-        features = self.head(feature_maps)
-        features = self.dropout(features)
-        features = self.bottleneck(features)
-
-        logits = self.logits(features)
-        regression = self.regressor(features)
-        # ordinal = self.ordinal(features)
-
-        if regression.size(1) == 1:
-            regression = regression.squeeze(1)
-
-        return {
-            'features': features,
-            'logits': logits,
-            'regression': regression,
-            # 'ordinal': ordinal
-        }
-
-
-class MultistageModel(nn.Module):
-    def __init__(self, encoder: EncoderModule, pooling_module: nn.Module,
-                 num_classes=5,
-                 num_regression_dims=1,
-                 dropout=0.0,
-                 reduction=8):
-        super().__init__()
-        self.encoder = encoder
-        self.pool1 = PoolAndSqueeze(encoder.output_filters[-1], encoder.output_filters[-1] // reduction, dropout)
-        self.pool2 = PoolAndSqueeze(encoder.output_filters[-2], encoder.output_filters[-2] // reduction, dropout)
-        self.pool3 = PoolAndSqueeze(encoder.output_filters[-3], encoder.output_filters[-3] // reduction, dropout)
-
-        bottleneck_features = self.pool1.output_features + self.pool2.output_features + self.pool3.output_features
-        self.regressor = FourReluBlock(bottleneck_features, 64, num_regression_dims)
-        self.logits = nn.Linear(bottleneck_features, num_classes)
-        # self.ordinal = nn.Sequential(nn.Linear(bottleneck_features, num_classes),
-        #                              LogisticCumulativeLink(num_classes, init_cutpoints='ordered'))
-
-    @property
-    def features_size(self):
-        return self.head.features_size
-
-    def forward(self, input):
-        feature_maps = self.encoder(input)
-
-        pool1 = self.pool1(feature_maps[-1])
-        pool2 = self.pool2(feature_maps[-2])
-        pool3 = self.pool3(feature_maps[-3])
-
-        features = torch.cat([pool1, pool2, pool3], dim=1)
-
-        logits = self.logits(features)
-        regression = self.regressor(features)
-        # ordinal = self.ordinal(features)
-
-        if regression.size(1) == 1:
-            regression = regression.squeeze(1)
-
-        return {
-            'features': features,
-            'logits': logits,
-            'regression': regression,
-            # 'ordinal': ordinal
-        }
-
-
-class CyclycEncoderHeadModel(nn.Module):
-    def __init__(self, encoder: EncoderModule, head: nn.Module, num_classes=5,
-                 num_regression_dims=1,
-                 dropout=0.0,
-                 reduction=8):
-        super().__init__()
-        self.encoder = encoder
-        self.head = head
-        bottleneck_features = head.features_size // reduction
-        self.dropout = nn.Dropout(dropout)
-        self.bottleneck = nn.Linear(head.features_size, bottleneck_features)
-
-        self.regressor = FourReluBlock(bottleneck_features, 64, num_regression_dims)
-        self.logits = nn.Linear(bottleneck_features, num_classes)
-        # self.ordinal = nn.Sequential(nn.Linear(bottleneck_features, num_classes),
-        #                              LogisticCumulativeLink(num_classes, init_cutpoints='ordered'))
-
-    @property
-    def features_size(self):
-        return self.head.features_size
-
-    def cyclic_pooling_features(self, image):
-        output = self.head(self.encoder(image))
-        image = image.rot90(1, [2, 3])
-
-        output += self.head(self.encoder(image))
-        image = image.rot90(1, [2, 3])
-
-        output += self.head(self.encoder(image))
-        image = image.rot90(1, [2, 3])
-
-        output += self.head(self.encoder(image))
-        image = image.rot90(1, [2, 3])
-
-        image = FF.torch_transpose(image)
-
-        output += self.head(self.encoder(image))
-        image = image.rot90(1, [2, 3])
-
-        output += self.head(self.encoder(image))
-        image = image.rot90(1, [2, 3])
-
-        output += self.head(self.encoder(image))
-        image = image.rot90(1, [2, 3])
-
-        output += self.head(self.encoder(image))
-
-        one_over_8 = float(1.0 / 8.0)
-        return one_over_8 * output
-
-    def forward(self, input):
-        features = self.cyclic_pooling_features(input)
-        features = self.dropout(features)
-        features = self.bottleneck(features)
-
-        logits = self.logits(features)
-        regression = self.regressor(features)
-        # ordinal = self.ordinal(features)
-
-        if regression.size(1) == 1:
-            regression = regression.squeeze(1)
-
-        return {
-            'features': features,
-            'logits': logits,
-            'regression': regression,
-            # 'ordinal': ordinal
-        }
+    def forward(self, image):
+        feature_maps = self.encoder(image)
+        result = self.head(feature_maps)
+        return result
 
 
 def crop_black(image, tolerance=5):
@@ -1148,7 +1329,12 @@ class ChannelIndependentCLAHE(A.ImageOnlyTransform):
 
 
 def get_model(model_name, num_classes, pretrained=True, dropout=0.0, **kwargs):
-    kind, encoder_name, head_name = model_name.split('_')
+    keys = model_name.split('_')
+    if len(keys) == 2:
+        encoder_name, head_name = keys
+        model = 'baseline'
+    else:
+        model, encoder_name, head_name = keys
 
     ENCODERS = {
         'resnet18': Resnet18Encoder,
@@ -1157,6 +1343,7 @@ def get_model(model_name, num_classes, pretrained=True, dropout=0.0, **kwargs):
         'resnet101': Resnet101Encoder,
         'resnet152': Resnet152Encoder,
         'seresnext50': SEResNeXt50Encoder,
+        'seresnext50d': partial(DilatedSEResNeXt50Encoder, dropout=0.25),
         'seresnext101': SEResNeXt101Encoder,
         'seresnet152': SEResnet152Encoder,
         'densenet121': DenseNet121Encoder,
@@ -1167,26 +1354,18 @@ def get_model(model_name, num_classes, pretrained=True, dropout=0.0, **kwargs):
 
     encoder = ENCODERS[encoder_name](pretrained=pretrained)
 
-    POOLING = {
-        'gap': GlobalAvgPool2dHead,
-        'avg': GlobalAvgPool2dHead,
-        'gmp': GlobalMaxPool2dHead,
-        'max': GlobalMaxPool2dHead,
-        'ocp': partial(ObjectContextPoolHead, oc_features=encoder.output_filters[-1] // 4),
-        'rms': RMSPoolHead,
-        'maxavg': GlobalMaxAvgPool2dHead,
+    HEADS = {
+        'gap': GlobalAvgPoolHead,
+        'gwap': GlobalWeightedAvgPoolHead,
     }
 
     MODELS = {
-        'reg': partial(EncoderHeadModel, num_classes=num_classes, dropout=dropout),
-        'cls': partial(EncoderHeadModel, num_classes=num_classes, dropout=dropout),
-        'ord': partial(EncoderHeadModel, num_classes=num_classes, dropout=dropout),
-        'mul': partial(MultistageModel, num_classes=num_classes, dropout=dropout),
-        'clc': partial(CyclycEncoderHeadModel, num_classes=num_classes, dropout=dropout)
+        'baseline': EncoderHeadModel,
     }
 
-    head = POOLING[head_name](encoder.output_filters)
-    model = MODELS[kind](encoder, head)
+    head = HEADS[head_name](feature_maps=encoder.output_filters, num_classes=num_classes, dropout=dropout)
+
+    model = MODELS[model](encoder, head)
     return model
 
 

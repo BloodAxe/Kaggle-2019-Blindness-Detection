@@ -11,10 +11,11 @@ from retinopathy.dataset import RetinopathyDataset, get_class_names, UNLABELED_C
 from retinopathy.factory import get_model, DenseNet121Encoder, DenseNet201Encoder, DenseNet169Encoder
 from retinopathy.inference import PickModelOutput, run_model_inference, cls_predictions_to_submission, \
     average_predictions, reg_predictions_to_submission, run_model_inference_via_dataset
-from retinopathy.models.heads import RMSPool2d, EncoderHeadModel, GlobalAvgPool2d, GlobalAvgPool2dHead, \
-    GlobalMaxAvgPool2dHead, \
-    GlobalMaxPool2dHead, ObjectContextPoolHead, FourReluBlock, Flatten, CLSBlock, RMSPoolHead, MultistageModel, \
-    PoolAndSqueeze, CyclycEncoderHeadModel
+from retinopathy.models.dilated_senet import DilatedSEResNeXt50Encoder, dilated_se_resnext50_32x4d, SENetD, \
+    SEBottleneckD, SEResNetBottleneckD, SEResNeXtBottleneckD, drop_connect, SEModule, \
+    initialize_pretrained_model_dilated, BottleneckD
+from retinopathy.models.heads import RMSPool2d, EncoderHeadModel, GlobalAvgPool2d, FourReluBlock, Flatten, \
+    GlobalAvgPoolHead, GlobalWeightedAvgPoolHead
 from retinopathy.models.inceptionv4 import InceptionV4Encoder, inceptionv4, InceptionV4, Inception_B, Inception_A, \
     Inception_C, Reduction_A, Mixed_5a, Mixed_3a, Mixed_4a, BasicConv2d, Reduction_B
 from retinopathy.models.oc import ASP_OC_Module, BaseOC_Context_Module, SelfAttentionBlock2D, _SelfAttentionBlock
@@ -82,6 +83,7 @@ def main():
         'from torchvision.models import densenet169, densenet121, densenet201',
         'import torch.utils.model_zoo as model_zoo',
         'from multiprocessing.pool import Pool',
+        'from collections import OrderedDict',
         'from albumentations.augmentations.functional import longest_max_size',
         'import pytorch_toolbelt.inference.functional as FF'
     ]
@@ -93,13 +95,21 @@ def main():
         RetinopathyDataset,
         RMSPool2d,
         GlobalAvgPool2d,
-        GlobalAvgPool2dHead,
-        GlobalMaxPool2dHead,
-        GlobalMaxAvgPool2dHead,
-        ObjectContextPoolHead,
         DenseNet121Encoder,
         DenseNet169Encoder,
         DenseNet201Encoder,
+        drop_connect,
+        initialize_pretrained_model_dilated,
+        SEModule,
+        BottleneckD,
+        SEBottleneckD,
+        SEResNetBottleneckD,
+        SEResNeXtBottleneckD,
+        SENetD,
+        dilated_se_resnext50_32x4d,
+        DilatedSEResNeXt50Encoder,
+        GlobalWeightedAvgPoolHead,
+        GlobalAvgPoolHead,
         BasicConv2d,
         Mixed_3a,
         Mixed_4a,
@@ -117,15 +127,10 @@ def main():
         BaseOC_Context_Module,
         OrdinalEncoderHeadModel,
         LogisticCumulativeLink,
-        RMSPoolHead,
         FourReluBlock,
-        CLSBlock,
         ASP_OC_Module,
         Flatten,
-        PoolAndSqueeze,
         EncoderHeadModel,
-        MultistageModel,
-        CyclycEncoderHeadModel,
         crop_black,
         CropBlackRegions,
         unsharp_mask,
@@ -152,6 +157,8 @@ def main():
     lines.append('\n')
     lines.append(f'UNLABELED_CLASS = {UNLABELED_CLASS}\n')
     lines.append('pretrained_settings = None\n')
+    lines.append('pretrained_settings_dilated = None\n')
+
     lines.append('# Functions\n')
     for function in functions:
         source = inspect.getsource(function)

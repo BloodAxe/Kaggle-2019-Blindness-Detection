@@ -901,7 +901,7 @@ def get_datasets(
         dataset_dir = os.path.join(data_dir, 'aptos-2015')
         tx, vx, ty, vy = get_aptos2015(dataset_dir, random_state, fold, folds)
 
-        if False:
+        if True:
             # Use only images with decease
             tx = tx[ty != 0]
             ty = ty[ty != 0]
