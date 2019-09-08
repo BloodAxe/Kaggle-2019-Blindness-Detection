@@ -1,0 +1,14 @@
+Diagnosis Number    Diagnosis   Abbreviation used
+1   Hollenhorst Emboli  Emboli
+2   Branch Retinal Artery Occlusion BRAO
+3   Cilio-Retinal Artery Occlusion  CRAO
+4   Branch Retinal Vein Occlusion   BRVO
+5   Central Retinal Vein Occlusion  CRVO
+6   Hemi-Central Retinal Vein Occlusion Hemi-CRVO
+7   Background Diabetic Retinopathy BDR/NPDR
+8   Proliferative Diabetic Retinopathy  PDR
+9   Arteriosclerotic Retinopathy    ASR
+10  Hypertensive Retinopathy    HTR
+11  Coat's  None
+12  Macroaneurism   None
+13  Choroidal Neovascularization    CNV

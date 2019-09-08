@@ -1,0 +1,402 @@
+im0001	7		Background Diabetic Retinopathy		
+im0002	13 9		Choroidal Neovascularization AND Arteriosclerotic Retinopathy
+im0003	14	        Drusen, large AND Geographic Atrophy RPE"		
+im0004	14 3		Cilio-Retinal Artery Occlusion OR Central Retinal Artery Occlusion
+im0005	3 5		Central Retinal Artery Occlusion AND Central Retinal Vein Occlusion
+im0006	14		Drusen		
+im0007	13 14 9 10	Choroidal Neovascularization AND Age Related Macular Degeneration AND ASR &HTR                         
+im0008	13 14 9	        Choroidal Neovascularization AND Age Related Macular Degeneration AND ASR
+im0009	7		Background Diabetic Retinopathy
+im0010	14		Histoplasmosis
+im0011	13 14		Choroidal Neovascularization AND Histoplasmosis
+im0012	14		Drusen
+im0013	7		Background Diabetic Retinopathy
+im0014	14		Nevus
+im0015	14	        Drusen
+im0016	7		Background Diabetic Retinopathy
+im0017	13		Choroidal Neovascularization		
+im0018	5		Central Retinal Vein Occlusion, compensated		
+im0019	5		Central Retinal Vein Occlusion		
+im0020	3 5		Central Retinal Artery Occlusion AND Central Retinal Vein Occlusion
+im0021	8		Central Retinal Vein Occlusion		
+im0022	9		Arteriosclerotic Retinopathy		
+im0023	14		????		
+im0024	14		Epiretinal Membrane??		
+im0025	5 9	        Central Retinal Vein Occlusion AND Arteriosclerotic Retinopathy
+im0026	5		Central Retinal Vein Occlusion		
+im0027	5		Central Retinal Vein Occlusion		
+im0028	6 9		Hemi-Central Retinal Vein Occlusion AND Arteriosclerotic Retinopathy
+im0029	14		Unknown Diagnosis		
+im0030	0		Normal?		
+im0031	7		Background Diabetic Retinopathy		
+im0032	0		Normal		
+im0033	5		Central Retinal Vein Occlusion		
+im0034	13 14		Choroidal Neovascularization AND Age Related Macular Degeneration
+im0035	14		Normal		
+im0036	13 14		Choroidal Neovascularization AND Age Related Macular Degeneration
+im0037	13 14 10		Choroidal Neovascularization AND Age Related Macular Degeneration AND HTR           
+im0038	7 10		Background Diabetic Retinopathy AND Hypertensive Retinopathy
+im0039	14		Drusen, fine		
+im0040	7		Background Diabetic Retinopathy OR Human Immune Deficiency Virus
+im0041	14		Drusen, fine		
+im0042	14	        Retinitis, Disease AND Toxoplasmosis		
+im0043	14	        Retinitis, Disease	
+im0044	14		Retinitis, Disease		
+im0045	13 14 9		Choroidal Neovascularization AND Age Related Macular Degeneration AND ASR                         
+im0046	14		Drusen		
+im0047	14		Slide missed		
+im0048	10		Hypertensive Retinopathy		
+im0049	11	        Coats', Not Isolated Telangiectasia		
+im0050	7		Background Diabetic Retinopathy		
+im0051	7		Background Diabetic Retinopathy		
+im0052	11		Coats', Not Isolated Telangiectasia		
+im0053	13 14		Choroidal Neovascularization AND Age Related Macular Degeneration
+im0054	13 14		Choroidal Neovascularization AND Histoplasmosis			
+im0055	14		Choroidal Melanoma		
+im0056	14		Drusen		
+im0057	10  7		Hypertensive Retinopathy??? OR Background Diabetic Retinopathy
+im0058	7	        Background Diabetic Retinopathy		
+im0059	7 14		Background Diabetic Retinopathy??? OR Human Immune Deficiency Virus
+im0060	7		Background Diabetic Retinopathy???		
+im0061	13 14 10		Choroidal Neovascularization AND Age Related Macular Degeneration AND HTR                        
+im0062	13 14 9		Choroidal Neovascularization AND Age Related Macular Degeneration AND ASR                         
+im0063	14		Drusen		
+im0064	12 10 9		Macroaneurism AND Hypertensive Retinopathy AND Arteriosclerotic Retinopathy
+im0065	10 7		Hypertensive Retinopathy??? OR Background Diabetic Retinopathy
+im0066	14		Drusen		
+im0067	14		Retinitis, Disease	
+im0068	14		Drusen		
+im0069	7	        Background Diabetic Retinopathy		
+im0070	7		Background Diabetic Retinopathy???		
+im0071	14		Myelinated Nerve Fibers		
+im0072	14		Unknown Diagnosis, poor quality		
+im0073	10 9		Hypertensive Retinopathy AND Arteriosclerotic Retinopathy
+im0074	5		Central Retinal Vein Occlusion		
+im0075	10 		Hypertensive Retinopathy?		
+im0076	0	        Normal		
+im0077	0 10	 	Normal AND Hypertensive Retinopathy [V: How could it be?]	
+im0078	14	 	Optic Nerve Atrophy		
+im0079	14		Unknown Diagnosis, unannotated		
+im0080	0		Normal?, possibly fine drusen		
+im0081	0		Normal		
+im0082	0		Normal		
+im0083	13 14		Choroidal Neovascularization AND Age Related Macular Degeneration
+im0084	13 14		Choroidal Neovascularization AND Age Related Macular Degeneration
+im0085	8		Proliferative Diabetic Retinopathy		
+im0086	14		Stellate Maculopathy		
+im0087	8		Proliferative Diabetic Retinopathy		
+im0088	14		Retinitis, Disease		
+im0089	7 10		Background Diabetic Retinopathy AND Hypertensive Retinopathy
+im0090	10		Hypertensive Retinopathy		
+im0091	13 14 14		Choroidal Neovascularization AND Age Related Macular Degeneration AND RPED                         
+im0092	13 14		Choroidal Neovascularization AND Age Related Macular Degeneration
+im0093	11		Coats', Not Isolated Telangiectasia		
+im0094	7 10	        Background Diabetic Retinopathy AND Hypertensive Retinopathy
+im0095	4		Branch Retinal Vein Occlusion		
+im0096	7		Background Diabetic Retinopathy		
+im0097	14		Drusen, large AND Drusen, fine		
+im0098	14 10		Drusen, large AND Hypertensive Retinopathy		
+im0099	14		Toxoplasmosis		
+im0100	13 14		Choroidal Neovascularization AND Histoplasmosis		
+im0101	13		Choroidal Neovascularization		
+im0102	14		Patterned PPEopathy		
+im0103	13		Choroidal Neovascularization		
+im0104	13 14		Choroidal Neovascularization AND Age Related Macular Degeneration
+im0105	13 14	        Choroidal Neovascularization AND Age Related Macular Degeneration
+im0106	13 14		Choroidal Neovascularization AND Age Related Macular Degeneration
+im0107	14		Histoplasmosis		
+im0108	0		Slide missed		
+im0109	0		Slide missed		
+im0110	13 14		Choroidal Neovascularization AND Histoplasmosis		
+im0111	7 14		Background Diabetic Retinopathy AND Histoplasmosis	
+im0112	14		Histoplasmosis		
+im0113	7	        Background Diabetic Retinopathy		
+im0114	7		Background Diabetic Retinopathy		
+im0115	7		Background Diabetic Retinopathy		
+im0116	7		Background Diabetic Retinopathy		
+im0117	7 9		Background Diabetic Retinopathy AND Arteriosclerotic Retinopathy
+im0118	7 9		Background Diabetic Retinopathy AND Arteriosclerotic Retinopathy
+im0119	0		Normal		
+im0120	0		Normal		
+im0121	7		Background Diabetic Retinopathy
+im0122	7		Background Diabetic Retinopathy
+im0123	7		Background Diabetic Retinopathy
+im0124	7		Background Diabetic Retinopathy
+im0125	7		Background Diabetic Retinopathy
+im0126	7		Background Diabetic Retinopathy
+im0127	7		Background Diabetic Retinopathy
+im0128	14		Chorioretinal Scar
+im0129	14	        Retinitis, Disease??
+im0130	14		Retinitis, Disease
+im0131	14		Retinitis, Disease
+im0132	14		Frosted Branch Vascuopathy
+im0133	7		Background Diabetic Retinopathy
+im0134	7		Background Diabetic Retinopathy
+im0135	7	        Background Diabetic Retinopathy
+im0136	7		Background Diabetic Retinopathy
+im0137	7		Background Diabetic Retinopathy		
+im0138	7		Background Diabetic Retinopathy		
+im0139	7		Background Diabetic Retinopathy		
+im0140	7		Background Diabetic Retinopathy		
+im0141	7	        Background Diabetic Retinopathy		
+im0142	13 14	        Choroidal Neovascularization AND Age Related Macular Degeneration
+im0143	13 14		Choroidal Neovascularization AND Age Related Macular Degeneration
+im0144	14		Age Related Macular Degeneration		
+im0145	13 14		Choroidal Neovascularization AND Age Related Macular Degeneration
+im0146	14		Nevus		
+im0147	13 14		Choroidal Neovascularization AND Age Related Macular Degeneration
+im0148	13		Choroidal Neovascularization		
+im0149	13 14		Choroidal Neovascularization AND Age Related Macular Degeneration
+im0150	13		Choroidal Neovascularization		
+im0151	13 14		Choroidal Neovascularization AND Age Related Macular Degeneration
+im0152	14		Asteroid Hyalosis		
+im0153	14		Asteroud Hyalosis		
+im0154	13 14		Choroidal Neovascularization AND Age Related Macular Degeneration
+im0155	7 9		Background Diabetic Retinopathy AND Arteriosclerotic Retinopathy
+im0156	7 9		Background Diabetic Retinopathy AND Arteriosclerotic Retinopathy
+im0157	7	        Background Diabetic Retinopathy		
+im0158	13 7		Choroidal Neovascularization AND Age Related Macular Degeneration
+im0159	14		Drusen, fine		
+im0160	5 9	        Central Retinal Vein Occlusion AND Arteriosclerotic Retinopathy
+im0161	5		Central Retinal Vein Occlusion		
+im0162	0		Normal		
+im0163	0		Normal		
+im0164	0		Normal		
+im0165	5		Central Retinal Vein Occlusion		
+im0166	5		Central Retinal Vein Occlusion		
+im0167	0		Normal		
+im0168	5 3		Central Retinal Vein Occlusion AND Central Retinal Artery Occlusion
+im0169	5 3		Central Retinal Vein Occlusion AND Central Retinal Artery Occlusion
+im0170	0		Normal		
+im0171	13 14		Choroidal Neovascularization AND Age Related Macular Degeneration
+im0172	13 14		Choroidal Neovascularization AND Age Related Macular Degeneration
+im0173	14	        Myelinated Nerve Fibers			
+im0174	14		Myelinated Nerve Fibers		
+im0175	14		Drusen, large AND Drusen, fine		
+im0176	14		Unknown diagnosis		
+im0177	11		Coats', Not Isolated Telangiectasia"
+im0178	11		Coats', Not Isolated Telangiectasia"
+im0179	8		Proliferative Diabetic Retinopathy"
+im0180	14		Histoplasmosis???
+im0181	14		Histoplasmosis???
+im0182	14		RD
+im0183	14		Histoplasmosis
+im0184	0 14		Normal AND Choroidal Nevus
+im0185	14		Unknown Diagnosis	
+im0186	7		Background Diabetic Retinopathy AND Choroidal Nevus	
+im0187	7		Background Diabetic Retinopathy	
+im0188	7		Background Diabetic Retinopathy	
+im0189	7		Background Diabetic Retinopathy	
+im0190	0		Normal	
+im0191	7		Background Diabetic Retinopathy	
+im0192	8 14		Proliferative Diabetic Retinopathy AND Drusen, large
+im0193	7 14		Background Diabetic Retinopathy AND Drusen, large		
+im0194	7		Background Diabetic Retinopathy		
+im0195	7	        Background Diabetic Retinopathy		
+im0196	7 9		Background Diabetic Retinopathy AND Arteriosclerotic Retinopathy
+im0197	7		Background Diabetic Retinopathy		
+im0198	0		Normal		
+im0199	0		Normal		
+im0200	4		Branch Retinal Vein Occlusion		
+im0201	4		Branch Retinal Vein Occlusion
+im0202	4		Branch Retinal Vein Occlusion
+im0203	8	        Proliferative Diabetic Retinopathy
+im0204	8		Proliferative Diabetic Retinopathy
+im0205	7		Background Diabetic Retinopathy
+im0206	5	        Central Retinal Vein Occlusion, Rxed
+im0207	5		Central Retinal Vein Occlusion
+im0208	9		Arteriosclerotic Retinopathy
+im0209	4 9		Branch Retinal Vein Occlusion AND Arteriosclerotic Retinopathy
+im0210	5		Central Retinal Vein Occlusion		
+im0211	5		Central Retinal Vein Occlusion		
+im0212	14 10		Epiretinal Membrane AND Hypertensive Retinopathy		
+im0213	0 14		Normal AND High Myopia		
+im0214	6		Hemi-Central Retinal Vein Occlusion	
+im0215	6		Hemi-Central Retinal Vein Occlusion		
+im0216	0		Normal		
+im0217	5		Central Retinal Vein Occlusion
+im0218	5		Central Retinal Vein Occlusion
+im0219	0		Normal
+im0220	10		Hypertensive Retinopathy
+im0221	14		Epiretinal Membrane
+im0222	7		Background Diabetic Retinopathy
+im0223	7		Background Diabetic Retinopathy
+im0224	7		Background Diabetic Retinopathy
+im0225	7		Background Diabetic Retinopathy		
+im0226	6		Hemi-Central Retinal Vein Occlusion		
+im0227	7		Background Diabetic Retinopathy		
+im0228	7		Background Diabetic Retinopathy		
+im0229	7 14		Background Diabetic Retinopathy AND Choroidal Nevus	
+im0230	7 9		Background Diabetic Retinopathy AND Arteriosclerotic Retinopathy
+im0231	0		Normal		
+im0232	8		Proliferative Diabetic Retinopathy		
+im0233	7		Background Diabetic Retinopathy
+im0234	0		Normal
+im0235	0		Normal
+im0236	0		Normal
+im0237	0		Normal
+im0238	0		Normal
+im0239	0		Normal
+im0240	0		Normal
+im0241	0		Normal
+im0242	0		Normal
+im0243	0		Normal
+im0244	0		Normal
+im0245	0		Normal
+im0246	13		Choroidal Neovascularization
+im0247	7		Background Diabetic Retinopathy
+im0248	13		Choroidal Neovascularization
+im0249	0		Normal	
+im0250	14		Drusen, large	
+im0251	7		Background Diabetic Retinopathy	
+im0252	0		Normal	
+im0253	0		Normal	
+im0254	0		Normal	
+im0255	0		Normal	
+im0256	7 14		Background Diabetic Retinopathy AND Choroidal Nevus
+im0257	5		Central Retinal Vein Occlusion		
+im0258	5		Central Retinal Vein Occlusion		
+im0259	13		Choroidal Neovascularization		
+im0260	13 14		Choroidal Neovascularization AND Age Related Macular Degeneration
+im0261	13 14		Choroidal Neovascularization AND Age Related Macular Degeneration
+im0262	14 9		Drusen, large AND Arteriosclerotic Retinopathy		
+im0263	14 9		Drusen, large AND Arteriosclerotic Retinopathy	
+im0264	14 10 		Drusen, large AND Hypertensuve Retinopathy AND	Age Related Macular Degeneration
+im0265	14 10 		Drusen, large AND Hypertensuve Retinopathy AND	Age Related Macular Degeneration
+im0266	14 10 		Drusen, large AND Hypertensuve Retinopathy AND	Age Related Macular Degeneration
+im0267	13 10 14		Choroidal Neovascularization AND Hypertensuve Retinopathy AND Age Related Macular               
+im0268	13 14		Choroidal Neovascularization AND Age Related Macular Degeneration
+im0269	13 14		Choroidal Neovascularization AND Age Related Macular Degeneration
+im0270	13 14		Choroidal Neovascularization AND Age Related Macular Degeneration
+im0271	10		Hypertensuve Retinopathy??		
+im0272	10		Hypertensive Retinopathy??		
+im0273	14		Optic Atrophy
+im0274	10		Hypertensive Retinopathy??
+im0275	10		Hypertensive Retinopathy??
+im0276	10		Hypertensive Retinopathy??
+im0277	7		Background Diabetic Retinopathy
+im0278	0		Normal
+im0279	12		MacroAneurism
+im0280	9		Arteriosclerotic Retinopathy
+im0281	10		Hypertensuve Retinopathy??
+im0282	14		Drusen
+im0283	14		Vasculitis
+im0284	9		Arteriosclerotic Retinopathy
+im0285	14		Retinitis Pigmentosa
+im0286	14		Retinitis, Disease
+im0287	14		Retinitis, Disease
+im0288	14		Retinitis, Disease
+im0289	14		Vasculitis		
+im0290	14		Retinitis, Disease		
+im0291	14		Vasculitis		
+im0292	14		Drusen		
+im0293	9 10		Arteriosclerotic Retinopathy AND Hypertensuve Retinopathy
+im0294	14		Unknown Diagnosis		
+im0295	14		Retinitis, Disease		
+im0296	14		Retinitis, Disease		
+im0297	2		Branch Retinal Artery Occlusion
+im0298	14		Retinitis, Disease
+im0299	2		Branch Retinal Artery Occlusion
+im0300	14		Retinitis, Disease
+im0301	14		Unknown Diagnosis
+im0302	14		Unknown Diagnosis
+im0303	14		Unknown Diagnosis
+im0304	14		Choroidal Nevus AND Drusen
+im0305	14		Retinitis, Disease
+im0306	11		Coats', Not Isolated Telangestasia
+im0307	14		Choroidal Nevus AND Drusen
+im0308	11		Coats', Not Isolated Telangestasia
+im0309	11		Coats', Not Isolated Telangestasia
+im0310	13 14		Choroidal Neovascularization AND Histoplasmosis
+im0311	11		Coats', Not Isolated Telangestasia
+im0312	11		Coats', Not Isolated Telangestasia
+im0313	11		Coats', Not Isolated Telangestasia
+im0314	11		Coats', Not Isolated Telangestasia
+im0315	11		Coats', Not Isolated Telangestasia
+im0316	11		Coats', Not Isolated Telangestasia
+im0317	1		Emboli, Non-Hollenhorst
+im0318	3 1		Central Retinal Artery Occlusion AND Emboli
+im0319	1		Emboli, Non-Hollenhorst
+im0320	3		Central Retinal Artery Occlusion
+im0321	3 1		Central Retinal Artery Occlusion AND Hollenhorst Emboli	
+im0322	3 1             Central Retinal Artery Occlusion AND Hollenhorst Emboli
+im0323	1	        Hollenhorst Plaque		
+im0324	1	        Hollenhorst Plaque		
+im0325	1	        Hollenhorst Plaque		
+im0326	2 1		Branch Retinal Artery Occlusion AND Emboli		
+im0327	2 1             Branch Retinal Artery Occlusion AND Emboli	
+im0328	2 1             Branch Retinal Artery Occlusion AND Emboli	
+im0329	6		Hemi-Central Retinal Vein Occlusion	
+im0330	4		Branch Retinal Vein Occlusion (old)		
+im0331	5		Central Retinal Vein Occlusion		
+im0332	6 10           Hemi-Central Retinal Vein Occlusion AND Hypertensive Retinopathy
+im0333	6	        Hemi-Central Retinal Vein Occlusion		
+im0334	6 9            Hemi-Central Retinal Vein Occlusion AND Arteriosclerotic Retinopathy
+im0335	6		Hemi-Central Retinal Vein Occlusion	
+im0336	6	        Hemi-Central Retinal Vein Occlusion		
+im0337	5		Central Retinal Vein Occlusion (old)
+im0338	4		Branch Retinal Vein Occlusion
+im0339	14 10		Unsure AND Hypertensive Retinopathy
+im0340	8		Proliferative Diabetic Retinopathy
+im0341	8	        Proliferative Diabetic Retinopathy
+im0342	8	        Proliferative Diabetic Retinopathy
+im0343	8	        Proliferative Diabetic Retinopathy
+im0344	14		Unknown Diagnosis
+im0345	8	        Proliferative Diabetic Retinopathy
+im0346	8	        Proliferative Diabetic Retinopathy
+im0347	8	        Proliferative Diabetic Retinopathy
+im0348	8	        Proliferative Diabetic Retinopathy
+im0349	8	        Proliferative Diabetic Retinopathy
+im0350	8	        Proliferative Diabetic Retinopathy
+im0351	8	        Proliferative Diabetic Retinopathy
+im0352	8	        Proliferative Diabetic Retinopathy
+im0353	8	        Proliferative Diabetic Retinopathy		
+im0354	8	        Proliferative Diabetic Retinopathy		
+im0355	14 10 9		Unknown Diagnosis AND Hypertensive Retinopathy	AND Arteriosclerotic Retinopathy
+im0356	8	        Proliferative Diabetic Retinopathy		
+im0357	12		Macroaneurism, Disease		
+im0358	12	        Macroaneurism, Disease		
+im0359	12	        Macroaneurism, Disease		
+im0360	14		Unknown Diagnosis AND Nevus		
+im0361	12 10           Macroaneurism, Disease AND Hypertensive Retinopathy
+im0362	12	        Macroaneurism, Disease		
+im0363	12	        Macroaneurism, Disease		
+im0364	4 9		Branch Retinal Vein Occlusion AND Arteriosclerotic Retinopathy
+im0365	4		Branch Retinal Vein Occlusion		
+im0366	4 9		Branch Retinal Vein Occlusion AND Arteriosclerotic Retinopathy
+im0367	4		Branch Retinal Vein Occlusion		
+im0368	6		Hemi-Central Retinal Vein Occlusion		
+im0369	6		Hemi-Central Retinal Vein Occlusion		
+im0370	13 14		Choroidal Neovascularization AND Age Related Macular Degeneration
+im0371	13		Choroidal Neovascularization		
+im0372	13 14		Choroidal Neovascularization AND Age Related Macular Degeneration
+im0373	13 14		Choroidal Neovascularization AND Age Related Macular Degeneration
+im0374	14		Patterned RPEopathy		
+im0375	13 14		Choroidal Neovascularization AND Age Related Macular Degeneration
+im0376	13 14		Choroidal Neovascularization AND Age Related Macular Degeneration
+im0377	13 14		Choroidal Neovascularization AND Age Related Macular Degeneration
+im0378	13 10 14		Choroidal Neovascularization AND Hypertensive Retinopathy AND Age Related Macular 
+im0379	13 14		Choroidal Neovascularization AND Age Related Macular Degeneration
+im0380	13 14		Choroidal Neovascularization AND Age Related Macular Degeneration
+im0381	13 9 14		Choroidal Neovascularization AND Arteriosclerotic Retinopathy AND Drusen, large AND Nevus                        
+im0382	13 14		Choroidal Neovascularization AND Drusen, large	
+im0383	13 14		Choroidal Neovascularization? AND Age Related Macular Degeneration
+im0384	13 14		Choroidal Neovascularization AND Age Related Macular Degeneration
+im0385	13 14		Choroidal Neovascularization OR Age Related Macular Degeneration
+im0386	14		Choroidal Hemangioma (Recommendation: Don't use)		
+im0387	14		Choroidal Hemangioma (Recommendation: Don't use)		
+im0388	14		Not obvious, Choroidal Hemangioma (Recommendation:"Don't use)
+im0389	14		Choroidal Hemangioma, unknown type (Recommendation:"Don't use)
+im0390	14		Choroidal Hemangioma (Recommendation: Don't use)		
+im0391	14		Choroidal Hemangioma (Recommendation: Don't use)		
+im0392	14		Choroidal Hemangioma (Recommendation: Don't use)		
+im0393	14		tumor unknown (Recommendation: Don't use)		
+im0394	14		Choroidal Hemangioma (Recommendation: Don't use)		
+im0395	14		Choroidal Hemangioma		
+im0396	10 9		Hypertensive Retinopathy AND Arteriosclerotic Retinopathy
+im0397	10		Hypertensive Retinopathy	
+im0398	10 9		Hypertensive Retinopathy AND Arteriosclerotic Retinopathy
+im0399	2 1 9		Branch Retinal Artery Occlusion AND Hollenhorst Plaque Emboli AND ASR                        
+im0400	2 1 9		Branch Retinal Artery Occlusion AND Hollenhorst Plaque Emboli AND ASR                         
+im0401	14		Drusen, large AND Nevus		
+im0402	14		Drusen, large
